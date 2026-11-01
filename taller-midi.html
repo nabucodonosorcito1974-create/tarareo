@@ -187,7 +187,13 @@ details.tarjeta:not([open]){ gap:0; }
 .fam i{ width:10px; height:10px; border-radius:50%; background:var(--famcol); }
 .fam small{ font-weight:400; color:var(--muted); }
 .fam[aria-pressed=false]{ opacity:.55; text-decoration:line-through; }
-.rollo{ overflow-x:auto; border-radius:8px; background:var(--bg); border:1px solid var(--line); }
+.rollo{ position:relative; overflow:hidden; border-radius:8px; background:var(--bg); border:1px solid var(--line); cursor:pointer; touch-action:pan-y; }
+.cabezal{ position:absolute; top:0; bottom:0; left:0; width:2px; margin-left:-1px; background:var(--ambar); box-shadow:0 0 6px var(--ambar); pointer-events:none; transform:translateX(0); will-change:transform; }
+.cabezal::before{ content:""; position:absolute; top:0; left:-5px; border:6px solid transparent; border-top-color:var(--ambar); }
+.transporte{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.tr-play{ width:40px; height:40px; border-radius:50%; padding:0; font-size:15px; background:var(--ambar); color:#fff; border-color:var(--ambar); }
+.tr-stop{ width:40px; height:40px; border-radius:50%; padding:0; font-size:14px; }
+.tr-ayuda{ flex:1 1 220px; font-size:12.5px; }
 canvas{ display:block; }
 .leyenda{ display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); }
 .leyenda i{ display:inline-block; width:12px; height:8px; border-radius:2px; margin-right:5px; vertical-align:middle; }
@@ -241,7 +247,13 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     <p class="error" id="error" role="alert"></p>
     <details class="plegable" id="plRollo" open>
       <summary>Notas en el tiempo</summary>
-      <div class="rollo" id="rollo"><canvas id="lienzo" height="170" aria-label="Notas del MIDI con el tono y la duración finales"></canvas></div>
+      <div class="transporte">
+        <button class="btn tr-play" id="rPlay" type="button" aria-label="Reproducir">▶</button>
+        <button class="btn tr-stop" id="rStop" type="button" aria-label="Parar y volver al principio">■</button>
+        <span class="tiempo" id="rTiempo">0:00 / 0:00</span>
+        <span class="msg tr-ayuda">Haz clic o arrastra sobre las notas para ir a ese punto</span>
+      </div>
+      <div class="rollo" id="rollo"><canvas id="lienzo" height="170" aria-label="Notas del MIDI con el tono y la duración finales"></canvas><div class="cabezal" id="cabezal" aria-hidden="true"></div></div>
     </details>
   </section>
 
@@ -277,6 +289,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     <p class="msg" id="modoTxt">Tal cual quedará el MP3: con el tono, la velocidad y la reverberación elegidos.</p>
     <div class="reproductor">
       <button class="btn play" id="play" type="button" aria-label="Reproducir">▶</button>
+      <button class="btn tr-stop" id="stop" type="button" aria-label="Parar y volver al principio">■</button>
       <input type="range" id="pos" min="0" max="1000" value="0" step="1" aria-label="Posición">
       <span class="tiempo" id="tiempo">0:00 / 0:00</span>
     </div>
@@ -1140,6 +1153,7 @@ function dibujar(){
   const mel=notas.filter(n=>!n.bat); let lo=Math.min(...mel.map(n=>n.m)), hi=Math.max(...mel.map(n=>n.m));
   if(!mel.length){ lo=48; hi=72; } lo-=2; hi+=2; if(hi-lo<14){ const c=(hi+lo)/2; lo=Math.floor(c-7); hi=Math.ceil(c+7); }
   const padL=34, padB=18, X=t=>padL+t/dur*(W-padL-8), rowH=(H-padB-8)/(hi-lo+1), Y=k=>8+(hi-k)*rowH;
+  E.rolloGeo={padL, ancho:W-padL-8};
   g.font='500 10px '+color('--mono'); g.fillStyle=color('--muted'); g.textBaseline='middle';
   for(let k=lo;k<=hi;k++) if(((k%12)+12)%12===0){ g.fillText(NOM[0]+(Math.floor(k/12)-1),2,Y(k)+rowH/2); g.strokeStyle=color('--line'); g.beginPath(); g.moveTo(padL,Y(k)+rowH); g.lineTo(W,Y(k)+rowH); g.stroke(); }
   g.textBaseline='alphabetic'; g.fillText('0:00',padL,H-4); const tt=fmt(dur); g.fillText(tt, W-8-g.measureText(tt).width, H-4);
@@ -1251,7 +1265,8 @@ function duracionPrevista(){ return E.midi ? E.midi.duracion*100/param().vel : 0
 function pintarPos(){
   const d=duracionPrevista(), t=Math.min(posMus()*100/param().vel, d);
   if(!E.arrastrando) $('pos').value= d ? Math.round(t/d*1000) : 0;
-  $('tiempo').textContent=fmt(t)+' / '+fmt(d);
+  $('tiempo').textContent=fmt(t)+' / '+fmt(d); $('rTiempo').textContent=fmt(t)+' / '+fmt(d);
+  const g=E.rolloGeo; if(g && E.midi){ const f=Math.max(0,Math.min(1,posMus()/E.midi.duracion)); $('cabezal').style.transform='translateX('+(g.padL+f*g.ancho).toFixed(1)+'px)'; }
 }
 function sonar(){
   if(!E.midi) return;
@@ -1267,10 +1282,10 @@ function sonar(){
       if(E.vivo.fin() || E.vivo.tMus>E.midi.duracion+8){ E.sonando=false; setTimeout(()=>{ detener(); if(E.vivo){ E.vivo.buscar(0); aplicarVivo(); } pintarPos(); },0); } };
     E.proc.connect(salida());
   }
-  E.sonando=true; $('play').textContent='❚❚'; $('play').setAttribute('aria-label','Pausa');
+  E.sonando=true; for(const id of ['play','rPlay']){ $(id).textContent='❚❚'; $(id).setAttribute('aria-label','Pausa'); }
   cancelAnimationFrame(E.raf); const bucle=()=>{ pintarPos(); pintarVu(); if(E.sonando) E.raf=requestAnimationFrame(bucle); else apagarVu(); }; bucle();
 }
-function detener(){ E.sonando=false; $('play').textContent='▶'; $('play').setAttribute('aria-label','Reproducir'); apagarVu(); pintarPos(); }
+function detener(){ E.sonando=false; for(const id of ['play','rPlay']){ $(id).textContent='▶'; $(id).setAttribute('aria-label','Reproducir'); } apagarVu(); pintarPos(); }
 $('play').onclick=async()=>{ ctx(); if(E.sonando){ detener(); return; } const p=asegurarSonidos(); if(E.sf&&E.midi&&[...sonidosNecesarios()].some(si=>!E.sf.mem.has(si))){ $('play').disabled=true; await p; $('play').disabled=false; } sonar(); };
 // original / con cambios, en el mismo punto de la música y sin parar
 document.querySelectorAll('#modoChips button').forEach(b=>b.onclick=()=>{
@@ -1279,6 +1294,17 @@ document.querySelectorAll('#modoChips button').forEach(b=>b.onclick=()=>{
   $('modoTxt').textContent= E.modo==='original' ? 'MIDI original con tu soundfont: tono y velocidad sin tocar (la mesa sí se aplica).' : 'Tal cual quedará el MP3: con el tono, la velocidad, la mesa y la reverberación elegidos.';
   aplicarVivo(); pintarPos();
 });
+// ---- transporte del gráfico de notas: play/pausa, stop y saltar con clic ----
+$('rPlay').onclick=()=>$('play').click();
+function irA(tMus){ if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(Math.max(0,Math.min(E.midi.duracion,tMus))); aplicarVivo(); pintarPos(); }
+function pararDelTodo(){ detener(); irA(0); }
+$('rStop').onclick=pararDelTodo; $('stop').onclick=pararDelTodo;
+(()=>{ const r=$('rollo'); let ab=false;
+  const t=e=>{ const g=E.rolloGeo; if(!g||!E.midi) return null; const x=e.clientX-r.getBoundingClientRect().left; return (x-g.padL)/g.ancho*E.midi.duracion; };
+  r.addEventListener('pointerdown',e=>{ const m=t(e); if(m==null) return; ab=true; r.setPointerCapture(e.pointerId); irA(m); });
+  r.addEventListener('pointermove',e=>{ if(!ab) return; const m=t(e); if(m!=null) irA(m); });
+  const fin=()=>{ ab=false; }; r.addEventListener('pointerup',fin); r.addEventListener('pointercancel',fin);
+})();
 $('pos').oninput=()=>{ E.arrastrando=true; const d=duracionPrevista(); $('tiempo').textContent=fmt(+$('pos').value/1000*d)+' / '+fmt(d); };
 $('pos').onchange=()=>{ E.arrastrando=false; if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(+$('pos').value/1000*E.midi.duracion); aplicarVivo(); pintarPos(); };
 
