@@ -712,14 +712,13 @@ const enClaude = enClaudeF() || window.self!==window.top;
 
 function audioCtx(){ if(!S.ctx){ S.ctx=new (window.AudioContext||window.webkitAudioContext)(); } if(S.ctx.state==='suspended') S.ctx.resume(); return S.ctx; }
 // si se conectan o desconectan auriculares, el sonido sigue a la salida nueva
-async function seguirSalida(){
+function renovarAudio(){
   const c=S.ctx; if(!c) return;
-  if(typeof c.setSinkId==='function'){ try{ await c.setSinkId(''); return; }catch(e){} }
-  const grabando=(typeof A!=='undefined' && A.grabando) || S.rec;
-  if(grabando) return;            // no se corta una grabación en curso
-  try{ parar(); }catch(e){} try{ pararReprod(); }catch(e){}
-  S.ctx=null; try{ await c.close(); }catch(e){}
+  if((typeof A!=='undefined' && A.grabando) || S.rec) return;   // no se corta una grabación en curso
+  try{ parar(); }catch(e){} try{ if(typeof pararReprod==='function') pararReprod(); }catch(e){} try{ if(typeof pararPrevia==='function') pararPrevia(); }catch(e){}
+  S.ctx=null; try{ c.close(); }catch(e){}
 }
+async function seguirSalida(){ renovarAudio(); }
 let __salidaT=0;
 navigator.mediaDevices?.addEventListener?.('devicechange',()=>{ clearTimeout(__salidaT); __salidaT=setTimeout(seguirSalida,500); });
 function color(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
@@ -790,7 +789,7 @@ function dibujar(cursor){
 // ---------- Reproducción ----------
 function parar(){ S.voces.forEach(v=>{ try{ v.stop(); }catch(e){} }); S.voces=[]; cancelAnimationFrame(S.anim); $('parar').disabled=true; dibujar(); }
 function animar(fin){ const c=audioCtx(); const loop=()=>{ const t=c.currentTime-S.playT0+S.playOff; if(t>fin){ parar(); return; } dibujar(t); S.anim=requestAnimationFrame(loop); }; loop(); }
-$('oirNotas').onclick=()=>{
+$('oirNotas').onclick=()=>{ renovarAudio();
   if(!S.res||!S.res.notas.length) return; parar(); const c=audioCtx(); const t0=c.currentTime+0.08;
   S.res.notas.forEach(n=>{
     const o=c.createOscillator(), g=c.createGain(); o.type='triangle'; o.frequency.value=440*Math.pow(2,(n.m-69)/12);
@@ -800,7 +799,7 @@ $('oirNotas').onclick=()=>{
   });
   S.playT0=t0; S.playOff=S.res.t0; $('parar').disabled=false; animar(S.res.notas[S.res.notas.length-1].e+S.res.t0+0.1);
 };
-$('oirVoz').onclick=()=>{
+$('oirVoz').onclick=()=>{ renovarAudio();
   if(!S.x) return; parar(); const c=audioCtx();
   const buf=c.createBuffer(1,S.x.length,S.sr); buf.copyToChannel ? buf.copyToChannel(S.x,0) : buf.getChannelData(0).set(S.x);
   const src=c.createBufferSource(); src.buffer=buf; src.connect(c.destination); const t0=c.currentTime+0.05; src.start(t0); S.voces.push(src);
@@ -1217,7 +1216,7 @@ async function prepararResultado(dry, tun, sr, titulo){
 // Reproducción del resultado
 function pararReprod(){ A.voces.forEach(v=>{ try{ v.stop(); }catch(e){} }); A.voces=[]; }
 function reproducir(x, sr){
-  pararReprod(); const c=audioCtx(); const b=c.createBuffer(1,x.length,sr); b.copyToChannel ? b.copyToChannel(x,0) : b.getChannelData(0).set(x);
+  pararReprod(); renovarAudio(); const c=audioCtx(); const b=c.createBuffer(1,x.length,sr); b.copyToChannel ? b.copyToChannel(x,0) : b.getChannelData(0).set(x);
   const s=c.createBufferSource(); s.buffer=b; s.connect(c.destination); s.start(); A.voces.push(s);
 }
 $('aOirFin').onclick=()=>A.res && reproducir(A.res.fin, A.res.sr);
