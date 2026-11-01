@@ -720,19 +720,9 @@ const GEN={startAddrsOffset:0,endAddrsOffset:1,startloopAddrsOffset:2,endloopAdd
   keynum:46,velocity:47,initialAttenuation:48,endloopAddrsCoarse:50,coarseTune:51,fineTune:52,sampleID:53,sampleModes:54,scaleTuning:56,exclusiveClass:57,overridingRootKey:58};
 const GEN_DEF=new Int16Array(61); GEN_DEF[8]=13500; GEN_DEF[33]=GEN_DEF[34]=GEN_DEF[35]=GEN_DEF[36]=GEN_DEF[38]=-12000; GEN_DEF[56]=100; GEN_DEF[58]=-1; GEN_DEF[46]=-1; GEN_DEF[47]=-1;
 
-function leerSF2(buf){
-  const d=new DataView(buf.buffer||buf, buf.byteOffset||0, buf.byteLength);
-  const id=o=>String.fromCharCode(d.getUint8(o),d.getUint8(o+1),d.getUint8(o+2),d.getUint8(o+3));
-  if(id(0)!=='RIFF'||id(8)!=='sfbk') throw new Error('No es un soundfont .sf2 válido.');
-  const ch={}; let nombre='';
-  const recorrer=(ini,fin)=>{ let o=ini; while(o+8<=fin){ const n=id(o), l=d.getUint32(o+4,true);
-    if(n==='LIST'){ recorrer(o+12, o+8+l); } else ch[n]={o:o+8,l};
-    o+=8+l+(l&1); } };
-  recorrer(12, d.byteLength);
-  if(ch.INAM){ for(let i=0;i<ch.INAM.l;i++){ const c=d.getUint8(ch.INAM.o+i); if(!c) break; nombre+=String.fromCharCode(c); } }
-  if(!ch.smpl) throw new Error('Este soundfont no tiene muestras sin comprimir (los .sf3 no están soportados).');
-  const smpl=new Int16Array(d.buffer.slice(d.byteOffset+ch.smpl.o, d.byteOffset+ch.smpl.o+(ch.smpl.l&~1)));
-  const rec=(n,size,f)=>{ const c=ch[n], out=[]; for(let o=c.o;o+size<=c.o+c.l;o+=size) out.push(f(o)); return out; };
+// Lee del .sf2 solo el índice de instrumentos; los sonidos se cargan después, solo los que hagan falta
+function analizarIndice(d, ch, nombre){
+  const rec=(n,size,f)=>{ const c=ch[n], out=[]; if(!c) throw new Error('Soundfont incompleto (falta '+n+').'); for(let o=c.o;o+size<=c.o+c.l;o+=size) out.push(f(o)); return out; };
   const nom=(o,n)=>{ let s=''; for(let i=0;i<n;i++){ const c=d.getUint8(o+i); if(!c) break; s+=String.fromCharCode(c); } return s.trim(); };
   const phdr=rec('phdr',38,o=>({nombre:nom(o,20),preset:d.getUint16(o+20,true),banco:d.getUint16(o+22,true),bag:d.getUint16(o+24,true)}));
   const pbag=rec('pbag',4,o=>d.getUint16(o,true)), pgen=rec('pgen',4,o=>[d.getUint16(o,true),d.getInt16(o+2,true),d.getUint8(o+2),d.getUint8(o+3)]);
@@ -740,7 +730,6 @@ function leerSF2(buf){
   const ibag=rec('ibag',4,o=>d.getUint16(o,true)), igen=rec('igen',4,o=>[d.getUint16(o,true),d.getInt16(o+2,true),d.getUint8(o+2),d.getUint8(o+3)]);
   const shdr=rec('shdr',46,o=>({nombre:nom(o,20),ini:d.getUint32(o+20,true),fin:d.getUint32(o+24,true),bucleIni:d.getUint32(o+28,true),bucleFin:d.getUint32(o+32,true),
     sr:d.getUint32(o+36,true),raiz:d.getUint8(o+40),corr:d.getInt8(o+41),tipo:d.getUint16(o+44,true)}));
-  // zonas: {gens:Map, rango:[lo,hi], vel:[lo,hi]}
   const zonas=(bagIni,bagFin,bags,gens,terminal)=>{
     const zs=[]; let global=null;
     for(let b=bagIni;b<bagFin;b++){
@@ -754,12 +743,56 @@ function leerSF2(buf){
   const instrumentos=inst.slice(0,-1).map((ins,i)=>({nombre:ins.nombre, ...zonas(ins.bag, inst[i+1].bag, ibag, igen, 53)}));
   const presets=phdr.slice(0,-1).map((ph,i)=>({nombre:ph.nombre, preset:ph.preset, banco:ph.banco, ...zonas(ph.bag, phdr[i+1].bag, pbag, pgen, 41)}));
   const mapa=new Map(); presets.forEach(p=>mapa.set(p.banco*128+p.preset, p));
-  return { nombre, smpl, shdr, instrumentos, presets, mapa };
+  return { nombre, shdr, instrumentos, presets, mapa, mem:new Map() };
+}
+// fuente: File o Blob (se lee a trozos, nunca entero)
+async function leerSF2(fuente){
+  const leer=async(a,b)=>new DataView(await fuente.slice(a,b).arrayBuffer());
+  const id=(d,o)=>String.fromCharCode(d.getUint8(o),d.getUint8(o+1),d.getUint8(o+2),d.getUint8(o+3));
+  const h=await leer(0,12);
+  if(h.byteLength<12 || id(h,0)!=='RIFF' || id(h,8)!=='sfbk') throw new Error('No es un soundfont .sf2 válido.');
+  const tam=fuente.size; let o=12, smpl=null, nombre='', pdta=null;
+  while(o+12<=tam){
+    const c=await leer(o,o+12), n=id(c,0), l=c.getUint32(4,true), tipo=id(c,8);
+    if(n==='LIST' && tipo==='INFO'){ const d=await leer(o+12,o+8+l); let p=0; while(p+8<=d.byteLength){ const sn=id(d,p), sl=d.getUint32(p+4,true); if(sn==='INAM'){ for(let k=0;k<sl;k++){ const x=d.getUint8(p+8+k); if(!x) break; nombre+=String.fromCharCode(x); } } p+=8+sl+(sl&1); } }
+    else if(n==='LIST' && tipo==='sdta'){ let p=o+12; const fin=o+8+l; while(p+8<=fin){ const s=await leer(p,p+8), sn=id(s,0), sl=s.getUint32(4,true); if(sn==='smpl') smpl={o:p+8,l:sl}; p+=8+sl+(sl&1); } }
+    else if(n==='LIST' && tipo==='pdta'){ pdta={o:o+12, l:l-4}; }
+    o+=8+l+(l&1);
+  }
+  if(!smpl) throw new Error('Este soundfont no tiene muestras sin comprimir (los .sf3 no están soportados).');
+  if(!pdta) throw new Error('Soundfont incompleto (no tiene índice de instrumentos).');
+  const d=await leer(pdta.o, pdta.o+pdta.l), ch={}; let p=0;
+  while(p+8<=d.byteLength){ const sn=id(d,p), sl=d.getUint32(p+4,true); ch[sn]={o:p+8,l:sl}; p+=8+sl+(sl&1); }
+  const sf=analizarIndice(d, ch, nombre);
+  sf.fuente=fuente; sf.smplO=smpl.o; sf.smplN=smpl.l>>1; sf.bytes=tam; sf.cargado=0;
+  return sf;
+}
+function presetDe(sf, banco, prog){
+  return sf.mapa.get(banco*128+prog) || (banco===128 ? (sf.mapa.get(128*128) || sf.mapa.get(128*128+prog)) : sf.mapa.get(prog)) || sf.mapa.get(0) || sf.presets[0];
+}
+function muestrasDePreset(sf, pr, set){
+  if(!pr) return set;
+  for(const pz of pr.zs){ const ins=sf.instrumentos[pz.g.get(41)]; if(!ins) continue; for(const iz of ins.zs){ const si=iz.g.get(53); if(sf.shdr[si]) set.add(si); } }
+  return set;
+}
+// Carga del disco las muestras que falten (agrupando las que están juntas en el archivo)
+async function cargarMuestras(sf, indices, alProgreso){
+  const falta=[...indices].filter(si=>!sf.mem.has(si)).map(si=>[si, sf.shdr[si]]).filter(([,s])=>s && s.fin>s.ini).sort((a,b)=>a[1].ini-b[1].ini);
+  if(!falta.length) return;
+  const grupos=[]; for(const [si,s] of falta){ const a=Math.max(0,s.ini-8), b=Math.min(sf.smplN, s.fin+64), g=grupos[grupos.length-1];
+    if(g && a-g.b < 32768 && b-g.a < 4e6) { g.b=Math.max(g.b,b); g.lista.push(si); } else grupos.push({a,b,lista:[si]}); }
+  const total=grupos.reduce((t,g)=>t+(g.b-g.a)*2,0); let hecho=0;
+  for(const g of grupos){
+    const buf=await sf.fuente.slice(sf.smplO+g.a*2, sf.smplO+g.b*2).arrayBuffer();
+    const data=new Int16Array(buf, 0, buf.byteLength>>1);
+    for(const si of g.lista) sf.mem.set(si, {base:g.a, data});
+    hecho+=buf.byteLength; sf.cargado+=buf.byteLength; if(alProgreso) alProgreso(hecho, total);
+  }
 }
 
 // Busca preset (con alternativas si el banco no existe) y devuelve las regiones que suenan para key/vel
 function regionesSF2(sf, banco, prog, key, vel){
-  const pr= sf.mapa.get(banco*128+prog) || (banco===128 ? (sf.mapa.get(128*128) || sf.mapa.get(128*128+prog)) : sf.mapa.get(prog)) || sf.mapa.get(0) || sf.presets[0];
+  const pr=presetDe(sf, banco, prog);
   if(!pr) return [];
   const res=[];
   for(const pz of pr.zs){
@@ -775,7 +808,8 @@ function regionesSF2(sf, banco, prog, key, vel){
       if(pr.global) pr.global.g.forEach((v,k)=>{ if(!pz.g.has(k)) sumar(v,k); });
       pz.g.forEach(sumar);
       const s=sf.shdr[g[53]]; if(!s) continue;
-      res.push({g, s});
+      const mem=sf.mem.get(g[53]); if(!mem) continue;   // sonido aún no cargado
+      res.push({g, s, mem});
     }
   }
   return res;
@@ -812,9 +846,10 @@ const tc2s=tc=>Math.pow(2,tc/1200);
 class Voz {
   constructor(r, sf, reg, ch, key, vel, sr){
     const g=reg.g, s=reg.s;
-    this.ch=ch; this.key=key; this.sf=sf; this.sr=sr; this.dat=sf.smpl;
-    this.ini=s.ini+g[0]+g[4]*32768; this.fin=s.fin+g[1]+g[12]*32768;
-    this.bi=s.bucleIni+g[2]+g[45]*32768; this.bf=s.bucleFin+g[3]+g[50]*32768;
+    const B=reg.mem.base;
+    this.ch=ch; this.key=key; this.sf=sf; this.sr=sr; this.dat=reg.mem.data;
+    this.ini=Math.max(0,s.ini+g[0]+g[4]*32768-B); this.fin=Math.min(this.dat.length-1, s.fin+g[1]+g[12]*32768-B);
+    this.bi=s.bucleIni+g[2]+g[45]*32768-B; this.bf=Math.min(this.dat.length-1, s.bucleFin+g[3]+g[50]*32768-B);
     this.modo=g[54]&3; if(this.bf<=this.bi+1) this.modo=0;
     const raiz=g[58]>=0? g[58] : s.raiz, k=g[46]>=0? g[46] : key;
     this.centsBase=(k-raiz)*g[56]+g[51]*100+g[52]+s.corr;
@@ -1066,7 +1101,7 @@ function pintarInfo(){
   $('infoMidi').innerHTML='';
   if(m){ const b=document.createElement('b'); b.textContent=E.nombreMidi; $('infoMidi').append(b, ' · '+fmt(m.duracion)+' · '+m.notas+' notas · '+m.bpm+' BPM'); }
   else $('infoMidi').textContent='Ningún archivo elegido';
-  if(E.sf){ $('infoSf').innerHTML=''; const b=document.createElement('b'); b.textContent=E.nombreSf; $('infoSf').append(b,' · '+E.sf.presets.length+' sonidos'); }
+  if(E.sf){ $('infoSf').innerHTML=''; const b=document.createElement('b'); b.textContent=E.nombreSf; $('infoSf').append(b,' · '+E.sf.presets.length+' sonidos · '+(E.sf.bytes?MB(E.sf.bytes):'')+(E.sf.cargado?' (en memoria solo '+MB(E.sf.cargado)+', lo que usa el MIDI)':'')+(E.sfNoGuardado?'. Es demasiado grande para que el navegador lo recuerde: la próxima vez elígelo otra vez (es instantáneo).':'')); }
   else $('infoSf').textContent='Sin soundfont: sonido básico de prueba. Elige el tuyo para el resultado bueno.';
   $('quitarSf').hidden=!E.sf;
 }
@@ -1136,16 +1171,53 @@ document.querySelectorAll('#revChips button').forEach(b=>b.onclick=()=>{ E.rever
 function cargarMidi(bytes, nombre){
   try{ E.midi=leerMidi(bytes); E.nombreMidi=nombre; E.canales=construirCanales(E.midi); E.pos={}; $('error').textContent=''; pintarRack(); }
   catch(err){ $('error').textContent=err.message; }
-  limpiar(); pintarMandos(); pintarInfo();
+  limpiar(); pintarMandos(); pintarInfo(); asegurarSonidos();
 }
 $('fMidi').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(f) cargarMidi(new Uint8Array(await f.arrayBuffer()), f.name.replace(/\.(mid|midi|kar)$/i,'')); };
-async function guardarSf(bytes,nombre){ try{ const c=await caches.open('taller-midi-sf2'); await c.put('/ultimo.sf2', new Response(bytes,{headers:{'x-nombre':encodeURIComponent(nombre)}})); }catch(e){} }
-async function recuperarSf(){ try{ const c=await caches.open('taller-midi-sf2'), r=await c.match('/ultimo.sf2'); if(!r) return; const n=decodeURIComponent(r.headers.get('x-nombre')||'soundfont'); E.sf=leerSF2(new Uint8Array(await r.arrayBuffer())); E.nombreSf=n; E.vivo=null; pintarInfo(); pintarRack(); }catch(e){} }
+// el soundfont se guarda en disco (no en memoria) para no tener que elegirlo cada vez
+async function guardarSf(file){
+  E.sfNoGuardado=false;
+  try{ const est=await navigator.storage?.estimate?.(); if(est && est.quota && file.size > (est.quota-est.usage)*0.6) throw new Error('sin sitio');
+    const c=await caches.open('taller-midi-sf2'); await c.delete('/ultimo.sf2'); await c.put('/ultimo.sf2', new Response(file,{headers:{'x-nombre':encodeURIComponent(file.name)}})); }
+  catch(e){ E.sfNoGuardado=true; pintarInfo(); } }
+async function recuperarSf(){
+  try{ const c=await caches.open('taller-midi-sf2'), r=await c.match('/ultimo.sf2'); if(!r) return;
+    const n=decodeURIComponent(r.headers.get('x-nombre')||'soundfont'), blob=await r.blob();
+    await ponerSf(await leerSF2(blob), n); }catch(e){} }
+const MB=b=>(b/1048576).toFixed(b<10485760?1:0).replace('.',',')+' MB';
+// sonidos que necesita el MIDI con la mezcla actual (programas del archivo y cambios de la mesa)
+function sonidosNecesarios(){
+  const sf=E.sf, set=new Set(); if(!sf||!E.midi) return set;
+  const banco=new Array(16).fill(0); banco[9]=128; const pares=new Set();
+  for(let ch=0;ch<16;ch++) pares.add(ch+':'+(ch===9?128:0)+':0');
+  for(const e of E.midi.eventos){ if(e.tipo!=='ch') continue;
+    if(e.cmd===0xB && e.a===0 && e.ch!==9) banco[e.ch]=e.b;
+    if(e.cmd===0xC) pares.add(e.ch+':'+banco[e.ch]+':'+e.a); }
+  for(const c of (E.canales||[])) if(c.usado && c.inst!=null) pares.add(c.ch+':'+(c.bat?128:Math.floor(c.inst/128))+':'+(c.bat?c.inst:c.inst%128));
+  const usados=new Set((E.canales||[]).filter(c=>c.usado).map(c=>c.ch));
+  for(const p of pares){ const [ch,b,pr]=p.split(':').map(Number); if(usados.has(ch)) muestrasDePreset(sf, presetDe(sf,b,pr), set); }
+  return set;
+}
+function asegurarSonidos(){
+  const sf=E.sf; if(!sf||!E.midi) return Promise.resolve();
+  const falta=[...sonidosNecesarios()].filter(si=>!sf.mem.has(si)); if(!falta.length) return Promise.resolve();
+  const prev=E.cargaSon||Promise.resolve();
+  E.cargaSon=prev.then(()=>cargarMuestras(sf, falta, (h,t)=>{ $('infoSf').textContent='Cargando los sonidos que usa el MIDI… '+MB(h)+' de '+MB(t); }))
+    .then(()=>{ pintarInfo(); }).catch(err=>{ $('error').textContent='No se han podido leer los sonidos del soundfont: '+(err.message||err); });
+  return E.cargaSon;
+}
+async function ponerSf(sf, nombre){
+  E.sf=sf; E.nombreSf=nombre; $('error').textContent='';
+  const seguia=E.sonando, t=posMus(); detener(); E.vivo=null;
+  pintarInfo(); pintarRack();
+  await asegurarSonidos();
+  if(E.midi){ crearVivo(); E.vivo.buscar(t); aplicarVivo(); if(seguia) sonar(); }
+  refrescar(); pintarInfo();
+}
 $('fSf2').onchange=async e=>{
-  const f=e.target.files[0]; e.target.value=''; if(!f) return; $('infoSf').textContent='Leyendo '+f.name+'…';
-  try{ const b=new Uint8Array(await f.arrayBuffer()); E.sf=leerSF2(b); E.nombreSf=f.name; $('error').textContent=''; guardarSf(b,f.name); }
-  catch(err){ $('error').textContent=err.message; }
-  const seguia=E.sonando, t=posMus(); detener(); E.vivo=null; if(E.midi){ crearVivo(); E.vivo.buscar(t); aplicarVivo(); if(seguia) sonar(); } refrescar(); pintarInfo(); pintarRack();
+  const f=e.target.files[0]; e.target.value=''; if(!f) return; $('infoSf').textContent='Leyendo el índice de '+f.name+'…';
+  try{ await ponerSf(await leerSF2(f), f.name); guardarSf(f); }
+  catch(err){ $('error').textContent=err.message; pintarInfo(); }
 };
 $('quitarSf').onclick=async()=>{ E.sf=null; try{ await (await caches.open('taller-midi-sf2')).delete('/ultimo.sf2'); }catch(e){} const seguia=E.sonando, t=posMus(); detener(); E.vivo=null; if(E.midi){ crearVivo(); E.vivo.buscar(t); aplicarVivo(); if(seguia) sonar(); } refrescar(); pintarInfo(); pintarRack(); };
 
@@ -1179,7 +1251,7 @@ function sonar(){
   cancelAnimationFrame(E.raf); const bucle=()=>{ pintarPos(); pintarVu(); if(E.sonando) E.raf=requestAnimationFrame(bucle); else apagarVu(); }; bucle();
 }
 function detener(){ E.sonando=false; $('play').textContent='▶'; $('play').setAttribute('aria-label','Reproducir'); apagarVu(); pintarPos(); }
-$('play').onclick=()=>{ ctx(); if(E.sonando) detener(); else sonar(); };
+$('play').onclick=async()=>{ ctx(); if(E.sonando){ detener(); return; } const p=asegurarSonidos(); if(E.sf&&E.midi&&[...sonidosNecesarios()].some(si=>!E.sf.mem.has(si))){ $('play').disabled=true; await p; $('play').disabled=false; } sonar(); };
 // original / con cambios, en el mismo punto de la música y sin parar
 document.querySelectorAll('#modoChips button').forEach(b=>b.onclick=()=>{
   const nuevo=b.dataset.v; if(nuevo===E.modo) return; E.modo=nuevo;
@@ -1199,6 +1271,7 @@ $('convertir').onclick=async()=>{
   try{
     const modo=E.modo; E.modo='cambios';
     const midiEd=editarMidi('cambios'); E.modo=modo;
+    await asegurarSonidos();
     E.mp3=await midiAMp3(midiEd, E.sf, {semis:E.semis, vel:E.vel/100, reverb:E.reverb, kbps:+$('kbps').value, cancelado:()=>E.cancel, alProgreso:(f,txt)=>{
       $('barra').style.width=Math.round(f*100)+'%';
       const t=(performance.now()-ini)/1000, q= f>0.03 ? Math.round(t/f-t) : null;
@@ -1354,7 +1427,7 @@ function pintarRack(){
     else { const o=document.createElement('option'); o.textContent='—'; sel.append(o); }
     const nomInst=()=>{ const o=sel.selectedOptions[0]; return o ? o.textContent.replace(/\s*★$/,'') : ''; };
     sel.title=nomInst();
-    sel.onchange=()=>{ const v=+sel.value; c.inst= v===valorOriginal(c) ? null : v; sel.title=nomInst(); t._cinta(); t.classList.toggle('cambiado', c.inst!=null); cambioMesa(false); if(typeof pintarEscena==='function') pintarEscena(); };
+    sel.onchange=()=>{ const v=+sel.value; c.inst= v===valorOriginal(c) ? null : v; sel.title=nomInst(); t._cinta(); t.classList.toggle('cambiado', c.inst!=null); cambioMesa(false); if(typeof pintarEscena==='function') pintarEscena(); asegurarSonidos(); };
     t.append(sel);
     // tono propio
     const st=document.createElement('div'); st.className='c-st';
