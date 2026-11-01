@@ -1106,6 +1106,21 @@ function pintarInfo(){
   $('quitarSf').hidden=!E.sf;
 }
 
+// ---- Auriculares / altavoces: si cambia la salida de audio del sistema, el sonido la sigue ----
+async function seguirSalida(){
+  const c=E.ctx; if(!c) return;
+  // 1) navegadores que permiten volver a elegir la salida predeterminada sin cortar
+  if(typeof c.setSinkId==='function'){ try{ await c.setSinkId(''); return; }catch(e){} }
+  // 2) si no, se rehace el audio en la salida nueva y sigue desde el mismo punto
+  const seguia=E.sonando, t=(typeof posMus==='function')? posMus() : 0;
+  if(seguia) detener();
+  E.ctx=null; E.proc=null; E.lim=null; try{ await c.close(); }catch(e){}
+  if(E.vivo){ E.vivo=null; crearVivo(); E.vivo.buscar(t); aplicarVivo(); }
+  if(seguia) sonar();
+}
+let __salidaT=0;
+navigator.mediaDevices?.addEventListener?.('devicechange',()=>{ clearTimeout(__salidaT); __salidaT=setTimeout(seguirSalida,500); });
+
 // ---- Rollo de notas con el tono y la duración finales ----
 function dibujar(){
   const m=E.midi, cv=$('lienzo'), cont=$('rollo'), g=cv.getContext('2d'), H=170, dpr=window.devicePixelRatio||1;

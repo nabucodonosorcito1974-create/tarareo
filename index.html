@@ -711,6 +711,17 @@ const enClaudeF=()=>!!(window.claude && window.claude.use);
 const enClaude = enClaudeF() || window.self!==window.top;
 
 function audioCtx(){ if(!S.ctx){ S.ctx=new (window.AudioContext||window.webkitAudioContext)(); } if(S.ctx.state==='suspended') S.ctx.resume(); return S.ctx; }
+// si se conectan o desconectan auriculares, el sonido sigue a la salida nueva
+async function seguirSalida(){
+  const c=S.ctx; if(!c) return;
+  if(typeof c.setSinkId==='function'){ try{ await c.setSinkId(''); return; }catch(e){} }
+  const grabando=(typeof A!=='undefined' && A.grabando) || S.rec;
+  if(grabando) return;            // no se corta una grabación en curso
+  try{ parar(); }catch(e){} try{ pararReprod(); }catch(e){}
+  S.ctx=null; try{ await c.close(); }catch(e){}
+}
+let __salidaT=0;
+navigator.mediaDevices?.addEventListener?.('devicechange',()=>{ clearTimeout(__salidaT); __salidaT=setTimeout(seguirSalida,500); });
 function color(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 function fmtT(s){ const m=Math.floor(s/60), r=Math.floor(s%60); return m+':'+String(r).padStart(2,'0'); }
 
