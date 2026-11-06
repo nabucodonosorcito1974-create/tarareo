@@ -105,6 +105,8 @@ h2{ font:700 12.5px/1 var(--body); letter-spacing:.09em; text-transform:uppercas
 .pot-lab{ font:500 8.5px/1 var(--mono); color:var(--m-txt); white-space:nowrap; }
 .pot-lab em{ font-style:normal; font-weight:700; color:var(--m-dim); letter-spacing:.04em; }
 .knob.tocado + .pot-lab em{ color:#ffc76a; }
+.pot.bloqueado{ opacity:.35; }
+.pot.bloqueado .knob{ cursor:default; }
 .c-ms{ display:flex; gap:3px; }
 .c-ms button{ flex:1; height:18px; padding:0; border-radius:4px; border:1px solid #0d0e10; font:800 10.5px/1 var(--mono); cursor:pointer; color:#9aa0a8;
   background:linear-gradient(#3a3e45,#2a2d32); box-shadow:0 1px 0 rgba(255,255,255,.07) inset; }
@@ -1458,9 +1460,10 @@ function cambioMesa(redibujarRollo){
   aplicarVivo(); estadosMesa(); if(redibujarRollo) dibujar();
 }
 // potenciómetro giratorio: arrastrar arriba/abajo, rueda del ratón, flechas; doble clic = valor del MIDI
-function potenciometro(etq, c, campo, min, max, fmtV){
-  const w=document.createElement('div'); w.className='pot';
-  const k=document.createElement('div'); k.className='knob'; k.tabIndex=c.usado?0:-1; k.setAttribute('role','slider');
+function potenciometro(etq, c, campo, min, max, fmtV, bloqueado){
+  const w=document.createElement('div'); w.className='pot'+(bloqueado?' bloqueado':'');
+  const activo=c.usado && !bloqueado;
+  const k=document.createElement('div'); k.className='knob'; k.tabIndex=activo?0:-1; k.setAttribute('role','slider');
   k.setAttribute('aria-label',etq+' canal '+(c.ch+1)); k.setAttribute('aria-valuemin',min); k.setAttribute('aria-valuemax',max);
   const anillo=document.createElement('i'), tapa=document.createElement('b'); k.append(anillo,tapa);
   const lab=document.createElement('span'); lab.className='pot-lab'; const et=document.createElement('em'); et.textContent=etq;
@@ -1470,10 +1473,11 @@ function potenciometro(etq, c, campo, min, max, fmtV){
     tapa.style.transform='rotate('+ang+'deg)';
     const a0= bip ? Math.min(0,ang) : -135, a1= bip ? Math.max(0,ang) : ang;
     anillo.style.background='conic-gradient(from '+(a0)+'deg, var(--col) 0deg '+(a1-a0)+'deg, transparent '+(a1-a0)+'deg 360deg)';
-    out.textContent=fmtV(v); k.setAttribute('aria-valuenow',v); k.setAttribute('aria-valuetext',fmtV(v)); k.classList.toggle('tocado', c[campo]!=null); };
-  const fijar=v=>{ c[campo]= v==null ? null : Math.max(min,Math.min(max,Math.round(v))); pintar(); cambioMesa(false);
+    out.textContent=fmtV(v); k.setAttribute('aria-valuenow',v); k.setAttribute('aria-valuetext',fmtV(v)); k.classList.toggle('tocado', campo==='st' ? !!c.st : c[campo]!=null); };
+  const fijar=v=>{ c[campo]= v==null ? (campo==='st'?0:null) : Math.max(min,Math.min(max,Math.round(v))); pintar(); cambioMesa(false);
+    if(campo==='st'){ clearTimeout(k._d); k._d=setTimeout(dibujar,250); }
     if((campo==='pan'||campo==='prof') && typeof seguirMezcla==='function') seguirMezcla(c); };
-  if(c.usado){
+  if(activo){
     let y0=0, v0=0, arr=false;
     k.addEventListener('pointerdown',e=>{ arr=true; y0=e.clientY; v0=val(c,campo); k.setPointerCapture(e.pointerId); e.preventDefault(); });
     k.addEventListener('pointermove',e=>{ if(!arr) return; const d=(y0-e.clientY)*(max-min)/160; fijar(v0+d); });
@@ -1513,15 +1517,10 @@ function pintarRack(){
       ponerSfCanal(c, sfs.value||null);
     };
     t.append(sfs);
-    // tono propio
-    const st=document.createElement('div'); st.className='c-st';
-    const m1=document.createElement('button'); m1.type='button'; m1.textContent='−'; m1.setAttribute('aria-label','Bajar un semitono el canal '+(c.ch+1));
-    const so=document.createElement('output'); const pst=()=>{ so.textContent= c.bat ? 'kit' : (c.st>0?'+':'')+c.st; so.classList.toggle('tocado', c.st!==0); };
-    const p1=document.createElement('button'); p1.type='button'; p1.textContent='+'; p1.setAttribute('aria-label','Subir un semitono el canal '+(c.ch+1));
-    m1.onclick=()=>{ c.st=Math.max(-24,c.st-1); pst(); cambioMesa(true); }; p1.onclick=()=>{ c.st=Math.min(24,c.st+1); pst(); cambioMesa(true); };
-    m1.disabled=p1.disabled=!c.usado||c.bat; pst(); st.append(m1,so,p1); t.append(st);
+    // tono propio: rueda de −24 a +24 semitonos (la batería no se transporta)
+    const tono=potenciometro('TONO',c,'st',-24,24,v=> c.bat ? 'kit' : (v>0?'+':'')+v, c.bat);
     // potenciómetros
-    t.append(potenciometro('PAN',c,'pan',-64,63,txtPan), potenciometro('DIST',c,'prof',0,127,v=>v), potenciometro('REV',c,'rev',0,127,v=>v), potenciometro('CHO',c,'cho',0,127,v=>v));
+    t.append(tono, potenciometro('PAN',c,'pan',-64,63,txtPan), potenciometro('DIST',c,'prof',0,127,v=>v), potenciometro('REV',c,'rev',0,127,v=>v), potenciometro('CHO',c,'cho',0,127,v=>v));
     // mute / solo
     const ms=document.createElement('div'); ms.className='c-ms';
     const bm=document.createElement('button'); bm.type='button'; bm.className='bm'; bm.textContent='M'; bm.id='mute'+c.ch; bm.setAttribute('aria-label','Silenciar canal '+(c.ch+1));
