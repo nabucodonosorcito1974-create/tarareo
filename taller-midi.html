@@ -234,23 +234,23 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
 <div class="wrap">
   <header>
     <h1>Taller <i>MIDI</i></h1>
-    <p class="sub">Cambia el tono y la velocidad de un MIDI por separado y conviértelo en MP3 con tus propios soundfonts.</p>
+    <p class="sub">Cambia el tono y la velocidad de un MIDI o de una canción (MP3, WAV…) por separado y guárdalo en MP3.</p>
   </header>
 
   <section class="tarjeta">
     <h2>Archivos</h2>
     <div class="fila">
-      <label class="btn prim" for="fMidi">Elegir MIDI</label><input type="file" id="fMidi" accept=".mid,.midi,.kar,audio/midi,audio/x-midi" hidden>
+      <label class="btn prim" for="fMidi">Elegir MIDI o MP3</label><input type="file" id="fMidi" accept=".mid,.midi,.kar,audio/midi,audio/x-midi,audio/*,.mp3,.wav,.m4a,.flac,.ogg,.aac" hidden>
       <span class="info" id="infoMidi"></span>
     </div>
-    <div class="fila">
+    <div class="fila" id="filaSf">
       <label class="btn" for="fSf2">Elegir soundfont (.sf2)</label><input type="file" id="fSf2" accept=".sf2" hidden><input type="file" id="fSfCanal" accept=".sf2" hidden>
       <button class="btn mini" id="quitarSf" type="button" hidden>Quitar</button>
       <span class="info" id="infoSf"></span>
     </div>
     <p class="error" id="error" role="alert"></p>
     <details class="plegable" id="plRollo" open>
-      <summary>Notas en el tiempo</summary>
+      <summary id="rolloTit">Notas en el tiempo</summary>
       <div class="transporte">
         <button class="btn tr-play" id="rPlay" type="button" aria-label="Reproducir">▶</button>
         <button class="btn tr-stop" id="rStop" type="button" aria-label="Parar y volver al principio">■</button>
@@ -316,7 +316,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
         <small id="velTxt"></small>
       </div>
     </div>
-    <div class="otros">
+    <div class="otros" id="otrosRev">
       <div class="campo"><span>Reverberación</span>
         <div class="seg" id="revChips"><button data-v="no" type="button">Sin</button><button data-v="estudio" type="button">Estudio</button><button data-v="sala" type="button">Sala</button><button data-v="iglesia" type="button">Iglesia</button></div></div>
     </div>
@@ -1097,6 +1097,194 @@ async function midiAMp3(midi, sf, opc){
   const fin=enc.flush(); if(fin.length) partes.push(new Uint8Array(fin));
   return new Blob(partes,{type:'audio/mpeg'});
 }
+// ---------- Audio (MP3/WAV): tono y velocidad independientes ----------
+// Vocoder de fase con bloqueo de fase (identity phase locking) + remuestreo cúbico.
+// Estéreo coherente: la fase se calcula con la suma L+R y cada canal conserva su diferencia.
+function crearFFTr(N){
+  const lev=Math.log2(N), cs=new Float64Array(N/2), sn=new Float64Array(N/2), rev=new Uint32Array(N);
+  for(let i=0;i<N/2;i++){ cs[i]=Math.cos(2*Math.PI*i/N); sn[i]=Math.sin(2*Math.PI*i/N); }
+  for(let i=0;i<N;i++){ let r=0,x=i; for(let j=0;j<lev;j++){ r=(r<<1)|(x&1); x>>=1; } rev[i]=r; }
+  return function(re,im,inv){
+    for(let i=0;i<N;i++){ const j=rev[i]; if(j>i){ let t=re[i]; re[i]=re[j]; re[j]=t; t=im[i]; im[i]=im[j]; im[j]=t; } }
+    const sg=inv?-1:1;
+    for(let size=2;size<=N;size*=2){ const half=size/2, step=N/size;
+      for(let i=0;i<N;i+=size) for(let j=i,k=0;j<i+half;j++,k+=step){
+        const l=j+half, c=cs[k], s=sg*sn[k], tr=re[l]*c+im[l]*s, ti=im[l]*c-re[l]*s;
+        re[l]=re[j]-tr; im[l]=im[j]-ti; re[j]+=tr; im[j]+=ti; } }
+  };
+}
+const princ=a=>a-2*Math.PI*Math.round(a/(2*Math.PI));
+
+class Estirador {
+  constructor(L, R, sr){
+    const N=this.N=4096; this.Hs=1024; this.dh=512; this.L=L; this.R=R; this.sr=sr; this.dur=L.length/sr;
+    this.fft=crearFFTr(N); this.win=new Float64Array(N); for(let i=0;i<N;i++) this.win[i]=0.5-0.5*Math.cos(2*Math.PI*i/N);
+    const B=N/2+1; this.B=B;
+    this.ar=new Float64Array(N); this.ai=new Float64Array(N); this.pr=new Float64Array(N); this.pi=new Float64Array(N);
+    this.psi=new Float64Array(B); this.mag=new Float64Array(B); this.fm=new Float64Array(B); this.w=new Float64Array(B); this.pico=new Int32Array(B);
+    this.olaL=new Float64Array(N); this.olaR=new Float64Array(N);
+    this.FL=new Float32Array(1<<15); this.FR=new Float32Array(1<<15);
+    this.v=1; this.p=1; this.buscar(0);
+  }
+  ajustar(vel, semis){ const v=vel/100, p=Math.pow(2,semis/12); const directo=(v===1&&p===1); if(directo!==(this.v===1&&this.p===1)){ this.v=v; this.p=p; this.buscar(this.tIn); } else { this.v=v; this.p=p; } }
+  buscar(t){ this.tIn=Math.max(0,t); this.pos=this.tIn*this.sr; this.olaL.fill(0); this.olaR.fill(0); this.nF=0; this.ri=0; this.primero=true;
+    // la latencia del vocoder (media ventana) se compensa empezando antes
+    // el centro de cada cuadro cae en N/2 de su salida: se descartan los primeros N-Hs (aún incompletos)
+    this.ri=this.N-this.Hs; this.pos-=(this.ri-this.N/2)*this.v/this.p; }
+  fin(){ return this.tIn>=this.dur; }
+  // ventana de entrada L+iR empezando en la muestra ini
+  leer(ini, re, im){ const {L,R,win,N}=this; const n=L.length;
+    for(let i=0;i<N;i++){ const j=ini+i; if(j>=0&&j<n){ re[i]=L[j]*win[i]; im[i]=R[j]*win[i]; } else { re[i]=0; im[i]=0; } }
+    this.fft(re,im,false); }
+  cuadro(){
+    const {N,B,Hs,dh,ar,ai,pr,pi,psi,mag,fm,w,pico}=this, ini=Math.round(this.pos)-N/2;
+    this.leer(ini, ar, ai); this.leer(ini-dh, pr, pi);
+    // separar L y R de la FFT compleja empaquetada; medio = L+R
+    const XL=this.XL||(this.XL=new Float64Array(2*B)), XR=this.XR||(this.XR=new Float64Array(2*B));
+    for(let k=0;k<B;k++){ const j=(N-k)%N;
+      const lr=(ar[k]+ar[j])/2, li=(ai[k]-ai[j])/2, rr=(ai[k]+ai[j])/2, ri=(ar[j]-ar[k])/2;
+      XL[2*k]=lr; XL[2*k+1]=li; XR[2*k]=rr; XR[2*k+1]=ri;
+      const mr=lr+rr, mi=li+ri; mag[k]=Math.hypot(mr,mi); fm[k]=Math.atan2(mi,mr);
+      // fase del medio un poco antes, para medir la frecuencia real de cada componente
+      const plr=(pr[k]+pr[j])/2, pli=(pi[k]-pi[j])/2, prr=(pi[k]+pi[j])/2, pri=(pr[j]-pr[k])/2;
+      const om=2*Math.PI*k/N, ant=Math.atan2(pli+pri, plr+prr);
+      w[k]=om+princ(fm[k]-ant-om*dh)/dh;
+    }
+    // golpes (subida brusca de energía en agudos): se reinicia la fase para que no se emborronen
+    let eA=0, eT=0; for(let k=0;k<B;k++){ eT+=mag[k]; if(k>=B>>4) eA+=mag[k]; } const golpe=this.eAnt>0 && eA>this.eAnt*1.8 && eA>0.1*eT; this.eAnt=eA;
+    if(this.primero||golpe){ for(let k=0;k<B;k++) psi[k]=fm[k]; this.primero=false; }
+    else {
+      // picos espectrales: avanzan con su propia frecuencia; el resto de bins se bloquea al pico más cercano
+      let np=0; for(let k=0;k<B;k++){ const m=mag[k]; if((k<2||m>mag[k-1]&&m>mag[k-2]) && (k>B-3||m>=mag[k+1]&&m>=mag[k+2])) pico[np++]=k; }
+      if(!np){ for(let k=0;k<B;k++) psi[k]+=w[k]*Hs; }
+      else {
+        for(let q=0;q<np;q++){ const k=pico[q]; psi[k]+=w[k]*Hs; }
+        let q=0;
+        for(let k=0;k<B;k++){
+          while(q<np-1 && Math.abs(pico[q+1]-k)<=Math.abs(pico[q]-k)) q++;
+          const c=pico[q]; if(c!==k) psi[k]=psi[c]+(fm[k]-fm[c]);
+        }
+      }
+    }
+    // síntesis: cada canal con su módulo y su diferencia de fase respecto al medio
+    for(let k=0;k<B;k++){
+      const d=psi[k]-fm[k], c=Math.cos(d), s=Math.sin(d);
+      const lr=XL[2*k]*c-XL[2*k+1]*s, li=XL[2*k]*s+XL[2*k+1]*c, rr=XR[2*k]*c-XR[2*k+1]*s, ri=XR[2*k]*s+XR[2*k+1]*c;
+      // empaquetar Y = YL + i·YR (ambos hermíticos)
+      ar[k]=lr-ri; ai[k]=li+rr;
+      if(k>0&&k<N/2){ const j=N-k; ar[j]=lr+ri; ai[j]=rr-li; }
+    }
+    this.fft(ar,ai,true);
+    const {olaL,olaR,win}=this, g=1/(N*1.5);
+    for(let i=0;i<N;i++){ olaL[i]+=ar[i]*win[i]*g; olaR[i]+=ai[i]*win[i]*g; }
+    // los primeros Hs ya están completos: a la cola
+    this.empujar(olaL, olaR, Hs);
+    olaL.copyWithin(0,Hs); olaR.copyWithin(0,Hs); olaL.fill(0,N-Hs); olaR.fill(0,N-Hs);
+    this.pos+=Hs*this.v/this.p;
+  }
+  empujar(a, b, n){
+    if(this.nF+n>this.FL.length){ const NL=new Float32Array(this.FL.length*2), NR=new Float32Array(this.FL.length*2); NL.set(this.FL); NR.set(this.FR); this.FL=NL; this.FR=NR; }
+    for(let i=0;i<n;i++){ this.FL[this.nF+i]=a[i]; this.FR[this.nF+i]=b[i]; } this.nF+=n;
+  }
+  render(L, R){
+    const n=L.length, sr=this.sr;
+    const paso=this.p*this.sr/(this.srOut||this.sr), so=this.srOut||this.sr;
+    if(this.v===1 && this.p===1 && so===this.sr){   // sin cambios: el audio tal cual
+      let i0=Math.round(this.tIn*sr);
+      for(let i=0;i<n;i++,i0++){ L[i]=i0<this.L.length?this.L[i0]:0; R[i]=i0<this.R.length?this.R[i0]:0; }
+      this.tIn+=n/sr; return;
+    }
+    const FL=()=>this.FL, FR=()=>this.FR;
+    for(let i=0;i<n;i++){
+      let k=Math.floor(this.ri);
+      while(k+2>=this.nF) this.cuadro();
+      const t=this.ri-k, a=FL(), b=FR();
+      L[i]=cub(a[k-1]||0,a[k],a[k+1],a[k+2],t); R[i]=cub(b[k-1]||0,b[k],b[k+1],b[k+2],t);
+      this.ri+=paso; this.tIn+=this.v/so;
+      if(this.ri>8192){ const d=Math.floor(this.ri)-2; this.FL.copyWithin(0,d,this.nF); this.FR.copyWithin(0,d,this.nF); this.nF-=d; this.ri-=d; }
+    }
+  }
+}
+function cub(y0,y1,y2,y3,t){ const c1=0.5*(y2-y0), c2=y0-2.5*y1+2*y2-0.5*y3, c3=0.5*(y3-y0)+1.5*(y1-y2); return ((c3*t+c2)*t+c1)*t+y1; }
+
+// ---------- Modo audio en la interfaz ----------
+function durBase(){ return E.audio ? E.audio.dur : (E.midi ? E.midi.duracion : 0); }
+function vistaAudio(si){
+  for(const id of ['filaSf','plEscena','plMesa','otrosRev','bajarMid']) $(id).hidden=si;
+  $('modoTxt').textContent= si ? (E.modo==='original' ? 'La canción tal cual, sin cambios.' : 'Tal cual quedará el MP3: con el tono y la velocidad elegidos.') : (E.modo==='original' ? 'MIDI original con tu soundfont: tono y velocidad sin tocar (la mesa sí se aplica).' : 'Tal cual quedará el MP3: con el tono, la velocidad, la mesa y la reverberación elegidos.');
+  $('rolloTit').textContent= si ? 'La canción en el tiempo' : 'Notas en el tiempo';
+  document.querySelector('.tr-ayuda').textContent= si ? 'Haz clic o arrastra sobre la onda para ir a ese punto' : 'Haz clic o arrastra sobre las notas para ir a ese punto';
+}
+function salirAudio(){ if(!E.audio) return; limpiar(); E.audio=null; E.onda=null; vistaAudio(false); }
+async function cargarAudioArchivo(bytes, nombre){
+  limpiar(); $('error').textContent=''; $('infoMidi').textContent='Leyendo '+nombre+'…';
+  try{
+    const b=await ctx().decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset+bytes.byteLength));
+    const L=new Float32Array(b.getChannelData(0)), R= b.numberOfChannels>1 ? new Float32Array(b.getChannelData(1)) : L;
+    E.audio={L, R, sr:b.sampleRate, dur:b.duration, nombre:nombre.replace(/\.[^.]+$/,'')};
+    E.midi=null; E.canales=[]; E.onda=null; E.nombreMidi=E.audio.nombre;
+    vistaAudio(true);
+    $('infoMidi').innerHTML=''; const n=document.createElement('b'); n.textContent=nombre; $('infoMidi').append(n,' · '+fmt(b.duration)+' · audio');
+    pintarMandos(); pintarPos();
+  }catch(err){ console.error(err); E.audio=null; vistaAudio(false); $('error').textContent='No he podido leer ese audio. Prueba con un MP3, WAV o M4A.'; pintarInfo(); }
+}
+function crearEst(){ const e=new Estirador(E.audio.L, E.audio.R, E.audio.sr); e.srOut=ctx().sampleRate; E.est=e; aplicarVivo(); return e; }
+function sonarAudio(){
+  if(!E.sonando && E.ctx && !E.__recien) renovarAudio();
+  const c=ctx(); const t=E.est? E.est.tIn : 0;
+  if(!E.est || E.est.srOut!==c.sampleRate){ crearEst(); E.est.buscar(t); }
+  if(E.est.fin()) E.est.buscar(0);
+  if(!E.proc){
+    E.proc=c.createScriptProcessor(4096,0,2);
+    E.proc.onaudioprocess=ev=>{ const L=ev.outputBuffer.getChannelData(0), R=ev.outputBuffer.getChannelData(1);
+      if(!E.sonando||!E.est){ L.fill(0); R.fill(0); return; }
+      E.est.render(L,R);
+      if(E.est.fin()){ E.sonando=false; setTimeout(()=>{ detener(); if(E.est) E.est.buscar(0); pintarPos(); },0); } };
+    E.proc.connect(c.destination);
+  }
+  E.sonando=true; for(const id of ['play','rPlay']){ $(id).textContent='❚❚'; $(id).setAttribute('aria-label','Pausa'); }
+  cancelAnimationFrame(E.raf); const bucle=()=>{ pintarPos(); if(E.sonando) E.raf=requestAnimationFrame(bucle); }; bucle();
+}
+function dibujarOnda(g, W, H){
+  const a=E.audio, padL=8, ancho=W-16, mid=(H-14)/2; if(ancho<=0) return;
+  E.rolloGeo={padL, ancho};
+  if(!E.onda || E.onda.n!==Math.round(ancho)){
+    const n=Math.round(ancho), o=new Float32Array(n*2), por=a.L.length/n;
+    for(let x=0;x<n;x++){ let lo=0, hi=0; const i0=Math.floor(x*por), i1=Math.min(a.L.length, Math.floor((x+1)*por));
+      for(let i=i0;i<i1;i+=4){ const v=(a.L[i]+a.R[i])/2; if(v<lo) lo=v; if(v>hi) hi=v; } o[2*x]=lo; o[2*x+1]=hi; }
+    E.onda=o; E.onda.n=n;
+  }
+  g.fillStyle=color('--ambar')||'#e0a030';
+  const n=E.onda.length/2; for(let x=0;x<n;x++){ const y0=mid-E.onda[2*x+1]*mid*0.95, y1=mid-E.onda[2*x]*mid*0.95; g.fillRect(padL+x, y0, 1, Math.max(1,y1-y0)); }
+  g.font='500 10px '+color('--mono'); g.fillStyle=color('--muted');
+  g.fillText('0:00', padL, H-2); const d=fmt(a.dur*100/E.vel), tw=g.measureText(d).width; g.fillText(d, W-8-tw, H-2);
+}
+async function convertirAudio(){
+  const a=E.audio; E.cancel=false; $('resultado').hidden=true; $('convertir').disabled=true; $('cancelar').hidden=false;
+  let wake=null; try{ wake=await navigator.wakeLock?.request('screen'); }catch(e){}
+  const ini=performance.now();
+  try{
+    const e=new Estirador(a.L, a.R, a.sr); e.ajustar(E.vel, E.semis); e.buscar(0);
+    const kbps=+$('kbps').value, enc=new lamejs.Mp3Encoder(2, a.sr, kbps), partes=[], B=1152*16;
+    const L=new Float32Array(B), R=new Float32Array(B), iL=new Int16Array(B), iR=new Int16Array(B), q=s=>Math.max(-32768,Math.min(32767,Math.round(s*32767)));
+    const total=Math.ceil(a.dur*100/E.vel*a.sr); let hecho=0, k=0;
+    while(hecho<total){
+      if(E.cancel) throw new Error('cancelado');
+      const n=Math.min(B,total-hecho); e.render(L,R);
+      for(let i=0;i<n;i++){ iL[i]=q(L[i]); iR[i]=q(R[i]); }
+      const mp=enc.encodeBuffer(iL.subarray(0,n), iR.subarray(0,n)); if(mp.length) partes.push(new Uint8Array(mp));
+      hecho+=n;
+      if(++k%6===0){ const f=hecho/total, t=(performance.now()-ini)/1000; $('barra').style.width=Math.round(f*100)+'%';
+        $('estado').textContent='Codificando MP3 · '+Math.round(f*100)+' %'+(f>0.03?' · quedan unos '+fmt(t/f-t):''); await new Promise(r=>setTimeout(r,0)); }
+    }
+    const fin=enc.flush(); if(fin.length) partes.push(new Uint8Array(fin));
+    E.mp3=new Blob(partes,{type:'audio/mpeg'});
+    E.nombreBase=a.nombre.replace(/[^\w\-áéíóúñÁÉÍÓÚÑ ]+/g,'_')+' ('+(E.semis>0?'+':'')+E.semis+' st, '+E.vel+' %)';
+    $('resTxt').textContent=E.nombreBase+'.mp3 · '+fmt(a.dur*100/E.vel)+' · '+(E.mp3.size/1048576).toFixed(1).replace('.',',')+' MB';
+    $('resultado').hidden=false; $('barra').style.width='100%'; $('estado').textContent='Hecho en '+fmt((performance.now()-ini)/1000)+'.';
+  }catch(err){ $('estado').textContent= err.message==='cancelado' ? 'Cancelado.' : 'Error: '+(err.message||err); console.error(err); }
+  finally{ $('convertir').disabled=false; $('cancelar').hidden=true; try{ wake&&wake.release(); }catch(e){} }
+}
 // ---------- Taller MIDI: interfaz ----------
 const $=id=>document.getElementById(id);
 const E={ midi:null, nombreMidi:'', sf:null, nombreSf:'', semis:0, vel:100, reverb:'no', mp3:null, url:null, base:'', cancel:false, voces:[], ctx:null };
@@ -1148,6 +1336,7 @@ function dibujar(){
   const m=E.midi, cv=$('lienzo'), cont=$('rollo'), g=cv.getContext('2d'), H=170, dpr=window.devicePixelRatio||1;
   const W=cont.clientWidth; cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); cv.style.width=W+'px'; cv.style.height=H+'px';
   g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  if(E.audio) return dibujarOnda(g,W,H);
   if(!m) return;
   const Cs=E.canales||[], haySolo=Cs.some(c=>c.solo&&c.usado);
   const vel=E.vel/100, dur=m.duracion/vel, notas=[], abiertas=new Map();
@@ -1186,6 +1375,7 @@ function pintarMandos(){
   document.querySelectorAll('#velChips button').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.v===E.vel));
   document.querySelectorAll('#revChips button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.v===E.reverb));
   const m=E.midi;
+  if(E.audio){ const d=E.audio.dur; $('resumen').textContent='Duración '+fmt(d)+' → '+fmt(d*100/E.vel)+'   ·   tono '+(E.semis>0?'+':'')+E.semis; $('convertir').disabled=false; $('play').disabled=false; dibujar(); return; }
   $('resumen').textContent= m ? 'Duración '+fmt(m.duracion)+' → '+fmt(m.duracion*100/E.vel)+'   ·   tempo '+m.bpm+' → '+(Math.round(m.bpm*E.vel/10)/10).toString().replace('.',',')+' BPM   ·   tono '+(E.semis>0?'+':'')+E.semis : 'Elige un MIDI para empezar.';
   $('convertir').disabled=!m; $('play').disabled=!m;
   dibujar();
@@ -1194,6 +1384,7 @@ function pintarMandos(){
 function refrescar(){
   E.mp3=null; $('resultado').hidden=true; $('barra').style.width='0'; $('estado').textContent='';
   if(E.vivo){ const t=posMus(); aplicarVivo(); E.vivo.tMus=t; }
+  if(E.est) aplicarVivo();
   pintarPos();
 }
 function cambio(){ refrescar(); pintarMandos(); }
@@ -1211,7 +1402,11 @@ function cargarMidi(bytes, nombre){
   catch(err){ $('error').textContent=err.message; }
   limpiar(); pintarMandos(); pintarInfo(); asegurarSonidos();
 }
-$('fMidi').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(f) cargarMidi(new Uint8Array(await f.arrayBuffer()), f.name.replace(/\.(mid|midi|kar)$/i,'')); };
+$('fMidi').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  const b=new Uint8Array(await f.arrayBuffer());
+  if(b[0]===0x4D&&b[1]===0x54&&b[2]===0x68&&b[3]===0x64 || /\.(mid|midi|kar)$/i.test(f.name)){ salirAudio(); cargarMidi(b, f.name.replace(/\.(mid|midi|kar)$/i,'')); }
+  else cargarAudioArchivo(b, f.name);
+};
 // el soundfont se guarda en disco (no en memoria) para no tener que elegirlo cada vez
 async function guardarSf(file){
   E.sfNoGuardado=false;
@@ -1283,16 +1478,17 @@ E.modo='cambios'; E.sonando=false; E.vivo=null; E.proc=null;
 function param(modo=E.modo){ return modo==='original' ? {semis:0, vel:100} : {semis:E.semis, vel:E.vel}; }
 function salida(){ const c=ctx(); if(!E.lim){ E.lim=c.createDynamicsCompressor(); E.lim.threshold.value=-6; E.lim.knee.value=4; E.lim.ratio.value=12; E.lim.attack.value=0.003; E.lim.release.value=0.15; E.limG=c.createGain(); E.limG.gain.value=1.4; E.lim.connect(E.limG); E.limG.connect(c.destination); } return E.lim; }
 function crearVivo(){ if(!E.midi) return null; const v=new Vivo(E.midi, E.sf, ctx().sampleRate); E.vivo=v; aplicarVivo(); return v; }
-function aplicarVivo(){ const v=E.vivo; if(!v) return; const P=param(); v.semis=P.semis; v.vel=P.vel/100; v.mesa(E.canales||[], E.modo); v.fijarReverb(E.reverb, (E.canales||[]).some(c=>c.usado&&c.prof>0)); }
-function posMus(){ return E.vivo ? E.vivo.tMus : (E.musPausa||0); }
-function duracionPrevista(){ return E.midi ? E.midi.duracion*100/param().vel : 0; }
+function aplicarVivo(){ if(E.est){ const P=param(); E.est.ajustar(P.vel, P.semis); return; } const v=E.vivo; if(!v) return; const P=param(); v.semis=P.semis; v.vel=P.vel/100; v.mesa(E.canales||[], E.modo); v.fijarReverb(E.reverb, (E.canales||[]).some(c=>c.usado&&c.prof>0)); }
+function posMus(){ if(E.audio) return E.est ? E.est.tIn : 0; return E.vivo ? E.vivo.tMus : (E.musPausa||0); }
+function duracionPrevista(){ if(E.audio) return E.audio.dur*100/param().vel; return E.midi ? E.midi.duracion*100/param().vel : 0; }
 function pintarPos(){
   const d=duracionPrevista(), t=Math.min(posMus()*100/param().vel, d);
   if(!E.arrastrando) $('pos').value= d ? Math.round(t/d*1000) : 0;
   $('tiempo').textContent=fmt(t)+' / '+fmt(d); $('rTiempo').textContent=fmt(t)+' / '+fmt(d);
-  const g=E.rolloGeo; if(g && E.midi){ const f=Math.max(0,Math.min(1,posMus()/E.midi.duracion)); $('cabezal').style.transform='translateX('+(g.padL+f*g.ancho).toFixed(1)+'px)'; }
+  const g=E.rolloGeo; if(g && durBase()){ const f=Math.max(0,Math.min(1,posMus()/durBase())); $('cabezal').style.transform='translateX('+(g.padL+f*g.ancho).toFixed(1)+'px)'; }
 }
 function sonar(){
+  if(E.audio) return sonarAudio();
   if(!E.midi) return;
   if(!E.sonando && E.ctx && !E.__recien) renovarAudio();   // cada ▶ abre el audio en la salida activa
   const c=ctx();
@@ -1310,31 +1506,32 @@ function sonar(){
   cancelAnimationFrame(E.raf); const bucle=()=>{ pintarPos(); pintarVu(); if(E.sonando) E.raf=requestAnimationFrame(bucle); else apagarVu(); }; bucle();
 }
 function detener(){ E.sonando=false; for(const id of ['play','rPlay']){ $(id).textContent='▶'; $(id).setAttribute('aria-label','Reproducir'); } apagarVu(); pintarPos(); }
-$('play').onclick=async()=>{ ctx(); if(E.sonando){ detener(); return; } const p=asegurarSonidos(); if(E.midi&&faltanSonidos()){ $('play').disabled=true; await p; $('play').disabled=false; } sonar(); };
+$('play').onclick=async()=>{ ctx(); if(E.sonando){ detener(); return; } if(E.audio) return sonar(); const p=asegurarSonidos(); if(E.midi&&faltanSonidos()){ $('play').disabled=true; await p; $('play').disabled=false; } sonar(); };
 // original / con cambios, en el mismo punto de la música y sin parar
 document.querySelectorAll('#modoChips button').forEach(b=>b.onclick=()=>{
   const nuevo=b.dataset.v; if(nuevo===E.modo) return; E.modo=nuevo;
   document.querySelectorAll('#modoChips button').forEach(x=>x.setAttribute('aria-pressed', x.dataset.v===E.modo));
-  $('modoTxt').textContent= E.modo==='original' ? 'MIDI original con tu soundfont: tono y velocidad sin tocar (la mesa sí se aplica).' : 'Tal cual quedará el MP3: con el tono, la velocidad, la mesa y la reverberación elegidos.';
+  $('modoTxt').textContent= E.audio ? (E.modo==='original' ? 'La canción tal cual, sin cambios.' : 'Tal cual quedará el MP3: con el tono y la velocidad elegidos.') : E.modo==='original' ? 'MIDI original con tu soundfont: tono y velocidad sin tocar (la mesa sí se aplica).' : 'Tal cual quedará el MP3: con el tono, la velocidad, la mesa y la reverberación elegidos.';
   aplicarVivo(); pintarPos();
 });
 // ---- transporte del gráfico de notas: play/pausa, stop y saltar con clic ----
 $('rPlay').onclick=()=>$('play').click();
-function irA(tMus){ if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(Math.max(0,Math.min(E.midi.duracion,tMus))); aplicarVivo(); pintarPos(); }
+function irA(tMus){ if(E.audio){ if(!E.est) crearEst(); E.est.buscar(Math.max(0,Math.min(E.audio.dur,tMus))); pintarPos(); return; } if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(Math.max(0,Math.min(E.midi.duracion,tMus))); aplicarVivo(); pintarPos(); }
 function pararDelTodo(){ detener(); irA(0); }
 $('rStop').onclick=pararDelTodo; $('stop').onclick=pararDelTodo;
 (()=>{ const r=$('rollo'); let ab=false;
-  const t=e=>{ const g=E.rolloGeo; if(!g||!E.midi) return null; const x=e.clientX-r.getBoundingClientRect().left; return (x-g.padL)/g.ancho*E.midi.duracion; };
+  const t=e=>{ const g=E.rolloGeo; if(!g||!durBase()) return null; const x=e.clientX-r.getBoundingClientRect().left; return (x-g.padL)/g.ancho*durBase(); };
   r.addEventListener('pointerdown',e=>{ const m=t(e); if(m==null) return; ab=true; r.setPointerCapture(e.pointerId); irA(m); });
   r.addEventListener('pointermove',e=>{ if(!ab) return; const m=t(e); if(m!=null) irA(m); });
   const fin=()=>{ ab=false; }; r.addEventListener('pointerup',fin); r.addEventListener('pointercancel',fin);
 })();
 $('pos').oninput=()=>{ E.arrastrando=true; const d=duracionPrevista(); $('tiempo').textContent=fmt(+$('pos').value/1000*d)+' / '+fmt(d); };
-$('pos').onchange=()=>{ E.arrastrando=false; if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(+$('pos').value/1000*E.midi.duracion); aplicarVivo(); pintarPos(); };
+$('pos').onchange=()=>{ E.arrastrando=false; if(E.audio){ irA(+$('pos').value/1000*E.audio.dur); return; } if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(+$('pos').value/1000*E.midi.duracion); aplicarVivo(); pintarPos(); };
 
 // ---- Conversión ----
-function limpiar(){ detener(); E.vivo=null; E.mp3=null; $('resultado').hidden=true; $('barra').style.width='0'; $('estado').textContent=''; pintarPos(); }
+function limpiar(){ detener(); if(E.proc){ try{ E.proc.disconnect(); }catch(e){} E.proc=null; } E.est=null; E.vivo=null; E.mp3=null; $('resultado').hidden=true; $('barra').style.width='0'; $('estado').textContent=''; pintarPos(); }
 $('convertir').onclick=async()=>{
+  if(E.audio) return convertirAudio();
   if(!E.midi) return; ctx(); E.cancel=false; $('resultado').hidden=true; $('convertir').disabled=true; $('cancelar').hidden=false;
   let wake=null; try{ wake=await navigator.wakeLock?.request('screen'); }catch(e){}
   const ini=performance.now();
