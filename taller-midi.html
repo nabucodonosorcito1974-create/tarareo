@@ -364,14 +364,14 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     <div class="conv-fila">
       <h2>Convertir</h2>
       <select id="kbps" aria-label="Calidad del MP3"><option value="128">128 kbps</option><option value="192" selected>192 kbps</option><option value="256">256 kbps</option><option value="320">320 kbps</option></select>
-      <button class="btn ambar" id="convertir">Convertir a MP3</button>
+      <button class="btn ambar" id="convertir">Convertir a MP3</button><button class="btn" id="bajarMid" type="button" title="El MIDI con todos tus cambios: mesa, instrumentación, tono y velocidad">Descargar MIDI modificado</button>
       <button class="btn mini" id="cancelar" hidden>Cancelar</button>
       <span class="msg" id="estado" aria-live="polite"></span>
     </div>
     <div class="progreso"><i id="barra"></i></div>
     <div id="resultado" class="conv-fila" hidden>
       <span class="msg conv-nombre" id="resTxt"></span>
-      <button class="btn prim" id="bajarMp3">Descargar MP3</button><button class="btn" id="bajarMid">Descargar MIDI</button>
+      <button class="btn prim" id="bajarMp3">Descargar MP3</button>
       <span class="msg" id="msgBajar"></span>
     </div>
   </section>
@@ -746,7 +746,7 @@ function leerMidi(buf){
       if(st<0x80){ st=rs; } else { p++; if(st<0xF0) rs=st; }
       if(st===0xFF){ const tipo=d.getUint8(p++), l=vlq(); const datos=new Uint8Array(d.buffer, d.byteOffset+p, l).slice(); p+=l;
         eventos.push({tick, o:orden++, tipo:'meta', meta:tipo, datos, pista:t}); if(tipo===0x2F) break; continue; }
-      if(st===0xF0||st===0xF7){ const l=vlq(); p+=l; continue; }
+      if(st===0xF0||st===0xF7){ const l=vlq(); const datos=new Uint8Array(d.buffer, d.byteOffset+p, l).slice(); p+=l; eventos.push({tick, o:orden++, tipo:'sysex', st, datos, pista:t}); continue; }
       const ch=st&15, cmd=st>>4, a=d.getUint8(p++), b=(cmd===0xC||cmd===0xD)?0:d.getUint8(p++);
       eventos.push({tick, o:orden++, tipo:'ch', cmd, ch, a, b, pista:t});
     }
@@ -769,28 +769,55 @@ function leerMidi(buf){
 }
 
 // MIDI modificado (formato 0): notas transportadas (salvo batería) y tempos escalados
-function escribirMidiMod(m, semis, vel){
-  const out=[], vlq=n=>{ const b=[n&0x7f]; while(n>>=7) b.unshift((n&0x7f)|0x80); return b; };
-  let last=0;
+// Escribe el MIDI con todos los cambios. Conserva las pistas, la letra (karaoke), los textos y los SysEx del original.
+// Lo que en el reproductor es propio de la app (distancia, tipo de reverb) se traduce a controles MIDI estándar.
+function escribirMidiMod(m, semis, vel, opc={}){
+  const vlq=n=>{ const b=[n&0x7f]; while(n>>=7) b.unshift((n&0x7f)|0x80); return b; };
+  const reverb=opc.reverb||'no';
+  // distancia de cada canal (CC 200 interno): más lejos = más bajo, más reverb y más apagado
+  const prof=new Float32Array(16); for(const e of m.eventos) if(e.tipo==='ch'&&e.cmd===0xB&&e.a===200) prof[e.ch]=e.b/127;
+  const usados=new Set(m.eventos.filter(e=>e.tipo==='ch'&&e.cmd===9&&e.b>0).map(e=>e.ch));
+  const revDe=(ch,b)=> reverb==='no' ? Math.round(prof[ch]*70) : Math.min(127, Math.round(b+prof[ch]*60));
+  const pistas=new Map(); const poner=(t,tick,o,bytes)=>{ if(!pistas.has(t)) pistas.set(t,[]); pistas.get(t).push({tick,o,bytes}); };
+  // al principio: tipo de reverb (XG y GS) y ajustes de distancia
+  const tipoXG={estudio:[0x02,0x00], sala:[0x01,0x00], iglesia:[0x01,0x01]}[reverb], macroGS={estudio:1, sala:3, iglesia:4}[reverb];
+  if(tipoXG){ poner(0,0,1e9-30,[0xF0,...vlq(9),0x43,0x10,0x4C,0x02,0x01,0x00,tipoXG[0],tipoXG[1],0xF7]);
+    const cs=(128-((0x40+0x01+0x30+macroGS)%128))%128; poner(0,0,1e9-29,[0xF0,...vlq(10),0x41,0x10,0x42,0x12,0x40,0x01,0x30,macroGS,cs,0xF7]); }
+  for(const ch of usados){ poner(0,0,1e9-20,[0xB0|ch,91,revDe(ch,40)]); if(prof[ch]>0) poner(0,0,1e9-19,[0xB0|ch,74,Math.round(64-44*prof[ch])]); }
   for(const e of m.eventos){
-    let bytes=null;
+    let bytes=null; const t=Math.max(0,e.pista);
     if(e.tipo==='ch'){
       if(e.cmd===0xB && e.a>119) continue;
-      let a=e.a, b=e.b; if((e.cmd===8||e.cmd===9||e.cmd===0xA) && e.ch!==9) a=Math.max(0,Math.min(127,a+semis+(e.st||0)));
+      let a=e.a, b=e.b;
+      if((e.cmd===8||e.cmd===9||e.cmd===0xA) && e.ch!==9) a=Math.max(0,Math.min(127,a+semis+(e.st||0)));
       if(e.cmd===9 && b>0 && e.g!=null) b=Math.max(1,Math.min(127,Math.round(b*Math.sqrt(e.g))));
+      if(e.cmd===0xB && a===7 && prof[e.ch]>0) b=Math.round(b*Math.pow(10,-7*prof[e.ch]/20));
+      if(e.cmd===0xB && a===91) b=revDe(e.ch,b);
       bytes=(e.cmd===0xC||e.cmd===0xD)? [(e.cmd<<4)|e.ch, a] : [(e.cmd<<4)|e.ch, a, b];
-    } else if(e.meta===0x51){
-      const us=Math.min(0xFFFFFF,Math.round(((e.datos[0]<<16)|(e.datos[1]<<8)|e.datos[2])/vel));
-      bytes=[0xFF,0x51,3,(us>>16)&255,(us>>8)&255,us&255];
-    } else if(e.meta===0x58 || e.meta===0x03 && e.pista<=1){ bytes=[0xFF,e.meta,...vlq(e.datos.length),...e.datos]; }
-    if(!bytes) continue;
-    out.push(...vlq(e.tick-last), ...bytes); last=e.tick;
+    } else if(e.tipo==='sysex'){
+      bytes=[e.st, ...vlq(e.datos.length), ...e.datos];
+    } else if(e.tipo==='meta'){
+      if(e.meta===0x2F) continue;
+      if(e.meta===0x51){ const us=Math.min(0xFFFFFF,Math.round(((e.datos[0]<<16)|(e.datos[1]<<8)|e.datos[2])/vel)); bytes=[0xFF,0x51,3,(us>>16)&255,(us>>8)&255,us&255]; }
+      else bytes=[0xFF,e.meta,...vlq(e.datos.length),...e.datos];
+    }
+    // lo de la mesa va detrás de los «reset» GS/XG del archivo, que si no lo borrarían
+    if(bytes) poner(t, e.tick, e.pista<0 ? 1e9+(e.o??0) : (e.o??0), bytes);
   }
-  if(!m.eventos.some(e=>e.meta===0x51)){ const us=Math.round(500000/vel); out.unshift(0,0xFF,0x51,3,(us>>16)&255,(us>>8)&255,us&255); }
-  out.push(0,0xFF,0x2F,0);
-  const L=out.length;
-  return new Uint8Array([0x4D,0x54,0x68,0x64,0,0,0,6,0,0,0,1,(m.div>>8)&255,m.div&255,0x4D,0x54,0x72,0x6B,(L>>>24)&255,(L>>16)&255,(L>>8)&255,L&255,...out]);
+  if(!m.eventos.some(e=>e.meta===0x51)){ const us=Math.round(500000/vel); poner(0,0,-40,[0xFF,0x51,3,(us>>16)&255,(us>>8)&255,us&255]); }
+  const ids=[...pistas.keys()].sort((a,b)=>a-b), trozos=[];
+  for(const t of ids){
+    const ev=pistas.get(t).sort((a,b)=>a.tick-b.tick||a.o-b.o), out=[]; let last=0;
+    for(const x of ev){ out.push(...vlq(x.tick-last), ...x.bytes); last=x.tick; }
+    out.push(0,0xFF,0x2F,0); const L=out.length;
+    trozos.push(new Uint8Array([0x4D,0x54,0x72,0x6B,(L>>>24)&255,(L>>16)&255,(L>>8)&255,L&255,...out]));
+  }
+  const n=trozos.length, cab=new Uint8Array([0x4D,0x54,0x68,0x64,0,0,0,6,0,1,(n>>8)&255,n&255,(m.div>>8)&255,m.div&255]);
+  const tot=new Uint8Array(cab.length+trozos.reduce((s,x)=>s+x.length,0)); tot.set(cab); let p=cab.length; for(const x of trozos){ tot.set(x,p); p+=x.length; }
+  return tot;
 }
+// ¿lleva letra de karaoke?
+function tieneLetra(m){ return m.eventos.some(e=>e.tipo==='meta' && (e.meta===0x05 || (e.meta===0x01 && e.datos[0]===0x40))); }
 
 // ===== SoundFont 2 =====
 const GEN={startAddrsOffset:0,endAddrsOffset:1,startloopAddrsOffset:2,endloopAddrsOffset:3,startAddrsCoarse:4,initialFilterFc:8,initialFilterQ:9,endAddrsCoarse:12,pan:17,
@@ -1589,7 +1616,7 @@ function cargarMidi(bytes, nombre){
 }
 $('fMidi').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
   const b=new Uint8Array(await f.arrayBuffer());
-  if(b[0]===0x4D&&b[1]===0x54&&b[2]===0x68&&b[3]===0x64 || /\.(mid|midi|kar)$/i.test(f.name)){ salirAudio(); cargarMidi(b, f.name.replace(/\.(mid|midi|kar)$/i,'')); }
+  if(b[0]===0x4D&&b[1]===0x54&&b[2]===0x68&&b[3]===0x64 || /\.(mid|midi|kar)$/i.test(f.name)){ salirAudio(); E.extOrig=/\.kar$/i.test(f.name)?'kar':'mid'; cargarMidi(b, f.name.replace(/\.(mid|midi|kar)$/i,'')); }
   else cargarAudioArchivo(b, f.name);
 };
 // el soundfont se guarda en disco (no en memoria) para no tener que elegirlo cada vez
@@ -1757,7 +1784,7 @@ async function guardar(datos, nombre, ext, tipo, msgId='msgBajar'){
   }
 }
 $('bajarMp3').onclick=async()=>{ if(E.mp3) guardar(new Uint8Array(await E.mp3.arrayBuffer()), E.nombreBase, 'mp3', 'audio/mpeg'); };
-$('bajarMid').onclick=()=>{ if(E.midi) guardar(escribirMidiMod(editarMidi('cambios'), E.semis, E.vel/100), E.nombreBase||((E.nombreMidi||'midi')+' (modificado)'), 'mid', 'audio/midi'); };
+$('bajarMid').onclick=()=>{ if(!E.midi) return; const kar=E.extOrig==='kar'||tieneLetra(E.midi); guardar(escribirMidiMod(editarMidi('cambios'), E.semis, E.vel/100, {reverb:E.reverb}), (E.nombreMidi||'midi').replace(/[^\w\-áéíóúñÁÉÍÓÚÑ ]+/g,'_')+' ('+(E.semis>0?'+':'')+E.semis+' st, '+E.vel+' %)', kar?'kar':'mid', 'audio/midi'); };
 
 window.addEventListener('resize', dibujar);
 
