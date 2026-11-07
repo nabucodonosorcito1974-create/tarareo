@@ -486,7 +486,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 20:15</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 20:46</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -2196,7 +2196,7 @@ function pintarRack(){
     else { const o=document.createElement('option'); o.textContent='—'; sel.append(o); }
     const nomInst=()=>{ const o=sel.selectedOptions[0]; return o ? o.textContent.replace(/\s*★$/,'') : ''; };
     sel.title=nomInst();
-    sel.onchange=()=>{ const v=+sel.value; c.inst= v===valorOriginal(c) ? null : v; sel.title=nomInst(); t._cinta(); t.classList.toggle('cambiado', c.inst!=null); cambioMesa(false); if(typeof pintarEscena==='function') pintarEscena(); asegurarSonidos(); };
+    sel.onchange=()=>{ const v=+sel.value; c.inst= v===valorOriginal(c) ? null : v; sel.title=nomInst(); t._cinta(); t.classList.toggle('cambiado', c.inst!=null); cambioMesa(false); if(typeof pintarEscena==='function') pintarEscena(); asegurarSonidos(); if(typeof usbSync==='function') usbSync(c); };
     t.append(sel);
     // soundfont del canal
     const sfs=document.createElement('select'); sfs.className='lcd sfsel'; sfs.id='sf'+c.ch; sfs.disabled=!c.usado; sfs.setAttribute('aria-label','Soundfont del canal '+(c.ch+1));
@@ -3147,7 +3147,7 @@ function refrescarSalida(){ if(!E.salidaMidi||SAL.t==null) return; clearTimeout(
 function canalesLibres(){
   const sel=$('usbCanal'), prev=sel.value; sel.textContent=''; if(!E.canales) return;
   const tomados=new Set(USB.tomas.map(x=>x.ch));
-  for(const c of E.canales){ if(c.ch===9) continue; if(c.usado && !tomados.has(c.ch) && c.ch!==USB.canal) continue;
+  for(const c of E.canales){ if(c.ch===9) continue; if(!tomados.has(c.ch) && (c.notas || c.usado && c.ch!==USB.canal)) continue;   // canales con notas de la canción: no se tocan
     sel.append(new Option('Canal '+(c.ch+1)+(tomados.has(c.ch)?' (tu grabación)':''), c.ch)); }
   if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
   if(!sel.options.length){ sel.append(new Option('No quedan canales libres','')); }
@@ -3162,14 +3162,17 @@ function usbInstrumentos(){
 }
 usbInstrumentos();
 function elegirEntrada(){ if(USB.entrada) USB.entrada.onmidimessage=null; const id=$('usbEntrada').value; USB.entrada= id&&USB.acc ? USB.acc.inputs.get(id) : null; if(USB.entrada) USB.entrada.onmidimessage=alTocar; }
-function elegirCanal(){ const v=$('usbCanal').value; USB.canal= v==='' ? null : +v; USB.inst=+$('usbInst').value||0; USB.prog=USB.inst%128; USB.banco=Math.floor(USB.inst/128); prepararCanal(); ponerInstrumentoDirecto(); }
+function elegirCanal(ev){ const v=$('usbCanal').value, cambiaCanal= +v!==USB.canal; USB.canal= v==='' ? null : +v;
+  // si el canal ya tiene notas (una toma tuya), «como» muestra el instrumento que tiene en la mesa
+  const cc=USB.canal!=null&&E.canales?E.canales[USB.canal]:null; if(cc && cc.notas && (cambiaCanal || ev&&ev.target===$('usbCanal'))){ const val=String(cc.inst==null?valorOriginal(cc):cc.inst); if([...$('usbInst').options].some(o=>o.value===val)) $('usbInst').value=val; }
+  USB.inst=+$('usbInst').value||0; USB.prog=USB.inst%128; USB.banco=Math.floor(USB.inst/128); prepararCanal(); ponerInstrumentoDirecto(); }
 $('usbEntrada').onchange=elegirEntrada; $('usbCanal').onchange=elegirCanal; $('usbInst').onchange=elegirCanal;
 // el canal elegido se enciende en la mesa con el instrumento elegido (y se cargan sus sonidos)
 function prepararCanal(){
   if(USB.canal==null||!E.canales) return; const c=E.canales[USB.canal];
   for(const o of E.canales) if(o!==c && !o.notas && o.usado){ o.usado=false; o.nombre='—'; o.color='--bat'; }
   if(!c.notas){ c.usado=true; c.instOrig=($('usbInst').selectedOptions[0]?.textContent||GM128[USB.prog]).replace(/^\d{3}(\/\d+)?\s/,''); c.nombre='Mi grabación'; c.nombrePista=''; if(c.color==='--bat') c.color='--c5'; }
-  if(!c.notas){ c.prog=USB.prog; c.banco=USB.banco; c.inst= USB.banco ? USB.inst : null; } else c.inst=USB.inst;
+  if(!c.notas){ c.prog=USB.prog; c.banco=USB.banco; c.inst= USB.banco ? USB.inst : null; } else c.inst= USB.inst===valorOriginal(c) ? null : USB.inst;
   pintarRack(); if(!E.vivo) crearVivo(); aplicarVivo(); asegurarSonidos();
   if(E.salidaMidi){ enviar([0xB0|c.ch, 0, USB.banco||0]); enviar([0xC0|c.ch, USB.prog]); }
 }
@@ -3252,6 +3255,10 @@ function refrescarMonitor(){ if(!MON||!MON.v||E.audio||!E.canales) return; MON.v
 $('usbGuardar').onclick=()=>{ bajarMidiMod('usbMsg'); USB.sinGuardar=false; };
 // aviso si se va a cerrar la página con una grabación sin guardar
 window.addEventListener('beforeunload',e=>{ if(USB&&USB.sinGuardar){ e.preventDefault(); e.returnValue=''; } });
+
+// el instrumento cambiado en la mesa para el canal del teclado: «como» lo sigue y el teclado suena con él
+function usbSync(c){ if(!USB||USB.canal!==c.ch) return; const val=String(c.inst==null?valorOriginal(c):c.inst);
+  if([...$('usbInst').options].some(o=>o.value===val)){ $('usbInst').value=val; USB.inst=+val; USB.prog=USB.inst%128; USB.banco=Math.floor(USB.inst/128); ponerInstrumentoDirecto(); } }
 // ---------- Editor de notas: borrar, silenciar y cambiar el instrumento de un fragmento ----------
 var HIST=[];
 $('edModo').querySelectorAll('button').forEach(b=>b.onclick=()=>{ E.rolloModo=b.dataset.v; $('edModo').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));
