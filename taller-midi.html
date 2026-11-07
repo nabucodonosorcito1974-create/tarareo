@@ -364,7 +364,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     <summary class="sum-grande"><span>Partitura</span><span class="msg" id="ptInfo"></span></summary>
     <div class="pt-barra">
       <label class="pt-campo">Pista <select id="ptPista"></select></label>
-      <label class="pt-campo">Clave <select id="ptClave"><option value="treble">Sol</option><option value="bass">Fa</option><option value="alto">Do en 3.ª</option><option value="tenor">Do en 4.ª</option></select></label>
+      <label class="pt-campo">Clave <select id="ptClave"><option value="treble">Sol</option><option value="bass">Fa</option><option value="alto">Do en 3.ª</option><option value="tenor">Do en 4.ª</option><option value="piano">Piano (sol + fa)</option></select></label>
       <label class="pt-campo">Tonalidad <select id="ptTono"></select></label>
       <button class="btn mini" id="ptImprimir" type="button">🖨 Imprimir</button>
     </div>
@@ -479,7 +479,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 19:36</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 19:45</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -3327,7 +3327,7 @@ var PT={clave:'treble', tono:'auto', pista:null, auto:null};
 const NOM_TONO={'-7':['Do♭ mayor','La♭ menor'],'-6':['Sol♭ mayor','Mi♭ menor'],'-5':['Re♭ mayor','Si♭ menor'],'-4':['La♭ mayor','Fa menor'],'-3':['Mi♭ mayor','Do menor'],'-2':['Si♭ mayor','Sol menor'],'-1':['Fa mayor','Re menor'],
   '0':['Do mayor','La menor'],'1':['Sol mayor','Mi menor'],'2':['Re mayor','Si menor'],'3':['La mayor','Fa♯ menor'],'4':['Mi mayor','Do♯ menor'],'5':['Si mayor','Sol♯ menor'],'6':['Fa♯ mayor','Re♯ menor'],'7':['Do♯ mayor','La♯ menor']};
 const VF_TONO={'-7':'Cb','-6':'Gb','-5':'Db','-4':'Ab','-3':'Eb','-2':'Bb','-1':'F','0':'C','1':'G','2':'D','3':'A','4':'E','5':'B','6':'F#','7':'C#'};
-const CLAVES={treble:'Sol', bass:'Fa', alto:'Do en 3.ª', tenor:'Do en 4.ª'};
+const CLAVES={treble:'Sol', bass:'Fa', alto:'Do en 3.ª', tenor:'Do en 4.ª', piano:'Piano (sol + fa)'};
 function transporte(ch){ if(E.modo!=='cambios') return 0; const c=E.canales&&E.canales[ch]; return E.semis+(c?c.st||0:0); }
 // notas (con ticks) de cada pista/canal, sin batería ni notas silenciadas
 function notasPorPista(){
@@ -3393,62 +3393,99 @@ function opcionesPartitura(){
   const t=$('ptTono'); t.textContent=''; t.append(new Option('Auto: '+NOM_TONO[PT.auto.fifths][PT.auto.menor?1:0],'auto'));
   for(let k=-7;k<=7;k++) t.append(new Option(NOM_TONO[k][0]+' / '+NOM_TONO[k][1], k)); t.value=PT.tono;
 }
+// acordes y dos voces: lo que empieza a la vez y acaba a la vez es un acorde; lo que se mueve por debajo
+// mientras la voz de arriba sigue sonando va a la segunda voz (plica hacia abajo)
+function voces(ns, div){
+  const g=div/4, q=[], vistos=new Set();
+  for(const x of ns){ const i=Math.round(x.t/g), f=Math.max(i+1, Math.round(x.f/g)), k=i+':'+x.m; if(vistos.has(k)) continue; vistos.add(k); q.push({i,f,m:x.m}); }
+  const grupos=new Map(); for(const x of q){ if(!grupos.has(x.i)) grupos.set(x.i,[]); grupos.get(x.i).push(x); }
+  const v1=[], v2=[];
+  for(const i of [...grupos.keys()].sort((a,b)=>a-b)){
+    const G=grupos.get(i).sort((a,b)=>b.m-a.m), arriba=v1[v1.length-1];
+    // la voz de arriba sigue sonando y esto entra por debajo: segunda voz
+    if(arriba && arriba.f>i && G[0].m<Math.min(...arriba.ms)){ v2.push({i, f:G[0].f, ms:G.map(x=>x.m)}); continue; }
+    const top=G[0], c1=G.filter(x=>x.f===top.f), resto=G.filter(x=>x.f!==top.f);
+    v1.push({i, f:top.f, ms:c1.map(x=>x.m)});
+    if(resto.length) v2.push({i, f:resto[0].f, ms:resto.map(x=>x.m)});
+  }
+  const limpiar=v=>{ v.sort((a,b)=>a.i-b.i); const r=[]; for(const c of v){ const u=r[r.length-1]; if(u && u.i===c.i){ u.ms=[...new Set([...u.ms,...c.ms])]; u.f=Math.min(u.f,c.f); continue; } if(u && u.f>c.i) u.f=c.i; r.push(c); } return r.filter(c=>c.f>c.i); };
+  return [limpiar(v1), limpiar(v2)];
+}
+// reparte una voz en compases: trozos con su duración, silencios y ligaduras
+function enCompases(v, L, nComp){
+  const comp=Array.from({length:nComp},()=>[]); let pos=0;
+  const silencio=(a,b)=>{ while(a<b){ const k=Math.floor(a/L), fin=Math.min(b,(k+1)*L); for(const [p,d] of partir(a-k*L, fin-a)) comp[k].push({d, silencio:true}); a=fin; } };
+  for(const c of v){ silencio(pos, c.i); let a=c.i, prev=null;
+    while(a<c.f){ const k=Math.floor(a/L), fin=Math.min(c.f,(k+1)*L);
+      for(const [p,d] of partir(a-k*L, fin-a)){ const pz={d, ms:[...c.ms].sort((x,y)=>x-y), desde:prev}; comp[k].push(pz); prev=pz; }
+      a=fin; }
+    pos=c.f; }
+  silencio(pos, nComp*L);
+  return comp;
+}
 async function pintarPartitura(){
   const cont=$('partitura'); if(!E.midi || E.audio){ cont.innerHTML='<p class="msg">La partitura sale de un MIDI.</p>'; return; }
   if(!$('plPartitura').open) return;
   try{ await cargarVexflow(); }catch(e){ cont.innerHTML='<p class="msg">No he podido cargar el dibujo de partituras.</p>'; return; }
   if(!PT.mapa) opcionesPartitura();
   const id=$('ptPista').value, ns=PT.mapa.get(id); if(!ns||!ns.length){ cont.innerHTML='<p class="msg">Este MIDI no tiene notas que escribir (la batería no va en pentagrama).</p>'; return; }
-  const VF=Vex.Flow, m=E.midi, fifths= PT.tono==='auto' ? PT.auto.fifths : +PT.tono, llave=VF_TONO[fifths], clave=PT.clave;
+  const VF=Vex.Flow, m=E.midi, fifths= PT.tono==='auto' ? PT.auto.fifths : +PT.tono, llave=VF_TONO[fifths];
   const ts=m.eventos.find(e=>e.tipo==='meta'&&e.meta===0x58), num=ts?ts.datos[0]:4, den=ts?Math.pow(2,ts.datos[1]):4, L=Math.round(num*16/den);
-  const mel=melodia(ns, m.div), nComp=Math.max(1,Math.ceil(Math.max(...mel.map(x=>x.f))/L));
-  const comp=[]; for(let k=0;k<nComp;k++) comp.push([]);
-  // cada compás: notas y silencios (las notas que cruzan la barra se parten y se ligan)
-  let pos=0, prevPieza=null;
-  const descanso=(a,b)=>{ while(a<b){ const k=Math.floor(a/L), fin=Math.min(b,(k+1)*L); for(const [p,d] of partir(a-k*L, fin-a)) comp[k].push({d, silencio:true}); a=fin; } };
-  for(const x of mel){ descanso(pos, x.i); let a=x.i, primera=true;
-    while(a<x.f){ const k=Math.floor(a/L), fin=Math.min(x.f,(k+1)*L);
-      for(const [p,d] of partir(a-k*L, fin-a)){ const pieza={d, m:x.m, ligada:!primera}; comp[k].push(pieza); if(!primera) pieza.desde=prevPieza; prevPieza=pieza; primera=false; }
-      a=fin; }
-    pos=x.f; }
-  descanso(pos, nComp*L);
-  // dibujo: cada compás con el ancho que de verdad necesitan sus notas, repartidos en líneas al ancho de la pantalla
-  const W=Math.max(180, cont.clientWidth-8); cont.innerHTML='';
-  const notaVF=new Map(), voces=[], minW=[];
-  comp.forEach((c,k)=>{
-    const notas=c.map(p=>{ const keys= p.silencio ? [clave==='bass'?'d/3':clave==='treble'?'b/4':'c/4'] : [deletrear(p.m, fifths)];
-      const n=new VF.StaveNote({clef:clave, keys, duration:DUR[p.d]+(p.silencio?'r':''), dots:PUNTO[p.d]||0, auto_stem:true});
-      if(PUNTO[p.d]) VF.Dot.buildAndAttach([n],{all:true}); if(!p.silencio) notaVF.set(p,n); return n; });
-    const voz=new VF.Voice({num_beats:num, beat_value:den}).setMode(VF.Voice.Mode.SOFT); voz.addTickables(notas);
-    VF.Accidental.applyAccidentals([voz], llave);
-    const beams=VF.Beam.generateBeams(notas.filter(n=>!n.isRest()));
-    voces.push({voz, notas, beams}); minW.push(notas.length ? new VF.Formatter().joinVoices([voz]).preCalculateMinTotalWidth([voz])*1.35+30 : 40);
-  });
-  const prueba=(conCompas)=>{ const st=new VF.Stave(0,0,600).addClef(clave).addKeySignature(llave); if(conCompas) st.addTimeSignature(num+'/'+den); return st.getNoteStartX()+4; };
-  const cab0=prueba(true), cab=prueba(false), lineas=[]; let lin=[], suma=0;
-  comp.forEach((c,k)=>{ const w=minW[k]+(lin.length?0:(k===0?cab0:cab)); if(lin.length && suma+w>W){ lineas.push(lin); lin=[]; suma=0; } lin.push(k); suma+= lin.length===1 ? minW[k]+(k===0?cab0:cab) : w; });
+  // pentagramas: uno (con la clave elegida) o dos para piano (sol arriba, fa abajo, partido en el Do central)
+  const piano=PT.clave==='piano', pautas= piano ? [{clave:'treble', ns:ns.filter(x=>x.m>=60)},{clave:'bass', ns:ns.filter(x=>x.m<60)}] : [{clave:PT.clave, ns}];
+  const g=m.div/4, nComp=Math.max(1,Math.ceil(Math.max(...ns.map(x=>Math.round(x.f/g)))/L));
+  for(const pa of pautas){ const [v1,v2]=voces(pa.ns, m.div); pa.v=[enCompases(v1,L,nComp), v2.length?enCompases(v2,L,nComp):null]; }
+  // notas de VexFlow de cada compás (por pentagrama y voz)
+  const restoKey={treble:['b/4','e/4'], bass:['d/3','g/2'], alto:['c/4','f/3'], tenor:['a/3','d/3']};
+  const vfNota=new Map();
+  const notasDe=(pa, vi, k)=>{ const doble=!!pa.v[1] && pa.v[1][k].some(p=>!p.silencio);
+    if(vi===1 && !doble) return null;
+    return pa.v[vi][k].map(p=>{
+      const keys= p.silencio ? [restoKey[pa.clave]?.[doble?vi:0]||'b/4'] : p.ms.map(x=>deletrear(x, fifths));
+      const o={clef:pa.clave, keys, duration:DUR[p.d]+(p.silencio?'r':''), dots:PUNTO[p.d]||0}; if(doble) o.stem_direction= vi===0?1:-1; else o.auto_stem=true;
+      const n=new VF.StaveNote(o); if(PUNTO[p.d]) VF.Dot.buildAndAttach([n],{all:true}); if(!p.silencio) vfNota.set(p,n); return n; }); };
+  const compases=[];
+  for(let k=0;k<nComp;k++){
+    const porPauta=pautas.map(pa=>{ const vs=[0,1].map(vi=>notasDe(pa,vi,k)).filter(Boolean).map((notas,vi)=>{ const voz=new VF.Voice({num_beats:num, beat_value:den}).setMode(VF.Voice.Mode.SOFT); voz.addTickables(notas); return {voz,notas}; });
+      VF.Accidental.applyAccidentals(vs.map(x=>x.voz), llave);
+      const dobles=vs.length>1; vs.forEach((x,vi)=>{ x.beams=VF.Beam.generateBeams(x.notas.filter(n=>!n.isRest()), dobles?{stem_direction: vi===0?1:-1}:{}); });
+      return vs; });
+    const todas=porPauta.flat().map(x=>x.voz), f=new VF.Formatter(); porPauta.forEach(vs=>f.joinVoices(vs.map(x=>x.voz)));
+    compases.push({porPauta, minW: f.preCalculateMinTotalWidth(todas)*1.3+26});
+  }
+  // tamaño de la partitura: más pequeña que el tamaño estándar (y más aún en el móvil)
+  const Wpx=Math.max(180, cont.clientWidth-8), esc= Wpx<520 ? 0.62 : 0.74, W=Wpx/esc; cont.innerHTML='';
+  const prueba=(clave, conCompas)=>{ const st=new VF.Stave(0,0,600).addClef(clave).addKeySignature(llave); if(conCompas) st.addTimeSignature(num+'/'+den); return st.getNoteStartX()+4+(piano?14:0); };
+  const cab0=prueba(pautas[0].clave,true), cab=prueba(pautas[0].clave,false), lineas=[]; let lin=[], suma=0;
+  compases.forEach((c,k)=>{ const w=c.minW+(lin.length?0:(k===0?cab0:cab)); if(lin.length && suma+w>W){ lineas.push(lin); lin=[]; suma=0; } lin.push(k); suma+=w; });
   if(lin.length) lineas.push(lin);
-  const Halto=130, renderer=new VF.Renderer(cont, VF.Renderer.Backends.SVG); renderer.resize(W, lineas.length*Halto+40); const ctx=renderer.getContext();
-  let primeraPauta=null;
+  const sep=piano?82:0, Halto=110+sep, renderer=new VF.Renderer(cont, VF.Renderer.Backends.SVG);
+  renderer.resize(Wpx, (lineas.length*Halto+30)*esc); const ctx=renderer.getContext(); ctx.scale(esc,esc);
+  let primera=null;
   lineas.forEach((ks,li)=>{
-    const base=ks.map((k,j)=>minW[k]+(j===0?(k===0?cab0:cab):0)), tot=base.reduce((a,b)=>a+b,0), esc= li===lineas.length-1 && tot<W*0.75 ? 1 : (W-2)/tot;
-    let x=1;
-    ks.forEach((k,j)=>{ const w=base[j]*esc, st=new VF.Stave(x, 28+li*Halto, w);
-      if(j===0){ st.addClef(clave).addKeySignature(llave); if(k===0) st.addTimeSignature(num+'/'+den); }
-      if(k===nComp-1) st.setEndBarType(VF.Barline.type.END);
-      st.setContext(ctx).draw(); if(k===0) primeraPauta=st;
-      const {voz, notas, beams}=voces[k];
-      if(notas.length){ new VF.Formatter().joinVoices([voz]).format([voz], Math.max(10, x+w-st.getNoteStartX()-14)); voz.draw(ctx, st); beams.forEach(b=>b.setContext(ctx).draw()); }
-      x+=w; });
+    const base=ks.map((k,j)=>compases[k].minW+(j===0?(k===0?cab0:cab):0)), tot=base.reduce((a,b)=>a+b,0), fx= li===lineas.length-1 && tot<W*0.75 ? 1 : (W-2)/tot;
+    let x=(piano?14:1); const y0=20+li*Halto;
+    ks.forEach((k,j)=>{ const w=base[j]*fx-(j===0&&piano?14:0), staves=pautas.map((pa,pi)=>{ const st=new VF.Stave(x, y0+pi*sep, w);
+        if(j===0){ st.addClef(pa.clave).addKeySignature(llave); if(k===0) st.addTimeSignature(num+'/'+den); }
+        if(k===nComp-1) st.setEndBarType(VF.Barline.type.END); st.setContext(ctx).draw(); return st; });
+      if(piano){ if(j===0){ new VF.StaveConnector(staves[0],staves[1]).setType('brace').setContext(ctx).draw(); new VF.StaveConnector(staves[0],staves[1]).setType('singleLeft').setContext(ctx).draw(); }
+        new VF.StaveConnector(staves[0],staves[1]).setType(k===nComp-1?'boldDoubleRight':'singleRight').setContext(ctx).draw(); }
+      if(k===0) primera=staves[0];
+      const c=compases[k], f=new VF.Formatter(); c.porPauta.forEach(vs=>f.joinVoices(vs.map(x=>x.voz)));
+      const ancho=Math.max(10, x+w-Math.max(...staves.map(s=>s.getNoteStartX()))-12);
+      if(c.porPauta.flat().length){ f.format(c.porPauta.flat().map(x=>x.voz), ancho);
+        c.porPauta.forEach((vs,pi)=>vs.forEach(v=>{ v.voz.draw(ctx, staves[pi]); v.beams.forEach(b=>b.setContext(ctx).draw()); })); }
+      x+=base[j]*fx; });
   });
-  // ligaduras entre trozos de la misma nota
-  for(const [p,n] of notaVF) if(p.desde && notaVF.has(p.desde)) new VF.StaveTie({first_note:notaVF.get(p.desde), last_note:n, first_indices:[0], last_indices:[0]}).setContext(ctx).draw();
+  // ligaduras entre trozos del mismo acorde
+  for(const [p,n] of vfNota) if(p.desde && vfNota.has(p.desde)){ const idx=p.ms.map((_,i)=>i); new VF.StaveTie({first_note:vfNota.get(p.desde), last_note:n, first_indices:idx, last_indices:idx}).setContext(ctx).draw(); }
   // al tocar la clave o la armadura de la primera línea, se pueden cambiar
-  if(primeraPauta){ const x0=primeraPauta.getX(), y0=primeraPauta.getYForLine(0)-14, h=primeraPauta.getYForLine(4)-y0+14, ini=primeraPauta.getNoteStartX();
+  if(primera){ const x0=primera.getX()*esc, y0=(primera.getYForLine(0)-14)*esc, h=(primera.getYForLine(4)-primera.getYForLine(0)+28)*esc+(piano?sep*esc:0), ini=primera.getNoteStartX()*esc;
     const zona=(x,w,txt,fn)=>{ const b=document.createElement('button'); b.className='pt-zona'; b.type='button'; b.title=txt; b.setAttribute('aria-label',txt);
       Object.assign(b.style,{left:(x+4)+'px', top:(y0+6)+'px', width:w+'px', height:h+'px'}); b.onclick=ev=>{ ev.stopPropagation(); fn(b); }; cont.append(b); };
-    zona(x0+2, 34, 'Cambiar la clave', menuClave); zona(x0+38, Math.max(18, ini-x0-38-30), 'Cambiar la tonalidad', menuTono); }
-  $('ptInfo').textContent=NOM_TONO[fifths][PT.tono==='auto'&&PT.auto.menor?1:0]+(PT.tono==='auto'?' (detectada)':'')+' · clave de '+CLAVES[clave].toLowerCase()+' · '+num+'/'+den+' · '+nComp+' compases';
+    zona(x0, 32*esc+4, 'Cambiar la clave', menuClave); zona(x0+34*esc, Math.max(14, ini-x0-34*esc-26*esc), 'Cambiar la tonalidad', menuTono); }
+  const voz2=pautas.some(pa=>pa.v[1]);
+  $('ptInfo').textContent=NOM_TONO[fifths][PT.tono==='auto'&&PT.auto.menor?1:0]+(PT.tono==='auto'?' (detectada)':'')+' · '+(piano?'piano (sol + fa)':'clave de '+CLAVES[PT.clave].toLowerCase())+(voz2?' · dos voces':'')+' · '+num+'/'+den+' · '+nComp+' compases';
 }
 // menús que salen al tocar la clave o la armadura
 function abrirMenu(ancla, opciones, actual, elegir){
@@ -3456,7 +3493,7 @@ function abrirMenu(ancla, opciones, actual, elegir){
   for(const [v,t] of opciones){ const b=document.createElement('button'); b.type='button'; b.textContent=t; b.setAttribute('aria-pressed', String(v)===String(actual)); b.onclick=()=>{ mn.hidden=true; elegir(v); }; mn.append(b); }
   mn.style.left=Math.max(4, r.left-caja.left)+'px'; mn.style.top=(r.bottom-caja.top+4)+'px'; mn.hidden=false; mn.querySelector('[aria-pressed=true]')?.scrollIntoView({block:'nearest'});
 }
-function menuClave(b){ abrirMenu(b, Object.entries(CLAVES).map(([v,t])=>[v,'Clave de '+t.toLowerCase()]), PT.clave, v=>{ PT.clave=v; $('ptClave').value=v; pintarPartitura(); }); }
+function menuClave(b){ abrirMenu(b, Object.entries(CLAVES).map(([v,t])=>[v, v==='piano'?'Doble pentagrama (piano)':'Clave de '+t.toLowerCase()]), PT.clave, v=>{ PT.clave=v; $('ptClave').value=v; pintarPartitura(); }); }
 function menuTono(b){ const op=[['auto','Detectada: '+NOM_TONO[PT.auto.fifths][PT.auto.menor?1:0]]]; for(let k=-7;k<=7;k++) op.push([k, NOM_TONO[k][0]+' / '+NOM_TONO[k][1]]);
   abrirMenu(b, op, PT.tono, v=>{ PT.tono=v; $('ptTono').value=v; pintarPartitura(); }); }
 document.addEventListener('click',e=>{ if(!$('ptMenu').hidden && !$('ptMenu').contains(e.target)) $('ptMenu').hidden=true; });
