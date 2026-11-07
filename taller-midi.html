@@ -244,7 +244,8 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
 @media (prefers-reduced-motion: reduce){ .progreso i{ transition:none; } }
 .buscador{ border:1px solid var(--line); border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:6px; }
 .buscador input[type=text]{ flex:1 1 140px; min-width:0; font:500 14px var(--body); color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:7px 9px; }
-.b-lista{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+.b-lista{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; max-height:min(46vh,420px); overflow-y:auto; }
+.b-lista:empty{ display:none; }
 .b-lista li{ display:flex; align-items:center; gap:8px; padding:5px 2px; border-top:1px solid var(--line); font-size:13.5px; }
 .b-lista li:first-child{ border-top:0; }
 .b-lista .b-t{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -271,7 +272,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
       <div class="fila">
         <input type="text" id="bArtista" placeholder="Artista" autocomplete="off" aria-label="Artista">
         <input type="text" id="bTema" placeholder="Tema" autocomplete="off" aria-label="Tema">
-        <button class="btn prim" id="bBuscar" type="button">Buscar</button>
+        <button class="btn prim" id="bBuscar" type="button">Buscar</button><button class="btn" id="bBorrar" type="button" title="Borrar la búsqueda (Esc)">✕ Borrar</button>
         <span class="msg" id="bEstado" aria-live="polite"></span>
       </div>
       <ol class="b-lista" id="bLista"></ol>
@@ -2521,26 +2522,36 @@ $('igBajar').onclick=async()=>{ if(IG.mp3) guardar(new Uint8Array(await IG.mp3.a
 // ---------- Buscador de MIDI y KAR en internet (solo .mid / .kar) ----------
 const BUS={mcp:null, sample:null, listo:false};
 const SERVIDOR='Parallel Search';
-const FUERA=/youtube\.|youtu\.be|spotify\.|deezer\.|music\.apple|soundcloud\.|tiktok\.|instagram\.|facebook\.|amazon\.|letras\.|lyrics|genius\.com|musixmatch|azlyrics|chordify|ultimate-guitar|songsterr|tidal\.|shazam/i;
+const FUERA=/youtube\.|youtu\.be|spotify\.|deezer\.|music\.apple|soundcloud\.|tiktok\.|instagram\.|facebook\.|amazon\.|letras\.|lyrics|genius\.com|musixmatch|azlyrics|karafun\.|smule\.|singsnap|karaoke-version\.|singking|sing2music|chordify|ultimate-guitar|songsterr|tidal\.|shazam/i;
 const SITIOS_MIDI=['bitmidi.com','midiworld.com','freemidi.org','midishow.com','midifind.com','vanbasco.com','mididb.com','karaokespain.com','kar.es','midkar.com','hamienet.com','musescore.com'];
 (async()=>{ try{ BUS.mcp=await window.claude?.use?.('mcp'); }catch(e){} try{ BUS.sample=await window.claude?.use?.('sample'); }catch(e){} BUS.listo=true; })();
 $('bAbrir').onclick=()=>{ const b=$('buscador'); b.hidden=!b.hidden; $('bAbrir').setAttribute('aria-expanded', !b.hidden); if(!b.hidden) $('bArtista').focus(); };
-for(const id of ['bArtista','bTema']) $(id).addEventListener('keydown',e=>{ if(e.key==='Enter') $('bBuscar').click(); });
+for(const id of ['bArtista','bTema']) $(id).addEventListener('keydown',e=>{ if(e.key==='Enter') $('bBuscar').click(); if(e.key==='Escape') $('bBorrar').click(); });
+$('bBorrar').onclick=()=>{ $('bArtista').value=''; $('bTema').value=''; $('bLista').textContent=''; $('bEstado').textContent=''; $('bArtista').focus(); };
 const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9ñ ]+/g,' ').replace(/\s+/g,' ').trim();
 const host=u=>{ try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return u; } };
 // primera criba sin IA: tiene que hablar de MIDI/KAR y nombrar el tema
+const GENERICAS=new Set('midi mid kar karaoke download descargar free gratis file files music musica song cancion the el la los las de del by and y version versión mp3 video lyrics letra con with sequence secuencia piano cover remix instrumental collection download chanson video midifind bitmidi midiworld midishow'.split(' '));
+const palabras=s=>norm(s).replace(/ñ/g,'n').split(/[^a-z0-9]+/).filter(Boolean);
+// ¿el título habla de ESTE tema (y no de otro que solo lo contiene)?
 function criba(r, artista, tema){
-  const txt=norm(r.title+' '+r.url+' '+(r.excerpts||[]).join(' ').slice(0,4000));
   if(FUERA.test(r.url)) return null;
-  if(!/\bmidi?\b|\.mid\b|\bkar\b|karaoke|\bsmf\b/.test(txt) && !/\.(mid|midi|kar)(\?|$)/i.test(r.url)) return null;
-  const pt=norm(tema).split(' ').filter(w=>w.length>1), pa=norm(artista).split(' ').filter(w=>w.length>1);
-  const enT=pt.filter(w=>txt.includes(w)).length/(pt.length||1), enA=pa.length ? pa.filter(w=>txt.includes(w)).length/pa.length : 1;
-  if(enT<0.75) return null;
-  const tituloUrl=norm(r.title+' '+r.url), ex=(r.excerpts||[]).join(' ');
-  const kar=/\.kar\b|\bkar\b|karaoke|@kmidi|letra|lyrics included/i.test(r.title+' '+r.url+' '+ex.slice(0,3000));
+  const ex=(r.excerpts||[]).join(' '), todo=new Set(palabras(r.title+' '+r.url+' '+ex.slice(0,4000)));
+  if(!['midi','mid','kar','karaoke','smf'].some(w=>todo.has(w)) && !/\.(mid|midi|kar)(\?|$)/i.test(r.url)) return null;
+  const pt=palabras(tema).filter(w=>w.length>1), pa=palabras(artista).filter(w=>w.length>1);
+  const tit=palabras(r.title+' '+decodeURIComponent(r.url.replace(/^https?:\/\/[^/]+/,''))), titSet=new Set(tit);
+  const enT=pt.filter(w=>titSet.has(w)).length/(pt.length||1);
+  if(enT<0.75) return null;                                               // el tema tiene que estar en el título o en la dirección
+  const enA=pa.length ? pa.filter(w=>todo.has(w)).length/pa.length : 1;
+  // palabras del título que no son ni del tema, ni del artista, ni genéricas: si hay muchas, es otra canción
+  const extra=[...new Set(tit)].filter(w=>w.length>2 && !pt.includes(w) && !pa.includes(w) && !GENERICAS.has(w) && !/^\d+$/.test(w) && !/^[a-z]?\d/.test(w));
+  const limite= enA>0 ? 4 : 1;
+  if(pa.length && enA===0 && extra.length>limite) return null;
+  if(extra.length>8) return null;
+  const kar=/\.kar\b|\bkar\b|karaoke|@kmidi|lyrics included/i.test(r.title+' '+r.url+' '+ex.slice(0,3000));
   const pago=/\bbuy\b|comprar|£\s?\d|€\s?\d|\$\s?\d|premium|credits|price/i.test(ex.slice(0,3000));
   const dur=(ex.match(/(?:Duration|Length|Duración)\D{0,12}(\d{1,2}:\d{2})/i)||[])[1]||'';
-  const nota=enT*2+enA+(pt.every(w=>tituloUrl.includes(w))?1:0)+(pa.length&&pa.every(w=>tituloUrl.includes(w))?0.5:0)+(pago?-0.5:0);
+  const nota=enT*2+enA*2-Math.min(3,extra.length*0.4)+(r.directo?0.3:0)+(pago?-0.5:0);
   return {directo:!!r.directo, url:r.url, titulo:r.title.replace(/\s*[:|•\-–]+\s*(MidiShow|Nonstop2k|Song Galaxy|BitMidi|MIDIfind).*$/i,'').replace(/\s*Download Free \.mid Music File/i,''), sitio:host(r.url), kar, pago, dur, nota, extracto:ex.slice(0,400)};
 }
 // saca la lista de resultados venga como venga la respuesta del conector
@@ -2557,7 +2568,7 @@ const BUSCADORES=[
   q=>'https://www.mididb.com/search.asp?q='+q, q=>'https://www.hamienet.com/search.php?q='+q, q=>'https://freemidi.org/search?q='+q,
 ];
 function enlacesDe(pagina, tema){
-  const txt=(pagina.excerpts||[]).join('\n'), base=host(pagina.url), pt=norm(tema).split(' ').filter(w=>w.length>1), out=[];
+  const txt=(pagina.excerpts||[]).join('\n'), base=host(pagina.url), pt=palabras(tema).filter(w=>w.length>1), out=[];
   for(const linea of txt.split('\n')){
     const resto=linea.replace(/\[([^\]]*)\]\([^)]*\)/g,' ').replace(/[#*]/g,' ').replace(/\s+/g,' ').trim();
     for(const m of linea.matchAll(/\[([^\]]{1,200})\]\((https?:\/\/[^)\s"]+)(?:\s+"([^"]*)")?\)/g)){
@@ -2566,7 +2577,7 @@ function enlacesDe(pagina, tema){
       if(/^(download|descargar|get|mid|midi)$/i.test(texto) || texto.length<3) texto=resto.replace(/\s*-\s*$/,'');
       if(host(url)!==base) continue;
       if(/search|\/tag|login|join|about|random|contact|privacy|\/pro\b|page=|boards|converter|\/help|\/files\/\d+$/i.test(url)) continue;
-      const n=norm(texto+' '+url); if(pt.filter(w=>n.includes(w)).length/(pt.length||1)<0.75) continue;
+      const n=new Set(palabras(texto+' '+decodeURIComponent(url))); if(pt.filter(w=>n.has(w)).length/(pt.length||1)<0.75) continue;
       out.push({url, title:texto.replace(/\s+/g,' '), excerpts:['MIDI '+texto+(base.includes('mididb')?' (demo)':'')], directo:/\/download\/\d+|\.(mid|kar)$/i.test(url)});
     }
   }
