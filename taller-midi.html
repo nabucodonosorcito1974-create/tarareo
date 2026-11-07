@@ -178,6 +178,9 @@ details.tarjeta:not([open]){ gap:0; }
 .usb-campo select{ width:auto; max-width:200px; padding:5px 8px; font:500 14px var(--body); }
 #usbMsg{ font-size:14px; }
 .btn.rec{ color:#d33; } .btn.rec.on{ background:#d33; color:#fff; border-color:#d33; }
+.eco input{ width:100%; accent-color:var(--ambar); }
+.eco output{ font:600 13px var(--mono); color:var(--ambar); margin-left:6px; }
+.eco-esc{ display:flex; justify-content:space-between; color:var(--muted); font-size:11.5px; }
 .chk-conv{ display:flex; align-items:center; gap:5px; font-size:13px; color:var(--muted); }
 .conv .progreso{ height:5px; }
 .conv-nombre{ color:var(--ink); flex:1 1 220px; min-width:0; overflow-wrap:anywhere; }
@@ -406,6 +409,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     <div class="otros" id="otrosRev">
       <div class="campo"><span>Reverberación</span>
         <div class="seg" id="revChips"><button data-v="no" type="button">Sin</button><button data-v="estudio" type="button">Estudio</button><button data-v="sala" type="button">Sala</button><button data-v="iglesia" type="button">Iglesia</button></div></div>
+      <div class="campo eco"><span>Duración del eco <output id="ecoOut">2,0 s</output></span><input type="range" id="eco" min="0" max="100" value="50" aria-label="Duración del eco"><small class="eco-esc"><span>corto</span><span>largo</span></small></div>
     </div>
     <p class="resumen" id="resumen"></p>
   </section>
@@ -451,7 +455,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 19:16</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 19:24</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -1002,7 +1006,12 @@ class Chorus {
       L[i]+=0.85*this.leer(this.base+this.dep*s); R[i]+=0.85*this.leer(this.base*1.3+this.dep*c);
       this.ph+=this.inc; if(this.ph>6.283185307) this.ph-=6.283185307; if(++this.i>=this.N) this.i=0; } }
 }
-const REVERBS={ no:null, estudio:{sala:0.6,amort:0.5,mezcla:1.1,cola:3}, sala:{sala:0.86,amort:0.3,mezcla:1.2,cola:5}, iglesia:{sala:0.97,amort:0.18,mezcla:1.5,cola:9} };   // colas largas: el eco se alarga, no solo suena más
+const REVERBS={ no:null, estudio:{sala:0.6,amort:0.5,mezcla:1.1,cola:3,tam:-0.12}, sala:{sala:0.86,amort:0.3,mezcla:1.2,cola:5,tam:0}, iglesia:{sala:0.97,amort:0.18,mezcla:1.5,cola:9,tam:0.08} };
+// duración del eco (0 = corto, 1 = muy largo; por defecto, en medio): fija el tamaño de la sala de cada tipo
+var ECO=0.5;
+function paramRev(tipo){ const b=REVERBS[tipo]; if(!b) return null; const sala=Math.max(0.2,Math.min(0.985, 0.3+0.67*Math.pow(ECO,0.8)+b.tam)); return {...b, sala, cola:1.5+12*Math.pow(sala,6)}; }
+// segundos que tarda el eco en apagarse (medido), para mostrarlo
+function segEco(tipo){ const T=[0.9,1.4,1.9,2.9,6.5], x=ECO*4, i=Math.min(3,Math.floor(x)), v=T[i]+(T[i+1]-T[i])*(x-i); return v*({estudio:0.75,iglesia:1.2}[tipo]||1); }
 
 // ===== Sintetizador offline =====
 const tc2s=tc=>Math.pow(2,tc/1200);
@@ -1146,7 +1155,7 @@ class Sinte {
       // distancia: a más lejos, menos nivel directo, menos agudos y más proporción de sala
       const p=c.prof||0, gp=Math.pow(10,-7*p/20), fc=22000*Math.pow(2200/22000,p), ap=p>0.001? 1-Math.exp(-2*Math.PI*fc/this.sr) : 1;
       const base= c.revMan!=null ? c.revMan*1.4 : (this.soloProf ? 0 : c.rev);   // el REV de la mesa manda y da bastante más eco
-      const envRev= this.soloProf ? base+0.75*p : base+(1-Math.min(1,base))*0.6*p;
+      const envRev= this.soloProf ? base+0.5*p : base+(1-Math.min(1,base))*0.45*p;
       if(c.eqCoef) aplicarEQ(c, tl, tr, a, b);
       const bo=c.boost||1;
       let zl=this.zL[ch], zr=this.zR[ch], wl=this.wL[ch], wr=this.wR[ch];
@@ -1182,7 +1191,7 @@ function aplicarEQ(c, L, R, a, b){
 class Vivo {
   constructor(midi, sf, sr){ this.midi=midi; this.sf=sf; this.sr=sr; this.ev=midi.eventos.filter(e=>e.tipo==='ch' && !e.mut);
     this.semis=0; this.vel=1; this.cho=new Chorus(sr); this.rv=null; this.tipoRev='no'; this.buscar(0); }
-  fijarReverb(tipo, hayProf){ const t= REVERBS[tipo] ? tipo : (hayProf ? 'sala' : 'no'); this.sinte.soloProf= !REVERBS[tipo] && !!hayProf; if(t===this.tipoRev) return; this.tipoRev=t; this.rv= REVERBS[t] ? new Reverb(this.sr, REVERBS[t]) : null; }
+  fijarReverb(tipo, hayProf){ const t= REVERBS[tipo] ? tipo : (hayProf ? 'sala' : 'no'); this.sinte.soloProf= !REVERBS[tipo] && !!hayProf; if(t===this.tipoRev && ECO===this.ecoRev) return; this.tipoRev=t; this.ecoRev=ECO; this.revP=paramRev(t); this.rv= this.revP ? new Reverb(this.sr, this.revP) : null; }
   // salta a un punto (segundos del MIDI original): controles al día y las notas que siguen sonando
   buscar(tMus){
     const viejo=this.sinte, s=new Sinte(this.sf, this.sr);
@@ -1235,7 +1244,7 @@ async function renderizar(midi, sf, {semis, vel, sr=44100, bloque=8192, reverb='
   if(sfCanal) sinte.sfCanal=sfCanal.slice();
   const hayProf=ev.some(e=>e.cmd===0xB&&(e.a===200||e.a===205)&&e.b>0), tipoR= REVERBS[reverb] ? reverb : (hayProf ? 'sala' : 'no');
   sinte.soloProf= !REVERBS[reverb] && hayProf;
-  const rv=REVERBS[tipoR]? new Reverb(sr, REVERBS[tipoR]) : null, cola=(rv? REVERBS[tipoR].cola : 0)+0.1, cho=new Chorus(sr);
+  const pr=paramRev(tipoR), rv=pr? new Reverb(sr, pr) : null, cola=(pr? pr.cola : 0)+0.1, cho=new Chorus(sr);
   sinte.revBus=new Float32Array(bloque); sinte.choBus=new Float32Array(bloque);
   if(vu){ sinte.vu=vu.canales; sinte.vuFrame=vu.frame; sinte.vuIni=Math.floor(desde*sr); }
   const total=Math.ceil((midi.duracion/vel+3+cola)*sr);
@@ -1754,7 +1763,7 @@ function pintarMandos(){
   $('velTxt').textContent= E.vel===100 ? 'Velocidad original' : E.vel<100 ? 'Más lento: dura '+(Math.round(100/E.vel*100)/100).toString().replace('.',',')+' veces lo que el original' : 'Más rápido: dura el '+Math.round(1e4/E.vel)+' % del original';
   document.querySelectorAll('#semChips button').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.v===E.semis));
   document.querySelectorAll('#velChips button').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.v===E.vel));
-  document.querySelectorAll('#revChips button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.v===E.reverb));
+  document.querySelectorAll('#revChips button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.v===E.reverb)); if(typeof pintarEco==='function') pintarEco();
   const m=E.midi;
   if(E.audio){ const d=E.audio.dur; $('resumen').textContent='Duración '+fmt(d)+' → '+fmt(d*100/E.vel)+'   ·   tono '+(E.semis>0?'+':'')+E.semis; $('convertir').disabled=false; $('play').disabled=false; dibujar(); return; }
   $('resumen').textContent= m ? 'Duración '+fmt(m.duracion)+' → '+fmt(m.duracion*100/E.vel)+'   ·   tempo '+m.bpm+' → '+(Math.round(m.bpm*E.vel/10)/10).toString().replace('.',',')+' BPM   ·   tono '+(E.semis>0?'+':'')+E.semis : 'Elige un MIDI para empezar.';
@@ -1776,6 +1785,8 @@ $('velMas').onclick=()=>{ E.vel=Math.min(400,E.vel+5); cambio(); };
 document.querySelectorAll('#semChips button').forEach(b=>b.onclick=()=>{ E.semis=+b.dataset.v; cambio(); });
 document.querySelectorAll('#velChips button').forEach(b=>b.onclick=()=>{ E.vel=+b.dataset.v; cambio(); });
 document.querySelectorAll('#revChips button').forEach(b=>b.onclick=()=>{ E.reverb=b.dataset.v; cambio(); });
+function pintarEco(){ $('ecoOut').textContent=segEco(E.reverb==='no'?'sala':E.reverb).toFixed(1).replace('.',',')+' s'; }
+$('eco').oninput=()=>{ ECO=+$('eco').value/100; pintarEco(); clearTimeout(E.ecoT); E.ecoT=setTimeout(cambio,120); };
 
 // ---- Archivos ----
 function cargarMidi(bytes, nombre){
@@ -1880,7 +1891,7 @@ function procMidi(){
     if(!E.sonando){ if(E.monitor) E.vivo.libre(L,R); else { L.fill(0); R.fill(0); } return; }
     E.vivo.render(L,R);
     E.reloj={perf:performance.now(), t:E.vivo.tMus, lat:(2*L.length/c.sampleRate)+(c.outputLatency||c.baseLatency||0)};
-    const cola=(REVERBS[E.vivo.tipoRev]||{cola:0}).cola*E.vivo.vel;   // al acabar, se deja sonar la cola de la reverb
+    const cola=(E.vivo.revP||{cola:0}).cola*E.vivo.vel;   // al acabar, se deja sonar la cola de la reverb
     if((E.vivo.fin() && E.vivo.tMus>E.midi.duracion+cola) || E.vivo.tMus>E.midi.duracion+cola+8){ if(E.grabando) return; E.sonando=false; setTimeout(()=>{ detener(); if(E.vivo){ E.vivo.buscar(0); aplicarVivo(); } pintarPos(); },0); } };
   E.proc.connect(salida()); return E.proc;
 }
@@ -2938,7 +2949,7 @@ var USB={acc:null, salida:null, entrada:null, canal:null, prog:0, tomas:[], toma
 var MON={vuC:new Float64Array(16), vuN:new Float64Array(16), vivas:new Array(16).fill(0), v:null, wk:null, proc:null, sf:undefined, ids:new WeakMap(), sig:1, enviados:new Set(), cargando:null};
 function codigoWorklet(){
   return [
-    'const tc2s='+tc2s.toString()+';', 'const REVERBS='+JSON.stringify(REVERBS)+';',
+    'const tc2s='+tc2s.toString()+';',
     Reverb.toString(), Chorus.toString(), Voz.toString(), VozSimple.toString(), Sinte.toString(),
     coefEQ.toString(), aplicarEQ.toString(),
     'let REGS=[]; function regionesSF2(){ return REGS; }',
@@ -2980,10 +2991,10 @@ function monitor(){
   return MON.v.sinte;
 }
 function enviarMesa(){ if(!MON.wk||!MON.v) return; const s=MON.v.sinte;
-  const firma=JSON.stringify([s.ov, Array.from(s.gan), Array.from(s.st), E.reverb, (E.canales||[]).map(c=>[c.rev,c.prof])]); if(firma===MON.firma) return; MON.firma=firma;
+  const firma=JSON.stringify([s.ov, Array.from(s.gan), Array.from(s.st), E.reverb, ECO, (E.canales||[]).map(c=>[c.rev,c.prof])]); if(firma===MON.firma) return; MON.firma=firma;
   MON.wk.port.postMessage({t:'mesa', ov:s.ov.map(o=>({...o})), gan:Array.from(s.gan), st:Array.from(s.st)});
   const manual=(E.canales||[]).some(c=>c.usado&&(c.rev>0||c.prof>0));
-  MON.wk.port.postMessage({t:'rev', p:REVERBS[E.reverb]||(manual?REVERBS.sala:null), soloProf:!REVERBS[E.reverb]}); }
+  MON.wk.port.postMessage({t:'rev', p:paramRev(REVERBS[E.reverb]?E.reverb:(manual?'sala':'no')), soloProf:!REVERBS[E.reverb]}); }
 // con la canción parada, los vúmetros se mueven con lo que se toca
 function vuTeclado(){ if(E.sonando||MON.rafVu) return; const bucle=()=>{ if(E.sonando){ MON.rafVu=0; return; } pintarVu();
   if(performance.now()-(MON.ultimo||0)<1500) MON.rafVu=requestAnimationFrame(bucle); else { MON.rafVu=0; apagarVu(); } }; MON.rafVu=requestAnimationFrame(bucle); }
@@ -3250,6 +3261,16 @@ function midiVacio(){
 }
 $('nuevoMidi').onclick=()=>{ if(typeof salirAudio==='function') salirAudio(); E.extOrig='mid'; HIST.length=0; E.sel.clear(); E.vista={zoom:1,ini:0}; cargarMidi(midiVacio(), 'Nueva grabación');
   $('carga').textContent='MIDI vacío listo: conecta tu teclado, elige canal e instrumento y pulsa «● Grabar».'; };
+
+// Versión web (GitHub): si el navegador tenía guardada una versión antigua, se carga la nueva sola
+(async()=>{ try{
+  if(window.claude || window.self!==window.top || !/^https?:/.test(location.protocol)) return;
+  const mia=(document.body.innerText.match(/Versión (\d\d-\d\d-\d{4} \d\d:\d\d)/)||[])[1]; if(!mia) return;
+  const base=location.href.split('?')[0].split('#')[0];
+  const r=await fetch(base+'?comprobar='+Date.now(),{cache:'no-store'}); if(!r.ok) return;
+  const nueva=((await r.text()).match(/Versión (\d\d-\d\d-\d{4} \d\d:\d\d)/)||[])[1];
+  if(nueva && nueva!==mia && sessionStorage.getItem('taller-recarga')!==nueva){ sessionStorage.setItem('taller-recarga',nueva); location.replace(base+'?v='+encodeURIComponent(nueva)); }
+}catch(e){} })();
 cargarMidi(b64(EJEMPLO_B64), 'Himno de la alegría (ejemplo)');
 pintarInfo(); recuperarSf();
 </script>
