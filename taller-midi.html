@@ -991,9 +991,13 @@ class Voz {
       quedan--;
       let p=this.pos; const ip=p|0, fr=p-ip;
       if(ip+1>=this.fin){ this.fin_=true; break; }
-      let x=(dat[ip]+(dat[ip+1]-dat[ip])*fr)/32768;
+      let x;
+      if(ip>0 && ip+2<this.fin){ const y0=dat[ip-1], y1=dat[ip], y2=dat[ip+1], y3=dat[ip+2];   // interpolación cúbica: menos ruido metálico al cambiar el tono
+        x=((((0.5*(y3-y0)+1.5*(y1-y2))*fr+(y0-2.5*y1+2*y2-0.5*y3))*fr+0.5*(y2-y0))*fr+y1)/32768; }
+      else x=(dat[ip]+(dat[ip+1]-dat[ip])*fr)/32768;
       if(this.fb){ const f=this.fb, y=f[0]*x+this.z1; this.z1=f[1]*x-f[3]*y+this.z2; this.z2=f[2]*x-f[4]*y; x=y; }
       x*=gan*e; e+=eStep;
+      if(this.corte!=null){ if(this.corte<=0){ this.libre=true; break; } x*=this.corte/this.corteN; this.corte--; }
       L[i]+=x*pl; R[i]+=x*pr;
       p+=inc;
       if(this.modo===1 || (this.modo===3 && this.relT<0)){ if(p>=this.bf) p-=(this.bf-this.bi); }
@@ -1045,7 +1049,7 @@ class Sinte {
           v.nota=e.a; v.gan*=(e.g??1); this.voces.push(v);
         }
       } else { const v=new VozSimple(e.ch,key,e.b,this.sr,e.ch===9); v.nota=e.a; v.gan*=(e.g??1); this.voces.push(v); }
-      if(this.voces.length>192){ const viejas=this.voces.filter(v=>v.relT>=0); (viejas.length?viejas:this.voces).slice(0,this.voces.length-192).forEach(v=>v.libre=true); this.voces=this.voces.filter(v=>!v.libre); }
+      if(this.voces.length>192){ const vivas=this.voces.filter(v=>!v.corte), viejas=vivas.filter(v=>v.relT>=0); (viejas.length?viejas:vivas).slice(0,Math.max(0,vivas.length-192)).forEach(v=>{ v.corte=Math.round(this.sr*0.006); v.corteN=v.corte; }); this.voces=this.voces.filter(v=>!v.libre); }
     } else if(e.cmd===8 || (e.cmd===9&&e.b===0)){
       for(const v of this.voces) if(v.ch===e.ch && v.nota===e.a && !v.soltada){ v.soltada=true; if(!c.ped) v.soltar(); else v.pendiente=true; }
     } else if(e.cmd===0xC){ c.aProg=e.a; this.aplicar(e.ch); }
@@ -1214,11 +1218,14 @@ class Estirador {
     this.FL=new Float32Array(1<<15); this.FR=new Float32Array(1<<15);
     this.v=1; this.p=1; this.buscar(0);
   }
-  ajustar(vel, semis){ const v=vel/100, p=Math.pow(2,semis/12); const directo=(v===1&&p===1); if(directo!==(this.v===1&&this.p===1)){ this.v=v; this.p=p; this.buscar(this.tIn); } else { this.v=v; this.p=p; } }
-  buscar(t){ this.tIn=Math.max(0,t); this.pos=this.tIn*this.sr; this.olaL.fill(0); this.olaR.fill(0); this.nF=0; this.ri=0; this.primero=true;
-    // la latencia del vocoder (media ventana) se compensa empezando antes
+  // tal: el audio tal cual · directo: solo remuestrear (sin vocoder) · pv: vocoder de fase
+  modo(v=this.v,p=this.p){ const so=this.srOut||this.sr; if(v===1&&p===1&&so===this.sr) return 'tal'; return Math.abs(v/p-1)<1e-9 ? 'directo' : 'pv'; }
+  ajustar(vel, semis){ const v=vel/100, p=Math.pow(2,semis/12), cambia=this.modo(v,p)!==this.modo(); this.v=v; this.p=p; if(cambia) this.buscar(this.tIn); }
+  buscar(t){ this.tIn=Math.max(0,t); this.pos=this.tIn*this.sr; this.olaL.fill(0); this.olaR.fill(0); this.nF=0; this.ri=0; this.primero=true; this.eAnt=0;
     // el centro de cada cuadro cae en N/2 de su salida: se descartan los primeros N-Hs (aún incompletos)
     this.ri=this.N-this.Hs; this.pos-=(this.ri-this.N/2)*this.v/this.p; }
+  // sin estirar: el «flujo estirado» es la propia entrada (mismo reparto de muestras que el vocoder)
+  directo(){ const {N,Hs}=this, ini=Math.round(this.pos)-N/2, a=this.tL, b=this.tR; this.f.rango(ini,Hs,a,b); this.empujar(a,b,Hs); this.pos+=Hs; }
   fin(){ return this.tIn>=this.dur; }
   // ventana de entrada L+iR empezando en la muestra ini
   leer(ini, re, im){ const {win,N,tL,tR}=this; this.f.rango(ini,N,tL,tR);
@@ -1275,22 +1282,47 @@ class Estirador {
     for(let i=0;i<n;i++){ this.FL[this.nF+i]=a[i]; this.FR[this.nF+i]=b[i]; } this.nF+=n;
   }
   render(L, R){
-    const n=L.length, sr=this.sr;
-    const paso=this.p*this.sr/(this.srOut||this.sr), so=this.srOut||this.sr;
-    if(this.v===1 && this.p===1 && so===this.sr){   // sin cambios: el audio tal cual
-      this.f.rango(Math.round(this.tIn*sr), n, L, R);
-      this.tIn+=n/sr; return;
-    }
-    const FL=()=>this.FL, FR=()=>this.FR;
+    const n=L.length, sr=this.sr, so=this.srOut||sr, paso=this.p*sr/so, modo=this.modo();
+    if(modo==='tal'){ this.f.rango(Math.round(this.tIn*sr), n, L, R); this.tIn+=n/sr; return; }
+    // remuestreo con sinc enventanada: al subir el tono filtra lo que quedaría por encima de 22 kHz (sin «frecuencias raras»)
+    const K=nucleoSinc(Math.min(1,1/paso)), T=K.T, gen= modo==='pv' ? ()=>this.cuadro() : ()=>this.directo();
     for(let i=0;i<n;i++){
-      let k=Math.floor(this.ri);
-      while(k+2>=this.nF) this.cuadro();
-      const t=this.ri-k, a=FL(), b=FR();
-      L[i]=cub(a[k-1]||0,a[k],a[k+1],a[k+2],t); R[i]=cub(b[k-1]||0,b[k],b[k+1],b[k+2],t);
+      const k=Math.floor(this.ri);
+      while(k+T+1>=this.nF) gen();
+      const t=this.ri-k, a=this.FL, b=this.FR, F=K.F, ph=Math.round(t*F.fases), base=ph*F.ancho, w=F.w;
+      let sl=0, sr2=0; const q0=k-T+1;
+      if(q0>=0) for(let j=0;j<F.ancho;j++){ const c=w[base+j]; sl+=a[q0+j]*c; sr2+=b[q0+j]*c; }
+      else for(let j=0;j<F.ancho;j++){ const q=q0+j; if(q<0) continue; const c=w[base+j]; sl+=a[q]*c; sr2+=b[q]*c; }
+      L[i]=sl; R[i]=sr2;
       this.ri+=paso; this.tIn+=this.v/so;
-      if(this.ri>8192){ const d=Math.floor(this.ri)-2; this.FL.copyWithin(0,d,this.nF); this.FR.copyWithin(0,d,this.nF); this.nF-=d; this.ri-=d; }
+      if(this.ri>16384){ const d=Math.floor(this.ri)-T-2; this.FL.copyWithin(0,d,this.nF); this.FR.copyWithin(0,d,this.nF); this.nF-=d; this.ri-=d; }
     }
   }
+}
+// núcleo sinc con ventana de Kaiser, tabulado; fc = corte relativo (1 = sin filtrar)
+const NUCLEOS=new Map();
+function nucleoSinc(fc){
+  const clave=Math.round(fc*2000); if(NUCLEOS.has(clave)) return NUCLEOS.get(clave);
+  fc=clave/2000; const Z=16, T=Math.ceil(Z/fc), RES=256, tab=new Float32Array(2*T*RES+2), beta=8.6;
+  const i0=x=>{ let s=1, t=1; for(let k=1;k<25;k++){ t*=(x/(2*k))*(x/(2*k)); s+=t; } return s; }, I0b=i0(beta);
+  for(let i=0;i<tab.length;i++){ const x=i/RES-T, u=x*fc*0.97, r=x/T; tab[i]= Math.abs(r)>=1 ? 0 : (u===0?1:Math.sin(Math.PI*u)/(Math.PI*u))*i0(beta*Math.sqrt(1-r*r))/I0b; }
+  const k={T, g:fc*0.97, w:x=>{ const f=(x+T)*RES, i=Math.floor(f); if(i<0||i>=tab.length-1) return 0; const a=f-i; return tab[i]*(1-a)+tab[i+1]*a; }};
+  const fases=512, ancho=2*T, W=new Float32Array((fases+1)*ancho);
+  for(let f=0;f<=fases;f++){ const t=f/fases; for(let j=0;j<ancho;j++) W[f*ancho+j]=k.w((j-T+1)-t)*fc*0.97; }
+  k.F={fases, ancho, w:W};
+  NUCLEOS.set(clave,k); return k;
+}
+// limitador de picos con anticipación (5 ms): evita el chasquido de los recortes
+class Limitador{
+  constructor(sr){ this.D=Math.round(sr*0.005); this.bL=new Float32Array(this.D); this.bR=new Float32Array(this.D); this.i=0; this.g=1; this.rel=Math.exp(-1/(sr*0.08)); this.pk=new Float32Array(this.D); }
+  proc(L,R){ const D=this.D, lim=0.97;
+    for(let n=0;n<L.length;n++){
+      const x=L[n], y=R[n], a=Math.max(Math.abs(x),Math.abs(y)); this.pk[this.i]=a;
+      let m=0; for(let j=0;j<D;j++) if(this.pk[j]>m) m=this.pk[j];
+      const obj= m>lim ? lim/m : 1; this.g= obj<this.g ? obj : obj-(obj-this.g)*this.rel;
+      const oL=this.bL[this.i], oR=this.bR[this.i]; this.bL[this.i]=x; this.bR[this.i]=y; this.i=(this.i+1)%D;
+      L[n]=oL*this.g; R[n]=oR*this.g;
+    } }
 }
 // fuente de audio: un par de canales, o la mezcla de las pistas separadas (con la mesa aplicada al vuelo)
 function fuenteSimple(L,R){ return {length:L.length, rango(ini,n,oL,oR){ const m=L.length; for(let i=0;i<n;i++){ const j=ini+i; if(j>=0&&j<m){ oL[i]=L[j]; oR[i]=R[j]; } else { oL[i]=0; oR[i]=0; } } }}; }
@@ -1303,7 +1335,6 @@ class FuenteMezcla{
     for(const c of this.p){ if(!c.gL&&!c.gR) continue; const L=c.L, R=c.R, gl=c.gL, gr=c.gR;
       for(let i=a;i<b;i++){ const j=ini+i; oL[i]+=gl*L[j]; oR[i]+=gr*R[j]; } } }
 }
-function cub(y0,y1,y2,y3,t){ const c1=0.5*(y2-y0), c2=y0-2.5*y1+2*y2-0.5*y3, c3=0.5*(y3-y0)+1.5*(y1-y2); return ((c3*t+c2)*t+c1)*t+y1; }
 
 // ---------- Modo audio en la interfaz ----------
 function durBase(){ return E.audio ? E.audio.dur : (E.midi ? E.midi.duracion : 0); }
@@ -1328,22 +1359,42 @@ async function cargarAudioArchivo(bytes, nombre){
   }catch(err){ console.error(err); E.audio=null; vistaAudio(false); $('error').textContent='No he podido leer ese audio. Prueba con un MP3, WAV o M4A.'; pintarInfo(); }
 }
 function crearEst(){ const e=new Estirador(E.mezcla||E.audio.L, E.audio.R, E.audio.sr); e.srOut=ctx().sampleRate; E.est=e; aplicarVivo(); return e; }
+// Reproducción con colchón: el audio se prepara ~0,35 s por delante, fuera del momento crítico de la tarjeta de sonido,
+// así un pico de trabajo de la página no se convierte en un chasquido.
+const COLA={b:[], off:0, t:null, timer:0, lim:null};
+function colaVaciar(t){ COLA.b=[]; COLA.off=0; COLA.t=t; if(E.est&&t!=null) E.est.buscar(t); }
+function colaLlenar(){
+  if(!E.est||!E.sonando) return; const sr=E.est.srOut||E.est.sr, obj=Math.round(sr*0.35); let hay=COLA.b.reduce((s,x)=>s+x.L.length,0)-COLA.off, vueltas=0;
+  while(hay<obj && !E.est.fin() && vueltas++<12){ const L=new Float32Array(2048), R=new Float32Array(2048); const t0=E.est.tIn; E.est.render(L,R); COLA.b.push({L,R,t0,t1:E.est.tIn}); hay+=2048; }
+}
+function pausarAudio(){ if(E.audio&&E.est&&COLA.t!=null) colaVaciar(COLA.t); clearInterval(COLA.timer); }
 function sonarAudio(){
   if(!E.sonando && E.ctx && !E.__recien) renovarAudio();
-  const c=ctx(); const t=E.est? E.est.tIn : 0;
-  if(!E.est || E.est.srOut!==c.sampleRate){ crearEst(); E.est.buscar(t); }
-  if(E.est.fin()) E.est.buscar(0);
+  const c=ctx(); const t=COLA.t ?? (E.est? E.est.tIn : 0);
+  if(!E.est || E.est.srOut!==c.sampleRate){ crearEst(); }
+  colaVaciar(t>=E.audio.dur-0.05 ? 0 : t);
   if(!E.proc){
+    COLA.lim=new Limitador(c.sampleRate);
     E.proc=c.createScriptProcessor(4096,0,2);
-    E.proc.onaudioprocess=ev=>{ const L=ev.outputBuffer.getChannelData(0), R=ev.outputBuffer.getChannelData(1);
+    E.proc.onaudioprocess=ev=>{ const L=ev.outputBuffer.getChannelData(0), R=ev.outputBuffer.getChannelData(1), n=L.length;
       if(!E.sonando||!E.est){ L.fill(0); R.fill(0); return; }
-      E.est.render(L,R);
-      if(E.est.fin()){ E.sonando=false; setTimeout(()=>{ detener(); if(E.est) E.est.buscar(0); pintarPos(); },0); } };
+      let i=0;
+      while(i<n){
+        if(!COLA.b.length){ if(E.est.fin()){ L.fill(0,i); R.fill(0,i); break; } colaLlenarUno(); }   // sin colchón: se prepara aquí mismo
+        const x=COLA.b[0], m=Math.min(n-i, x.L.length-COLA.off);
+        L.set(x.L.subarray(COLA.off,COLA.off+m),i); R.set(x.R.subarray(COLA.off,COLA.off+m),i);
+        COLA.off+=m; i+=m; COLA.t=x.t0+(x.t1-x.t0)*COLA.off/x.L.length;
+        if(COLA.off>=x.L.length){ COLA.b.shift(); COLA.off=0; }
+      }
+      COLA.lim.proc(L,R);
+      if(E.est.fin() && !COLA.b.length){ E.sonando=false; setTimeout(()=>{ detener(); colaVaciar(0); pintarPos(); },0); } };
     E.proc.connect(c.destination);
   }
-  E.sonando=true; for(const id of ['play','rPlay']){ $(id).textContent='❚❚'; $(id).setAttribute('aria-label','Pausa'); }
+  E.sonando=true; colaLlenar(); clearInterval(COLA.timer); COLA.timer=setInterval(colaLlenar, 25);
+  for(const id of ['play','rPlay']){ $(id).textContent='❚❚'; $(id).setAttribute('aria-label','Pausa'); }
   cancelAnimationFrame(E.raf); const bucle=()=>{ pintarPos(); pintarVuAudio(); if(E.sonando) E.raf=requestAnimationFrame(bucle); else apagarVu(); }; bucle();
 }
+function colaLlenarUno(){ const L=new Float32Array(2048), R=new Float32Array(2048), t0=E.est.tIn; E.est.render(L,R); COLA.b.push({L,R,t0,t1:E.est.tIn}); }
 function dibujarOnda(g, W, H){
   const a=E.audio, padL=8, ancho=W-16, mid=(H-14)/2; if(ancho<=0) return;
   E.rolloGeo={padL, ancho};
@@ -1363,13 +1414,13 @@ async function convertirAudio(){
   let wake=null; try{ wake=await navigator.wakeLock?.request('screen'); }catch(e){}
   const ini=performance.now();
   try{
-    const e=new Estirador(E.mezcla||a.L, a.R, a.sr); e.ajustar(E.vel, E.semis); e.buscar(0);
+    const e=new Estirador(E.mezcla||a.L, a.R, a.sr); e.ajustar(E.vel, E.semis); e.buscar(0); const lim=new Limitador(a.sr);
     const kbps=+$('kbps').value, enc=new lamejs.Mp3Encoder(2, a.sr, kbps), partes=[], B=1152*16;
     const L=new Float32Array(B), R=new Float32Array(B), iL=new Int16Array(B), iR=new Int16Array(B), q=s=>Math.max(-32768,Math.min(32767,Math.round(s*32767)));
     const total=Math.ceil(a.dur*100/E.vel*a.sr); let hecho=0, k=0;
     while(hecho<total){
       if(E.cancel) throw new Error('cancelado');
-      const n=Math.min(B,total-hecho); e.render(L,R);
+      const n=Math.min(B,total-hecho); e.render(L,R); lim.proc(L,R);
       for(let i=0;i<n;i++){ iL[i]=q(L[i]); iR[i]=q(R[i]); }
       const mp=enc.encodeBuffer(iL.subarray(0,n), iR.subarray(0,n)); if(mp.length) partes.push(new Uint8Array(mp));
       hecho+=n;
@@ -1384,6 +1435,7 @@ async function convertirAudio(){
   }catch(err){ $('estado').textContent= err.message==='cancelado' ? 'Cancelado.' : 'Error: '+(err.message||err); console.error(err); }
   finally{ $('convertir').disabled=false; $('cancelar').hidden=true; try{ wake&&wake.release(); }catch(e){} }
 }
+
 // ---------- Separación de voz (modelo MDX-Net de voz, UVR) ----------
 function cfgMDX(NFFT, DIMF, DIMT, COMP){ const HOP=1024, CHUNK=HOP*(DIMT-1), TRIM=NFFT/2; return {NFFT,HOP,DIMF,DIMT,CHUNK,TRIM,GEN:CHUNK-2*TRIM,NB:NFFT/2+1,COMP}; }
 const MDX=cfgMDX(7680,3072,256,1.021);          // voz (UVR-MDX-NET Voc_FT)
@@ -1691,7 +1743,7 @@ function param(modo=E.modo){ return modo==='original' ? {semis:0, vel:100} : {se
 function salida(){ const c=ctx(); if(!E.lim){ E.lim=c.createDynamicsCompressor(); E.lim.threshold.value=-6; E.lim.knee.value=4; E.lim.ratio.value=12; E.lim.attack.value=0.003; E.lim.release.value=0.15; E.limG=c.createGain(); E.limG.gain.value=1.4; E.lim.connect(E.limG); E.limG.connect(c.destination); } return E.lim; }
 function crearVivo(){ if(!E.midi) return null; const v=new Vivo(E.midi, E.sf, ctx().sampleRate); E.vivo=v; aplicarVivo(); return v; }
 function aplicarVivo(){ if(E.mezcla) E.mezcla.actualizar(); if(E.est){ const P=param(); E.est.ajustar(P.vel, P.semis); return; } const v=E.vivo; if(!v) return; const P=param(); v.semis=P.semis; v.vel=P.vel/100; v.mesa(E.canales||[], E.modo); v.fijarReverb(E.reverb, (E.canales||[]).some(c=>c.usado&&c.prof>0)); }
-function posMus(){ if(E.audio) return E.est ? E.est.tIn : 0; return E.vivo ? E.vivo.tMus : (E.musPausa||0); }
+function posMus(){ if(E.audio) return COLA.t ?? (E.est ? E.est.tIn : 0); return E.vivo ? E.vivo.tMus : (E.musPausa||0); }
 function duracionPrevista(){ if(E.audio) return E.audio.dur*100/param().vel; return E.midi ? E.midi.duracion*100/param().vel : 0; }
 function pintarPos(){
   const d=duracionPrevista(), t=Math.min(posMus()*100/param().vel, d);
@@ -1717,7 +1769,7 @@ function sonar(){
   E.sonando=true; for(const id of ['play','rPlay']){ $(id).textContent='❚❚'; $(id).setAttribute('aria-label','Pausa'); }
   cancelAnimationFrame(E.raf); const bucle=()=>{ pintarPos(); pintarVu(); if(E.sonando) E.raf=requestAnimationFrame(bucle); else apagarVu(); }; bucle();
 }
-function detener(){ E.sonando=false; for(const id of ['play','rPlay']){ $(id).textContent='▶'; $(id).setAttribute('aria-label','Reproducir'); } apagarVu(); pintarPos(); }
+function detener(){ E.sonando=false; if(E.audio) pausarAudio(); for(const id of ['play','rPlay']){ $(id).textContent='▶'; $(id).setAttribute('aria-label','Reproducir'); } apagarVu(); pintarPos(); }
 $('play').onclick=async()=>{ ctx(); if(E.sonando){ detener(); return; } if(E.audio) return sonar(); const p=asegurarSonidos(); if(E.midi&&faltanSonidos()){ $('play').disabled=true; await p; $('play').disabled=false; } sonar(); };
 // original / con cambios, en el mismo punto de la música y sin parar
 document.querySelectorAll('#modoChips button').forEach(b=>b.onclick=()=>{
@@ -1728,7 +1780,7 @@ document.querySelectorAll('#modoChips button').forEach(b=>b.onclick=()=>{
 });
 // ---- transporte del gráfico de notas: play/pausa, stop y saltar con clic ----
 $('rPlay').onclick=()=>$('play').click();
-function irA(tMus){ if(E.audio){ if(!E.est) crearEst(); E.est.buscar(Math.max(0,Math.min(E.audio.dur,tMus))); pintarPos(); return; } if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(Math.max(0,Math.min(E.midi.duracion,tMus))); aplicarVivo(); pintarPos(); }
+function irA(tMus){ if(E.audio){ if(!E.est) crearEst(); colaVaciar(Math.max(0,Math.min(E.audio.dur,tMus))); pintarPos(); return; } if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(Math.max(0,Math.min(E.midi.duracion,tMus))); aplicarVivo(); pintarPos(); }
 function pararDelTodo(){ detener(); irA(0); }
 $('rStop').onclick=pararDelTodo; $('stop').onclick=pararDelTodo;
 (()=>{ const r=$('rollo'); let ab=false;
@@ -1741,7 +1793,7 @@ $('pos').oninput=()=>{ E.arrastrando=true; const d=duracionPrevista(); $('tiempo
 $('pos').onchange=()=>{ E.arrastrando=false; if(E.audio){ irA(+$('pos').value/1000*E.audio.dur); return; } if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(+$('pos').value/1000*E.midi.duracion); aplicarVivo(); pintarPos(); };
 
 // ---- Conversión ----
-function limpiar(){ detener(); if(E.proc){ try{ E.proc.disconnect(); }catch(e){} E.proc=null; } E.est=null; E.vivo=null; E.mp3=null; $('resultado').hidden=true; $('barra').style.width='0'; $('estado').textContent=''; pintarPos(); }
+function limpiar(){ detener(); COLA.b=[]; COLA.t=null; if(E.proc){ try{ E.proc.disconnect(); }catch(e){} E.proc=null; } E.est=null; E.vivo=null; E.mp3=null; $('resultado').hidden=true; $('barra').style.width='0'; $('estado').textContent=''; pintarPos(); }
 $('convertir').onclick=async()=>{
   if(E.audio) return convertirAudio();
   if(!E.midi) return; ctx(); E.cancel=false; $('resultado').hidden=true; $('convertir').disabled=true; $('cancelar').hidden=false;
@@ -2338,9 +2390,9 @@ $('sepBoton').onclick=async()=>{
     const volver=async(x,y)=>{ if(a.sr===44100) return [x,y]; const off=new OfflineAudioContext(2,a.L.length,a.sr), b=off.createBuffer(2,x.length,44100); b.getChannelData(0).set(x); b.getChannelData(1).set(y); const s=off.createBufferSource(); s.buffer=b; s.connect(off.destination); s.start(); const r=await off.startRendering(); return [r.getChannelData(0), r.getChannelData(1)]; };
     const def=[['Voz','voz',VL,VR,'--c1'],['Batería','bateria',BL,BR,'--c2']]; if(XL) def.push(['Bajo','bajo',XL,XR,'--c3']); def.push([XL?'Resto':'Instrumentos','resto',OL,OR,'--c4']);
     const pistas=[]; for(const [nombre,id,x,y,color] of def){ const [l,r]=await volver(x,y); pistas.push({ch:pistas.length, id, nombre, L:l, R:r, color, usado:true, volIni:100, panIni:0, vol:null, pan:null, mute:false, solo:false, st:0}); }
-    const t=E.est? E.est.tIn : 0, seguia=E.sonando; if(seguia) detener();
+    const t=posMus(), seguia=E.sonando; if(seguia) detener();
     E.canales=pistas; E.mezcla=new FuenteMezcla(pistas); E.est=null;
-    pintarRack(); if(seguia){ crearEst(); E.est.buscar(t); sonar(); }
+    pintarRack(); crearEst(); colaVaciar(t); if(seguia) sonar();
     aviso('Listo: mueve los faders, el panorama, silencia (M) o deja sola (S) cada pista. El MP3 sale con esta mezcla.');
   }catch(err){ console.error(err); const m=String(err&&err.message||err); aviso(m==='cancelado'?'Cancelado.':/WebAssembly|wasm|Content Security/i.test(m)?'Este visor no deja arrancar el separador con IA.':'Error: '+m); }
   finally{ S2.ocupado=false; $('sepBoton').disabled=false; $('sepCancelar').hidden=true; try{ wake&&wake.release(); }catch(e){} if(E.audio) pintarSep(); }
@@ -2378,7 +2430,7 @@ function pintarRackAudio(){
 function pintarVuAudio(){
   const C=E.canales; if(!E.audio||!C||!C.length||!E.est) return;
   const ahora=performance.now()/1000, dt=Math.min(0.1, VU.t ? ahora-VU.t : 0.016); VU.t=ahora;
-  const aSub=1-Math.exp(-dt/0.07), aBaja=1-Math.exp(-dt/0.65), i0=Math.max(0,Math.round(E.est.tIn*E.audio.sr)-1024);
+  const aSub=1-Math.exp(-dt/0.07), aBaja=1-Math.exp(-dt/0.65), i0=Math.max(0,Math.round(posMus()*E.audio.sr)-1024);
   for(const c of C){ const el=document.getElementById('vu'+c.ch); if(!el) continue; const ch=c.ch;
     let s=0; const i1=Math.min(c.L.length,i0+2048); for(let i=i0;i<i1;i+=2){ const v=c.gL*c.L[i], w=c.gR*c.R[i]; s+=v*v+w*w; }
     const rms=Math.sqrt(s/Math.max(1,(i1-i0))), d=rms>0?20*Math.log10(rms/0.18):-99, obj=Math.max(0,Math.min(1,(d+48)/54));
@@ -2536,7 +2588,8 @@ $('igConv').onclick=async()=>{
     const e=new Estirador(cv.L, cv.R, cv.sr); e.ajustar(p.vel, p.semis); e.buscar(0);
     const enc=new lamejs.Mp3Encoder(2, cv.sr, +$('igKbps').value), partes=[], B=1152*16, L=new Float32Array(B), R=new Float32Array(B), iL=new Int16Array(B), iR=new Int16Array(B);
     const q=s=>Math.max(-32768,Math.min(32767,Math.round(s*32767))), total=Math.ceil(cv.dur*100/p.vel*cv.sr); let hecho=0, k=0;
-    while(hecho<total){ const n=Math.min(B,total-hecho); e.render(L,R); for(let i=0;i<n;i++){ iL[i]=q(L[i]); iR[i]=q(R[i]); }
+    const lim=new Limitador(cv.sr);
+    while(hecho<total){ const n=Math.min(B,total-hecho); e.render(L,R); lim.proc(L,R); for(let i=0;i<n;i++){ iL[i]=q(L[i]); iR[i]=q(R[i]); }
       const mp=enc.encodeBuffer(iL.subarray(0,n), iR.subarray(0,n)); if(mp.length) partes.push(new Uint8Array(mp)); hecho+=n;
       if(++k%6===0){ $('igBarra').style.width=Math.round(hecho/total*100)+'%'; $('igMsg').textContent='Codificando · '+Math.round(hecho/total*100)+' %'; await new Promise(r=>setTimeout(r,0)); } }
     const fin=enc.flush(); if(fin.length) partes.push(new Uint8Array(fin));
