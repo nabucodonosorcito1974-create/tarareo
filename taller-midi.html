@@ -134,10 +134,7 @@ h2{ font:700 12.5px/1 var(--body); letter-spacing:.09em; text-transform:uppercas
 .escala{ position:relative; font:500 7.5px/1 var(--mono); color:#6c727b; }
 .escala span{ position:absolute; right:0; transform:translateY(50%); }
 .escala span.boost{ color:#ffb347; }
-.eq3{ display:flex; justify-content:space-between; gap:0; margin:1px -2px 0; padding-top:3px; border-top:1px solid var(--m-borde); }
-.eq3 .pot{ flex:1; min-width:0; }
-.eq3 .knob{ width:16px; height:16px; }
-.eq3 .pot-lab{ display:flex; flex-direction:column; align-items:center; font-size:7.5px; gap:1px; }
+.eq3{ display:flex; flex-direction:column; align-items:stretch; gap:4px; padding-top:4px; border-top:1px solid var(--m-borde); }
 .escala span::after{ content:''; display:inline-block; width:3px; height:1px; background:#5a6069; margin-left:1px; vertical-align:middle; }
 .fader-in{ -webkit-appearance:none; appearance:none; writing-mode:vertical-lr; direction:rtl; width:20px; height:150px; margin:0; background:transparent; cursor:grab; }
 .fader-in::-webkit-slider-runnable-track{ width:4px; border-radius:2px; background:#0b0c0e; box-shadow:0 0 0 1px #3a3e45; }
@@ -429,7 +426,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 17:57</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 18:00</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -2043,8 +2040,8 @@ function potenciometro(etq, c, campo, min, max, fmtV, bloqueado){
   }
   pintar(); w.append(k,lab); return w;
 }
-// ecualizador de 3 bandas: tres potenciómetros pequeños en una fila (−12…+12 dB)
-const txtEq=v=> v===0 ? '0' : (v>0?'+':'')+v;
+// ecualizador de 3 bandas: tres ruedas en columna, como el resto (−12…+12 dB)
+const txtEq=v=> v===0 ? '0' : (v>0?'+':'')+v;   // dB
 function eqCanal(c, bloqueado){ const w=document.createElement('div'); w.className='eq3'; w.title='Ecualizador: graves · medios · agudos (doble clic = 0)';
   w.append(potenciometro('GRA',c,'eqG',-12,12,txtEq,bloqueado), potenciometro('MED',c,'eqM',-12,12,txtEq,bloqueado), potenciometro('AGU',c,'eqA',-12,12,txtEq,bloqueado)); return w; }
 function pintarRack(){
