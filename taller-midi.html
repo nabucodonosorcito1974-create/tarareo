@@ -177,9 +177,8 @@ details.tarjeta:not([open]){ gap:0; }
 .esc-barra .seg button{ flex:none; padding:7px 12px; white-space:nowrap; }
 .escena{ border-radius:12px; overflow:hidden; background:var(--s-fondo); border:1px solid var(--line); }
 .escena{ overflow-x:auto; }
-.escena svg{ display:block; width:100%; min-width:600px; height:auto; }
-.escena svg{ max-height:72vh; }
-@media (max-width:640px){ .escena{ overflow:hidden; } .escena svg{ min-width:0; } }
+.escena{ overflow:hidden !important; }
+.escena svg{ display:block; width:100%; min-width:0 !important; max-width:100%; height:auto; max-height:72vh; margin:0 auto; }
 .escena.pequena .tok text.sub{ display:none; }
 .tok .toque{ fill:transparent; stroke:none; pointer-events:all; }
 .tok{ cursor:grab; outline:none; touch-action:none; }
@@ -404,7 +403,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 17:26</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 17:30</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -2271,16 +2270,28 @@ function pintarEscena(){
     t.addEventListener('pointermove',e=>{ if(e.pointerType!=='touch') mover(e.clientX,e.clientY); });
     t.addEventListener('pointerup',e=>{ if(e.pointerType!=='touch') fin(); });
     t.addEventListener('pointercancel',e=>{ if(e.pointerType!=='touch') anular(); });
-    // dedo (móvil y tableta): eventos táctiles propios, que el navegador no convierte en desplazamiento de la página
-    t.addEventListener('touchstart',e=>{ e.preventDefault(); const p=e.changedTouches[0]; empezar(p.clientX,p.clientY); },{passive:false});
-    t.addEventListener('touchmove',e=>{ e.preventDefault(); const p=e.changedTouches[0]; mover(p.clientX,p.clientY); },{passive:false});
-    t.addEventListener('touchend',e=>{ e.preventDefault(); fin(); },{passive:false});
-    t.addEventListener('touchcancel',anular);
+    t._drag={empezar,mover,fin,anular};
     t.addEventListener('keydown',e=>{
       const d={ArrowLeft:[-12,0],ArrowRight:[12,0],ArrowUp:[0,-12],ArrowDown:[0,12]}[e.key];
       if(d){ e.preventDefault(); const p=E.pos[ch]||posActual(ch); moverA(ch, limitar([p[0]+d[0],p[1]+d[1]])); clearTimeout(t._k); t._k=setTimeout(()=>{ pintarRack(); E.tokens[ch]&&E.tokens[ch].focus(); },600); }
       else if(e.key==='Enter'||e.key===' '){ e.preventDefault(); accion(); } });
   });
+  // dedo (móvil y tableta): el escenario entero escucha y coge el instrumento más cercano al dedo,
+  // así no hace falta acertar justo en el icono; si el dedo cae lejos de todos, la página se desplaza normal
+  let dedo=null;
+  const aSvg=(x,y)=>{ const pt=svg.createSVGPoint(); pt.x=x; pt.y=y; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
+  svg.addEventListener('touchstart',e=>{
+    if(e.touches.length>1){ dedo=null; return; }
+    const p=e.changedTouches[0], q=aSvg(p.clientX,p.clientY); let mejor=null, dm=1e9;
+    for(const st of (E.sitios||[])){ const d=Math.hypot(st.x-q.x, st.y-q.y); if(d<dm){ dm=d; mejor=st; } }
+    const escala=svg.getScreenCTM().a||1;   // píxeles de pantalla por unidad del dibujo
+    if(!mejor || dm*escala>48) return;      // hasta ~48 px del centro del instrumento, como un dedo
+    const t=E.tokens[mejor.c.ch]; if(!t||!t._drag) return;
+    e.preventDefault(); dedo=t; t._drag.empezar(p.clientX,p.clientY);
+  },{passive:false});
+  svg.addEventListener('touchmove',e=>{ if(!dedo) return; e.preventDefault(); const p=e.changedTouches[0]; dedo._drag.mover(p.clientX,p.clientY); },{passive:false});
+  svg.addEventListener('touchend',e=>{ if(!dedo) return; e.preventDefault(); const t=dedo; dedo=null; t._drag.fin(); },{passive:false});
+  svg.addEventListener('touchcancel',()=>{ if(dedo){ dedo._drag.anular(); dedo=null; } });
   // secciones
   const fams={}; for(const s of sitios){ (fams[s.fam]=fams[s.fam]||[]).push(s.c); E.famDe[s.c.ch]=s.fam; }
   const fc=$('familias'); fc.textContent='';
