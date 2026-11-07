@@ -133,6 +133,11 @@ h2{ font:700 12.5px/1 var(--body); letter-spacing:.09em; text-transform:uppercas
 .led.con-pico b{ opacity:1; }
 .escala{ position:relative; font:500 7.5px/1 var(--mono); color:#6c727b; }
 .escala span{ position:absolute; right:0; transform:translateY(50%); }
+.escala span.boost{ color:#ffb347; }
+.eq3{ display:flex; justify-content:space-between; gap:0; margin:1px -2px 0; padding-top:3px; border-top:1px solid var(--m-borde); }
+.eq3 .pot{ flex:1; min-width:0; }
+.eq3 .knob{ width:16px; height:16px; }
+.eq3 .pot-lab{ display:flex; flex-direction:column; align-items:center; font-size:7.5px; gap:1px; }
 .escala span::after{ content:''; display:inline-block; width:3px; height:1px; background:#5a6069; margin-left:1px; vertical-align:middle; }
 .fader-in{ -webkit-appearance:none; appearance:none; writing-mode:vertical-lr; direction:rtl; width:20px; height:150px; margin:0; background:transparent; cursor:grab; }
 .fader-in::-webkit-slider-runnable-track{ width:4px; border-radius:2px; background:#0b0c0e; box-shadow:0 0 0 1px #3a3e45; }
@@ -170,6 +175,12 @@ details.tarjeta:not([open]){ gap:0; }
 .conv-fila{ display:flex; align-items:center; gap:8px 10px; flex-wrap:wrap; }
 .conv-fila h2{ margin-right:4px; }
 .conv-fila select{ width:auto; padding:7px 8px; }
+.usb{ display:flex; flex-direction:column; gap:6px; border-top:1px solid var(--line); padding-top:8px; margin-top:4px; }
+.usb-fila{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; }
+.usb-campo{ display:flex; align-items:center; gap:5px; font-size:13px; color:var(--muted); }
+.usb-campo select{ width:auto; max-width:190px; padding:5px 7px; font-size:13px; }
+.btn.rec{ color:#d33; } .btn.rec.on{ background:#d33; color:#fff; border-color:#d33; }
+.chk-conv{ display:flex; align-items:center; gap:5px; font-size:13px; color:var(--muted); }
 .conv .progreso{ height:5px; }
 .conv-nombre{ color:var(--ink); flex:1 1 220px; min-width:0; overflow-wrap:anywhere; }
 /* ---- escenario ---- */
@@ -338,6 +349,20 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
       <span class="tiempo" id="tiempo">0:00 / 0:00</span>
     </div>
     <p class="msg" id="carga"></p>
+    <div class="usb" id="usb">
+      <div class="usb-fila">
+        <button class="btn mini" id="usbConectar" type="button">🎹 Conectar MIDI (USB)</button>
+        <label class="usb-campo" id="usbSalCampo" hidden>Sonar en <select id="usbSalida"><option value="">este equipo</option></select></label>
+        <span class="msg" id="usbMsg"></span>
+      </div>
+      <div class="usb-fila" id="usbGrab" hidden>
+        <label class="usb-campo">Tocar con <select id="usbEntrada"></select></label>
+        <label class="usb-campo">en el canal <select id="usbCanal"></select></label>
+        <label class="usb-campo">como <select id="usbInst"></select></label>
+        <button class="btn mini rec" id="usbRec" type="button">● Grabar</button>
+        <button class="btn mini" id="usbDeshacer" type="button" disabled>Deshacer toma</button>
+      </div>
+    </div>
   </section>
 
   <section class="tarjeta">
@@ -367,6 +392,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     <div class="conv-fila">
       <h2>Convertir</h2>
       <select id="kbps" aria-label="Calidad del MP3"><option value="128">128 kbps</option><option value="192" selected>192 kbps</option><option value="256">256 kbps</option><option value="320">320 kbps</option></select>
+      <label class="chk-conv" title="Activado: el MP3 sale al volumen máximo sin distorsión. Desactivado: con el volumen tal como lo oyes en la mesa."><input type="checkbox" id="nivelar" checked> Nivelar volumen</label>
       <button class="btn ambar" id="convertir">Convertir a MP3</button><button class="btn" id="bajarMid" type="button" title="El MIDI con todos tus cambios: mesa, instrumentación, tono y velocidad">Descargar MIDI modificado</button>
       <button class="btn mini" id="cancelar" hidden>Cancelar</button>
       <span class="msg" id="estado" aria-live="polite"></span>
@@ -403,7 +429,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 17:30</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 17:53</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -779,7 +805,11 @@ function escribirMidiMod(m, semis, vel, opc={}){
   const vlq=n=>{ const b=[n&0x7f]; while(n>>=7) b.unshift((n&0x7f)|0x80); return b; };
   const reverb=opc.reverb||'no';
   // distancia de cada canal (CC 200 interno): más lejos = más bajo, más reverb y más apagado
-  const prof=new Float32Array(16); for(const e of m.eventos) if(e.tipo==='ch'&&e.cmd===0xB&&e.a===200) prof[e.ch]=e.b/127;
+  const prof=new Float32Array(16), refuerzo=new Float32Array(16).fill(1), eqx=[];
+  for(const e of m.eventos) if(e.tipo==='ch'&&e.cmd===0xB){
+    if(e.a===200) prof[e.ch]=e.b/127;
+    if(e.a===204) refuerzo[e.ch]=Math.pow(10,(e.b*10/33)/20);
+    if(e.a===201||e.a===203) eqx.push([e.ch, e.a===201?0x72:0x73, Math.max(0x34,Math.min(0x4C,Math.round(0x40+(e.b-64)*12/63)))]); }
   const usados=new Set(m.eventos.filter(e=>e.tipo==='ch'&&e.cmd===9&&e.b>0).map(e=>e.ch));
   const revDe=(ch,b)=> reverb==='no' ? Math.round(prof[ch]*70) : Math.min(127, Math.round(b+prof[ch]*60));
   const pistas=new Map(); const poner=(t,tick,o,bytes)=>{ if(!pistas.has(t)) pistas.set(t,[]); pistas.get(t).push({tick,o,bytes}); };
@@ -787,6 +817,8 @@ function escribirMidiMod(m, semis, vel, opc={}){
   const tipoXG={estudio:[0x02,0x00], sala:[0x01,0x00], iglesia:[0x01,0x01]}[reverb], macroGS={estudio:1, sala:3, iglesia:4}[reverb];
   if(tipoXG){ poner(0,0,1e9-30,[0xF0,...vlq(9),0x43,0x10,0x4C,0x02,0x01,0x00,tipoXG[0],tipoXG[1],0xF7]);
     const cs=(128-((0x40+0x01+0x30+macroGS)%128))%128; poner(0,0,1e9-29,[0xF0,...vlq(10),0x41,0x10,0x42,0x12,0x40,0x01,0x30,macroGS,cs,0xF7]); }
+  // ecualizador: graves y agudos por parte en formato XG (los teclados Yamaha lo entienden)
+  for(const [ch,par,v] of eqx) poner(0,0,1e9-25,[0xF0,...vlq(8),0x43,0x10,0x4C,0x08,ch,par,v,0xF7]);
   for(const ch of usados){ poner(0,0,1e9-20,[0xB0|ch,91,revDe(ch,40)]); if(prof[ch]>0) poner(0,0,1e9-19,[0xB0|ch,74,Math.round(64-44*prof[ch])]); }
   for(const e of m.eventos){
     let bytes=null; const t=Math.max(0,e.pista);
@@ -794,7 +826,7 @@ function escribirMidiMod(m, semis, vel, opc={}){
       if(e.cmd===0xB && e.a>119) continue;
       let a=e.a, b=e.b;
       if((e.cmd===8||e.cmd===9||e.cmd===0xA) && e.ch!==9) a=Math.max(0,Math.min(127,a+semis+(e.st||0)));
-      if(e.cmd===9 && b>0 && e.g!=null) b=Math.max(1,Math.min(127,Math.round(b*Math.sqrt(e.g))));
+      if(e.cmd===9 && b>0 && (e.g!=null || refuerzo[e.ch]!==1)) b=Math.max(1,Math.min(127,Math.round(b*Math.sqrt((e.g??1)*refuerzo[e.ch]))));
       if(e.cmd===0xB && a===7 && prof[e.ch]>0) b=Math.round(b*Math.pow(10,-7*prof[e.ch]/20));
       if(e.cmd===0xB && a===91) b=revDe(e.ch,b);
       bytes=(e.cmd===0xC||e.cmd===0xD)? [(e.cmd<<4)|e.ch, a] : [(e.cmd<<4)|e.ch, a, b];
@@ -1040,7 +1072,11 @@ class Sinte {
   aplicar(ch){ const c=this.can[ch], o=this.ov[ch];
     c.vol=o.vol??c.aVol; c.pan=o.pan??c.aPan; this.fijarPan(c); c.rev=o.rev??c.aRev; c.cho=o.cho??c.aCho;
     c.prog=o.prog??c.aProg; c.banco= ch===9 ? 128 : (o.banco??c.aBanco);
-    c.prof=o.prof??c.aProf??0; }
+    c.prof=o.prof??c.aProf??0;
+    // ecualizador de 3 bandas (dB) y refuerzo de volumen por encima del máximo MIDI
+    const eq=[o.eqG??c.aEq?.[0]??0, o.eqM??c.aEq?.[1]??0, o.eqA??c.aEq?.[2]??0];
+    if(!c.eq || eq.some((v,k)=>v!==c.eq[k])){ c.eq=eq; c.eqCoef= eq.some(v=>v) ? coefEQ(eq,this.sr) : null; }
+    c.boost=o.boost??c.aBoost??1; }
   evento(e, semis){
     const c=this.can[e.ch];
     if(e.cmd===9 && e.b>0){
@@ -1067,6 +1103,8 @@ class Sinte {
       else if(cc===64){ c.ped=v>=64; if(!c.ped) for(const vz of this.voces) if(vz.ch===e.ch && vz.pendiente){ vz.pendiente=false; vz.soltar(); } }
       else if(cc===101) c.rpn[0]=v; else if(cc===100) c.rpn[1]=v; else if(cc===6 && c.rpn[0]===0 && c.rpn[1]===0) c.rangoBend=v;
       else if(cc===120||cc===123){ for(const vz of this.voces) if(vz.ch===e.ch){ if(cc===120) vz.libre=true; else vz.soltar(); } }
+      else if(cc>=201&&cc<=203){ (c.aEq??=[0,0,0])[cc-201]=(v-64)*12/63; this.aplicar(e.ch); }
+      else if(cc===204){ c.aBoost=Math.pow(10,(v*10/33)/20); this.aplicar(e.ch); }
       else if(cc===121){ c.aVol=100/127; c.expr=1; c.bend=0; c.aPan=0; c.ped=false; this.aplicar(e.ch); }
     }
   }
@@ -1085,14 +1123,35 @@ class Sinte {
       // distancia: a más lejos, menos nivel directo, menos agudos y más proporción de sala
       const p=c.prof||0, gp=Math.pow(10,-7*p/20), fc=22000*Math.pow(2200/22000,p), ap=p>0.001? 1-Math.exp(-2*Math.PI*fc/this.sr) : 1;
       const envRev= this.soloProf ? 0.75*p : c.rev+(1-c.rev)*0.6*p;
+      if(c.eqCoef) aplicarEQ(c, tl, tr, a, b);
+      const bo=c.boost||1;
       let zl=this.zL[ch], zr=this.zR[ch], wl=this.wL[ch], wr=this.wR[ch];
-      for(let i=a;i<b;i++){ g+=dg; zl+=ap*(tl[i]-zl); zr+=ap*(tr[i]-zr); wl+=ap*(zl-wl); wr+=ap*(zr-wr); const l=wl*g*gp, r=wr*g*gp; L[i]+=l*seco; R[i]+=r*seco; if(rb&&envRev>0) rb[i]+=(l+r)*envRev; if(cb&&envCho>0) cb[i]+=(l+r)*envCho;
+      for(let i=a;i<b;i++){ g+=dg; zl+=ap*(tl[i]-zl); zr+=ap*(tr[i]-zr); wl+=ap*(zl-wl); wr+=ap*(zr-wr); const l=wl*g*gp*bo, r=wr*g*gp*bo; L[i]+=l*seco; R[i]+=r*seco; if(rb&&envRev>0) rb[i]+=(l+r)*envRev; if(cb&&envCho>0) cb[i]+=(l+r)*envCho;
         const x=Math.max(l<0?-l:l, r<0?-r:r); if(x>pico) pico=x; cuad+=l*l+r*r;
         if(v){ const k=((base-this.vuIni+i)/VF)|0; if(k<v.length && x>v[k]) v[k]=x; } }
       this.zL[ch]=zl; this.zR[ch]=zr; this.wL[ch]=wl; this.wR[ch]=wr; this.picos[ch]=pico; this.cuad[ch]+=cuad; this.muestras[ch]+=n; }
     for(let ch=0;ch<16;ch++) this.ganAct[ch]=this.gan[ch];
     this.voces=this.voces.filter(v=>!v.libre);
   }
+}
+
+// ===== Ecualizador de 3 bandas (graves 200 Hz, medios 1 kHz, agudos 4 kHz), filtros RBJ =====
+function coefEQ(db, sr){
+  const bq=(tipo,f,g)=>{ const A=Math.pow(10,g/40), w=2*Math.PI*f/sr, cs=Math.cos(w), sn=Math.sin(w); let b0,b1,b2,a0,a1,a2;
+    if(tipo==='pico'){ const al=sn/(2*0.9); b0=1+al*A; b1=-2*cs; b2=1-al*A; a0=1+al/A; a1=-2*cs; a2=1-al/A; }
+    else { const al=sn/2*Math.SQRT2, r=2*Math.sqrt(A)*al;
+      if(tipo==='grave'){ b0=A*((A+1)-(A-1)*cs+r); b1=2*A*((A-1)-(A+1)*cs); b2=A*((A+1)-(A-1)*cs-r); a0=(A+1)+(A-1)*cs+r; a1=-2*((A-1)+(A+1)*cs); a2=(A+1)+(A-1)*cs-r; }
+      else { b0=A*((A+1)+(A-1)*cs+r); b1=-2*A*((A-1)+(A+1)*cs); b2=A*((A+1)+(A-1)*cs-r); a0=(A+1)-(A-1)*cs+r; a1=2*((A-1)-(A+1)*cs); a2=(A+1)-(A-1)*cs-r; } }
+    return [b0/a0,b1/a0,b2/a0,a1/a0,a2/a0]; };
+  return [db[0]?bq('grave',200,db[0]):null, db[1]?bq('pico',1000,db[1]):null, db[2]?bq('agudo',4000,db[2]):null].filter(Boolean);
+}
+// filtra en su sitio un par de canales; el estado de cada filtro se guarda en el propio objeto
+function aplicarEQ(c, L, R, a, b){
+  const cf=c.eqCoef; if(!c.eqZ || c.eqZ.length!==cf.length) c.eqZ=cf.map(()=>new Float64Array(8));
+  for(let k=0;k<cf.length;k++){ const [b0,b1,b2,a1,a2]=cf[k], z=c.eqZ[k]; let x1=z[0],x2=z[1],y1=z[2],y2=z[3],u1=z[4],u2=z[5],v1=z[6],v2=z[7];
+    for(let i=a;i<b;i++){ const x=L[i], y=b0*x+b1*x1+b2*x2-a1*y1-a2*y2; x2=x1; x1=x; y2=y1; y1=y; L[i]=y;
+      const xr=R[i], yr=b0*xr+b1*u1+b2*u2-a1*v1-a2*v2; u2=u1; u1=xr; v2=v1; v1=yr; R[i]=yr; }
+    z[0]=x1; z[1]=x2; z[2]=y1; z[3]=y2; z[4]=u1; z[5]=u2; z[6]=v1; z[7]=v2; }
 }
 
 // ===== Reproductor en vivo: el sintetizador suena en tiempo real y la mesa actúa al instante =====
@@ -1116,6 +1175,8 @@ class Vivo {
     const s=this.sinte, haySolo=canales.some(c=>c.solo&&c.usado);
     for(const c of canales){ const o=s.ov[c.ch]; s.sfCanal[c.ch]= (typeof sfDe==='function') ? (sfDe(c)!==this.sf ? sfDe(c) : null) : null;
       o.vol= c.vol!=null ? c.vol/127 : undefined; o.pan= c.pan!=null ? c.pan : undefined;
+      o.vol= c.vol!=null ? Math.min(127,c.vol)/127 : undefined; o.boost= c.vol!=null&&c.vol>127 ? Math.pow(10,((c.vol-127)*10/33)/20) : undefined;
+      o.eqG= c.eqG||undefined; o.eqM= c.eqM||undefined; o.eqA= c.eqA||undefined;
       o.rev= c.rev!=null ? c.rev/127 : undefined; o.cho= c.cho!=null ? c.cho/127 : undefined; o.prof= c.prof!=null ? c.prof/127 : undefined;
       if(c.inst!=null){ if(c.bat){ o.prog=c.inst; o.banco=undefined; } else { o.prog=c.inst%128; o.banco=Math.floor(c.inst/128); } } else { o.prog=undefined; o.banco=undefined; }
       s.gan[c.ch]= (c.mute || (haySolo && !c.solo)) ? 0 : 1;
@@ -1124,6 +1185,10 @@ class Vivo {
     }
   }
   fin(){ return this.i>=this.ev.length && this.sinte.voces.length===0; }
+  // solo el sintetizador (para tocar en directo con la canción parada)
+  libre(L,R){ const n=L.length, s=this.sinte; L.fill(0); R.fill(0);
+    if(!s.revBus||s.revBus.length!==n){ s.revBus=new Float32Array(n); s.choBus=new Float32Array(n); } s.revBus.fill(0); s.choBus.fill(0);
+    s.render(L,R,0,n); if(this.rv) this.rv.bus(s.revBus,L,R,n); this.cho.bus(s.choBus,L,R,n); }
   render(L,R){
     const n=L.length, sr=this.sr, s=this.sinte;
     L.fill(0); R.fill(0);
@@ -1179,15 +1244,16 @@ async function renderizar(midi, sf, {semis, vel, sr=44100, bloque=8192, reverb='
 
 // MIDI -> MP3 en dos pasadas: 1) medir el pico para normalizar, 2) renderizar y codificar
 async function midiAMp3(midi, sf, opc){
-  const {semis, vel, kbps=192, reverb='no', sfCanal=null, alProgreso, cancelado}=opc;
+  const {semis, vel, kbps=192, reverb='no', sfCanal=null, nivelar=true, alProgreso, cancelado}=opc;
   let pico=0;
-  await renderizar(midi, sf, {semis, vel, reverb, sfCanal, alBloque:(L,R)=>{ for(let i=0;i<L.length;i++){ const a=Math.abs(L[i]), b=Math.abs(R[i]); if(a>pico) pico=a; if(b>pico) pico=b; } }, alProgreso:f=>alProgreso(f*0.45,'Calculando volumen'), cancelado});
-  const g= pico>0 ? 0.89/pico : 1;
+  if(nivelar) await renderizar(midi, sf, {semis, vel, reverb, sfCanal, alBloque:(L,R)=>{ for(let i=0;i<L.length;i++){ const a=Math.abs(L[i]), b=Math.abs(R[i]); if(a>pico) pico=a; if(b>pico) pico=b; } }, alProgreso:f=>alProgreso(f*0.45,'Calculando volumen'), cancelado});
+  const g= !nivelar ? 1.4 : (pico>0 ? 0.89/pico : 1), lim=new Limitador(44100);   // sin nivelar: el mismo volumen que se oye al reproducir
   const enc=new lamejs.Mp3Encoder(2, 44100, kbps), partes=[];
   const iL=new Int16Array(8192), iR=new Int16Array(8192);
-  await renderizar(midi, sf, {semis, vel, reverb, sfCanal, cancelado, alProgreso:f=>alProgreso(0.45+f*0.55,'Sintetizando y codificando MP3'), alBloque:(L,R)=>{
-    const n=L.length;
-    for(let i=0;i<n;i++){ iL[i]=Math.max(-32768,Math.min(32767,Math.round(L[i]*g*32767))); iR[i]=Math.max(-32768,Math.min(32767,Math.round(R[i]*g*32767))); }
+  const p0= nivelar ? 0.45 : 0;
+  await renderizar(midi, sf, {semis, vel, reverb, sfCanal, cancelado, alProgreso:f=>alProgreso(p0+f*(1-p0),'Sintetizando y codificando MP3'), alBloque:(L,R)=>{
+    const n=L.length; if(!nivelar){ for(let i=0;i<n;i++){ L[i]*=g; R[i]*=g; } lim.proc(L,R); }
+    for(let i=0;i<n;i++){ const k= nivelar ? g : 1; iL[i]=Math.max(-32768,Math.min(32767,Math.round(L[i]*k*32767))); iR[i]=Math.max(-32768,Math.min(32767,Math.round(R[i]*k*32767))); }
     const mp=enc.encodeBuffer(iL.subarray(0,n), iR.subarray(0,n)); if(mp.length) partes.push(new Uint8Array(mp));
   }});
   const fin=enc.flush(); if(fin.length) partes.push(new Uint8Array(fin));
@@ -1330,20 +1396,31 @@ class Limitador{
 }
 // fuente de audio: un par de canales, o la mezcla de las pistas separadas (con la mesa aplicada al vuelo)
 function fuenteSimple(L,R){ return {length:L.length, rango(ini,n,oL,oR){ const m=L.length; for(let i=0;i<n;i++){ const j=ini+i; if(j>=0&&j<m){ oL[i]=L[j]; oR[i]=R[j]; } else { oL[i]=0; oR[i]=0; } } }}; }
+// fader de las pistas: 100 = 0 dB; por encima, refuerzo hasta +10 dB (160)
+const ganPista=v=> v<=100 ? Math.pow(v/100,2) : Math.pow(10,((v-100)/6)/20);
+const dbPista=v=> v<=100 ? 40*Math.log10(Math.max(v,1e-9)/100) : (v-100)/6;
+// ecualizador de una pista: se aplica a una copia de la pista entera (el estirador lee trozos sueltos y solapados)
+function eqPista(c){
+  const db=[val(c,'eqG')||0, val(c,'eqM')||0, val(c,'eqA')||0], firma=db.join(',');
+  if(firma===c.eqFirma) return; c.eqFirma=firma; clearTimeout(c.eqT);
+  if(!db.some(v=>v)){ c.Lf=c.Rf=null; return; }
+  c.eqT=setTimeout(()=>{ const o={eqCoef:coefEQ(db, E.audio?E.audio.sr:44100)}, L=new Float32Array(c.L), R=new Float32Array(c.R); aplicarEQ(o, L, R, 0, L.length);
+    if(c.eqFirma===firma){ c.Lf=L; c.Rf=R; } }, 150);
+}
 class FuenteMezcla{
   constructor(pistas){ this.p=pistas; this.length=pistas[0].L.length; this.actualizar(); }
   actualizar(){ const haySolo=this.p.some(c=>c.solo);
-    for(const c of this.p){ const on=!c.mute && (!haySolo||c.solo), g= on ? Math.pow(val(c,'vol')/100,2) : 0, pan=val(c,'pan');
+    for(const c of this.p){ const on=!c.mute && (!haySolo||c.solo), g= on ? ganPista(val(c,'vol')) : 0, pan=val(c,'pan'); eqPista(c);
       c.gL=g*(pan>0 ? 1-pan/63 : 1); c.gR=g*(pan<0 ? 1+pan/64 : 1); } }
   rango(ini,n,oL,oR){ oL.fill(0,0,n); oR.fill(0,0,n); const m=this.length, a=Math.max(0,-ini), b=Math.min(n,m-ini);
-    for(const c of this.p){ if(!c.gL&&!c.gR) continue; const L=c.L, R=c.R, gl=c.gL, gr=c.gR;
+    for(const c of this.p){ if(!c.gL&&!c.gR) continue; const L=c.Lf||c.L, R=c.Rf||c.R, gl=c.gL, gr=c.gR;
       for(let i=a;i<b;i++){ const j=ini+i; oL[i]+=gl*L[j]; oR[i]+=gr*R[j]; } } }
 }
 
 // ---------- Modo audio en la interfaz ----------
 function durBase(){ return E.audio ? E.audio.dur : (E.midi ? E.midi.duracion : 0); }
 function vistaAudio(si){
-  for(const id of ['filaSf','plEscena','otrosRev','bajarMid']) $(id).hidden=si;
+  for(const id of ['filaSf','plEscena','otrosRev','bajarMid','usb']) $(id).hidden=si;
   $('mesaAudio').hidden=!si; $('reiniciarRack').hidden=false;
   $('modoTxt').textContent= si ? (E.modo==='original' ? 'La canción tal cual, sin cambios.' : 'Tal cual quedará el MP3: con el tono y la velocidad elegidos.') : (E.modo==='original' ? 'MIDI original con tu soundfont: tono y velocidad sin tocar (la mesa sí se aplica).' : 'Tal cual quedará el MP3: con el tono, la velocidad, la mesa y la reverberación elegidos.');
   $('rolloTit').textContent= si ? 'La canción en el tiempo' : 'Notas en el tiempo';
@@ -1668,7 +1745,7 @@ document.querySelectorAll('#revChips button').forEach(b=>b.onclick=()=>{ E.rever
 function cargarMidi(bytes, nombre){
   try{ E.midi=leerMidi(bytes); E.nombreMidi=nombre; E.canales=construirCanales(E.midi); E.pos={}; $('error').textContent=''; pintarRack(); }
   catch(err){ $('error').textContent=err.message; }
-  limpiar(); pintarMandos(); pintarInfo(); asegurarSonidos();
+  limpiar(); pintarMandos(); pintarInfo(); asegurarSonidos(); if(typeof usbNuevoMidi==='function') usbNuevoMidi();
 }
 $('fMidi').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
   const b=new Uint8Array(await f.arrayBuffer());
@@ -1746,8 +1823,8 @@ E.modo='cambios'; E.sonando=false; E.vivo=null; E.proc=null;
 function param(modo=E.modo){ return modo==='original' ? {semis:0, vel:100} : {semis:E.semis, vel:E.vel}; }
 function salida(){ const c=ctx(); if(!E.lim){ E.lim=c.createDynamicsCompressor(); E.lim.threshold.value=-6; E.lim.knee.value=4; E.lim.ratio.value=12; E.lim.attack.value=0.003; E.lim.release.value=0.15; E.limG=c.createGain(); E.limG.gain.value=1.4; E.lim.connect(E.limG); E.limG.connect(c.destination); } return E.lim; }
 function crearVivo(){ if(!E.midi) return null; const v=new Vivo(E.midi, E.sf, ctx().sampleRate); E.vivo=v; aplicarVivo(); return v; }
-function aplicarVivo(){ if(E.mezcla) E.mezcla.actualizar(); if(E.est){ const P=param(); E.est.ajustar(P.vel, P.semis); return; } const v=E.vivo; if(!v) return; const P=param(); v.semis=P.semis; v.vel=P.vel/100; v.mesa(E.canales||[], E.modo); v.fijarReverb(E.reverb, (E.canales||[]).some(c=>c.usado&&c.prof>0)); }
-function posMus(){ if(E.audio) return COLA.t ?? (E.est ? E.est.tIn : 0); return E.vivo ? E.vivo.tMus : (E.musPausa||0); }
+function aplicarVivo(){ if(E.mezcla) E.mezcla.actualizar(); if(E.salidaMidi && typeof refrescarSalida==='function') refrescarSalida(); if(E.est){ const P=param(); E.est.ajustar(P.vel, P.semis); return; } const v=E.vivo; if(!v) return; const P=param(); v.semis=P.semis; v.vel=P.vel/100; v.mesa(E.canales||[], E.modo); v.fijarReverb(E.reverb, (E.canales||[]).some(c=>c.usado&&c.prof>0)); }
+function posMus(){ if(E.audio) return COLA.t ?? (E.est ? E.est.tIn : 0); if(E.salidaMidi) return tSalida(); return E.vivo ? E.vivo.tMus : (E.musPausa||0); }
 function duracionPrevista(){ if(E.audio) return E.audio.dur*100/param().vel; return E.midi ? E.midi.duracion*100/param().vel : 0; }
 function pintarPos(){
   const d=duracionPrevista(), t=Math.min(posMus()*100/param().vel, d);
@@ -1755,25 +1832,31 @@ function pintarPos(){
   $('tiempo').textContent=fmt(t)+' / '+fmt(d); $('rTiempo').textContent=fmt(t)+' / '+fmt(d);
   const g=E.rolloGeo; if(g && durBase()){ const f=Math.max(0,Math.min(1,posMus()/durBase())); $('cabezal').style.transform='translateX('+(g.padL+f*g.ancho).toFixed(1)+'px)'; }
 }
+// motor de sonido del MIDI: la canción, o solo el sintetizador para tocar en directo
+function procMidi(){
+  if(E.proc) return E.proc; const c=ctx();
+  E.proc=c.createScriptProcessor(4096,0,2);
+  E.proc.onaudioprocess=ev=>{ const L=ev.outputBuffer.getChannelData(0), R=ev.outputBuffer.getChannelData(1);
+    if(!E.vivo || E.audio){ L.fill(0); R.fill(0); return; }
+    if(!E.sonando){ if(E.monitor) E.vivo.libre(L,R); else { L.fill(0); R.fill(0); } return; }
+    E.vivo.render(L,R);
+    E.reloj={perf:performance.now(), t:E.vivo.tMus, lat:(2*L.length/c.sampleRate)+(c.outputLatency||c.baseLatency||0)};
+    if(E.vivo.fin() || E.vivo.tMus>E.midi.duracion+8){ if(E.grabando) return; E.sonando=false; setTimeout(()=>{ detener(); if(E.vivo){ E.vivo.buscar(0); aplicarVivo(); } pintarPos(); },0); } };
+  E.proc.connect(salida()); return E.proc;
+}
 function sonar(){
   if(E.audio) return sonarAudio();
   if(!E.midi) return;
+  if(E.salidaMidi) return sonarSalida();
   if(!E.sonando && E.ctx && !E.__recien) renovarAudio();   // cada ▶ abre el audio en la salida activa
   const c=ctx();
   if(!E.vivo) crearVivo();
   if(E.vivo.tMus>=E.midi.duracion-0.01){ E.vivo.buscar(0); aplicarVivo(); }
-  if(!E.proc){
-    E.proc=c.createScriptProcessor(4096,0,2);
-    E.proc.onaudioprocess=ev=>{ const L=ev.outputBuffer.getChannelData(0), R=ev.outputBuffer.getChannelData(1);
-      if(!E.sonando||!E.vivo){ L.fill(0); R.fill(0); return; }
-      E.vivo.render(L,R);
-      if(E.vivo.fin() || E.vivo.tMus>E.midi.duracion+8){ E.sonando=false; setTimeout(()=>{ detener(); if(E.vivo){ E.vivo.buscar(0); aplicarVivo(); } pintarPos(); },0); } };
-    E.proc.connect(salida());
-  }
+  procMidi();
   E.sonando=true; for(const id of ['play','rPlay']){ $(id).textContent='❚❚'; $(id).setAttribute('aria-label','Pausa'); }
   cancelAnimationFrame(E.raf); const bucle=()=>{ pintarPos(); pintarVu(); if(E.sonando) E.raf=requestAnimationFrame(bucle); else apagarVu(); }; bucle();
 }
-function detener(){ E.sonando=false; if(E.audio) pausarAudio(); for(const id of ['play','rPlay']){ $(id).textContent='▶'; $(id).setAttribute('aria-label','Reproducir'); } apagarVu(); pintarPos(); }
+function detener(){ const seguia=E.sonando; E.sonando=false; if(E.audio) pausarAudio(); if(typeof pararSalida==='function') pararSalida(); if(seguia && typeof finToma==='function') finToma(); for(const id of ['play','rPlay']){ $(id).textContent='▶'; $(id).setAttribute('aria-label','Reproducir'); } apagarVu(); pintarPos(); }
 $('play').onclick=async()=>{ ctx(); if(E.sonando){ detener(); return; } if(E.audio) return sonar(); const p=asegurarSonidos(); if(E.midi&&faltanSonidos()){ $('play').disabled=true; await p; $('play').disabled=false; } sonar(); };
 // original / con cambios, en el mismo punto de la música y sin parar
 document.querySelectorAll('#modoChips button').forEach(b=>b.onclick=()=>{
@@ -1784,7 +1867,7 @@ document.querySelectorAll('#modoChips button').forEach(b=>b.onclick=()=>{
 });
 // ---- transporte del gráfico de notas: play/pausa, stop y saltar con clic ----
 $('rPlay').onclick=()=>$('play').click();
-function irA(tMus){ if(E.audio){ if(!E.est) crearEst(); colaVaciar(Math.max(0,Math.min(E.audio.dur,tMus))); pintarPos(); return; } if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(Math.max(0,Math.min(E.midi.duracion,tMus))); aplicarVivo(); pintarPos(); }
+function irA(tMus){ if(E.salidaMidi && E.midi){ buscarSalida(Math.max(0,Math.min(E.midi.duracion,tMus))); pintarPos(); return; } if(E.audio){ if(!E.est) crearEst(); colaVaciar(Math.max(0,Math.min(E.audio.dur,tMus))); pintarPos(); return; } if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(Math.max(0,Math.min(E.midi.duracion,tMus))); aplicarVivo(); pintarPos(); }
 function pararDelTodo(){ detener(); irA(0); }
 $('rStop').onclick=pararDelTodo; $('stop').onclick=pararDelTodo;
 (()=>{ const r=$('rollo'); let ab=false;
@@ -1794,7 +1877,7 @@ $('rStop').onclick=pararDelTodo; $('stop').onclick=pararDelTodo;
   const fin=()=>{ ab=false; }; r.addEventListener('pointerup',fin); r.addEventListener('pointercancel',fin);
 })();
 $('pos').oninput=()=>{ E.arrastrando=true; const d=duracionPrevista(); $('tiempo').textContent=fmt(+$('pos').value/1000*d)+' / '+fmt(d); };
-$('pos').onchange=()=>{ E.arrastrando=false; if(E.audio){ irA(+$('pos').value/1000*E.audio.dur); return; } if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(+$('pos').value/1000*E.midi.duracion); aplicarVivo(); pintarPos(); };
+$('pos').onchange=()=>{ E.arrastrando=false; if(E.audio||E.salidaMidi){ irA(+$('pos').value/1000*durBase()); return; } if(!E.midi) return; if(!E.vivo) crearVivo(); E.vivo.buscar(+$('pos').value/1000*E.midi.duracion); aplicarVivo(); pintarPos(); };
 
 // ---- Conversión ----
 function limpiar(){ detener(); COLA.b=[]; COLA.t=null; if(E.proc){ try{ E.proc.disconnect(); }catch(e){} E.proc=null; } E.est=null; E.vivo=null; E.mp3=null; $('resultado').hidden=true; $('barra').style.width='0'; $('estado').textContent=''; pintarPos(); }
@@ -1808,7 +1891,7 @@ $('convertir').onclick=async()=>{
     const midiEd=editarMidi('cambios'); E.modo=modo;
     await asegurarSonidos();
     const sfCanal=(E.canales||[]).map(c=>{ const s=sfDe(c); return s!==E.sf ? s : null; });
-    E.mp3=await midiAMp3(midiEd, E.sf, {sfCanal, semis:E.semis, vel:E.vel/100, reverb:E.reverb, kbps:+$('kbps').value, cancelado:()=>E.cancel, alProgreso:(f,txt)=>{
+    E.mp3=await midiAMp3(midiEd, E.sf, {sfCanal, semis:E.semis, vel:E.vel/100, reverb:E.reverb, kbps:+$('kbps').value, nivelar:$('nivelar').checked, cancelado:()=>E.cancel, alProgreso:(f,txt)=>{
       $('barra').style.width=Math.round(f*100)+'%';
       const t=(performance.now()-ini)/1000, q= f>0.03 ? Math.round(t/f-t) : null;
       $('estado').textContent=(txt==='Calculando volumen'?'Preparando':'Codificando MP3')+' · '+Math.round(f*100)+' %'+(q!=null?' · quedan unos '+fmt(q):'');
@@ -1853,7 +1936,7 @@ function construirCanales(m){
   for(const e of m.eventos) if(e.tipo==='meta' && e.meta===3 && !nombresPista.has(e.pista)) nombresPista.set(e.pista, new TextDecoder('latin1').decode(e.datos).trim());
   const C=[];
   for(let ch=0;ch<16;ch++) C.push({ch, notas:0, pistas:new Set(), prog:null, banco:0, _b:false, volIni:100, panIni:0, revIni:40, choIni:0, profIni:0, prof:null, _v:false,_p:false,_r:false,_c:false,
-    mute:false, solo:false, vol:null, pan:null, rev:null, cho:null, inst:null, st:0 });
+    mute:false, solo:false, vol:null, pan:null, rev:null, cho:null, inst:null, st:0, eqGIni:0, eqMIni:0, eqAIni:0, eqG:null, eqM:null, eqA:null });
   for(const e of m.eventos){
     if(e.tipo!=='ch') continue; const c=C[e.ch];
     if(e.cmd===9&&e.b>0){ c.notas++; c.pistas.add(e.pista); }
@@ -1875,7 +1958,7 @@ function construirCanales(m){
   return C;
 }
 const val=(c,k)=> c[k]!=null ? c[k] : c[k+'Ini'];
-function firmaMezcla(){ return JSON.stringify((E.canales||[]).map(c=>[c.mute,c.solo,c.vol,c.pan,c.rev,c.cho,c.inst])); }
+function firmaMezcla(){ return JSON.stringify((E.canales||[]).map(c=>[c.mute,c.solo,c.vol,c.pan,c.rev,c.cho,c.inst,c.eqG,c.eqM,c.eqA])); }
 function firmaTono(){ return JSON.stringify((E.canales||[]).map(c=>c.st)); }
 
 // Aplica el rack al MIDI. Lo que se toca en el rack sustituye a lo que traía el archivo para ese canal.
@@ -1885,7 +1968,8 @@ function editarMidi(modo){
   for(const c of C){
     if(!c.usado) continue; const ch=c.ch, ini=(a,b,o)=>ev.push({tick:0,o,seg:0,tipo:'ch',cmd:0xB,ch,a,b,pista:-1});
     if(c.inst!=null){ if(!c.bat) ini(0,Math.floor(c.inst/128),-6); ev.push({tick:0,o:-5,seg:0,tipo:'ch',cmd:0xC,ch,a:c.inst%128,b:0,pista:-1}); }
-    if(c.vol!=null) ini(7,c.vol,-4); if(c.pan!=null) ini(10,c.pan+64,-3); if(c.rev!=null) ini(91,c.rev,-2); if(c.cho!=null) ini(93,c.cho,-1); if(c.prof) ini(200,c.prof,-1);
+    if(c.vol!=null){ ini(7,Math.min(127,c.vol),-4); if(c.vol>127) ini(204,c.vol-127,-1); }
+    for(const [k,cc] of [['eqG',201],['eqM',202],['eqA',203]]) if(c[k]) ini(cc,Math.round(64+c[k]*63/12),-1); if(c.pan!=null) ini(10,c.pan+64,-3); if(c.rev!=null) ini(91,c.rev,-2); if(c.cho!=null) ini(93,c.cho,-1); if(c.prof) ini(200,c.prof,-1);
   }
   ev.sort((a,b)=>a.o-b.o);
   for(const e of m.eventos){
@@ -1919,7 +2003,11 @@ function opcionesInstrumento(sel, c){
 }
 // ---- Mesa de mezclas ----
 const txtPan=v=> v===0 ? 'C' : (v<0 ? 'L'+Math.round(-v/64*100) : 'R'+Math.round(v/63*100));
-const txtDb=v=> v<=0 ? '−∞' : (40*Math.log10(v/127)).toFixed(1).replace('.',',');
+const VMAX=160;   // 127 = máximo MIDI (0 dB); por encima, refuerzo hasta +10 dB
+const dbVol=v=> v<=127 ? 40*Math.log10(Math.max(v,1e-9)/127) : (v-127)*10/33;
+const txtDb=v=> v<=0 ? '−∞' : (v>127?'+':'')+dbVol(v).toFixed(1).replace('.',',');
+const fracDb=d=> d<=0 ? 127*Math.pow(10,d/40)/VMAX : (127+d*3.3)/VMAX;
+function escalaFader(fr=fracDb){ const e=document.createElement('div'); e.className='escala'; [[10,'+10'],[0,'0'],[-6,'−6'],[-12,'−12'],[-24,'−24'],[-48,'−48']].forEach(([d,x])=>{ const s=document.createElement('span'); s.textContent=x; s.style.bottom='calc(15px + (100% - 30px) * '+fr(d).toFixed(4)+')'; if(d>0) s.className='boost'; e.append(s); }); return e; }
 function cambioMesa(redibujarRollo){
   E.mp3=null; $('resultado').hidden=true; $('barra').style.width='0'; $('estado').textContent='';
   aplicarVivo(); estadosMesa(); if(redibujarRollo) dibujar();
@@ -1955,6 +2043,10 @@ function potenciometro(etq, c, campo, min, max, fmtV, bloqueado){
   }
   pintar(); w.append(k,lab); return w;
 }
+// ecualizador de 3 bandas: tres potenciómetros pequeños en una fila (−12…+12 dB)
+const txtEq=v=> v===0 ? '0' : (v>0?'+':'')+v;
+function eqCanal(c, bloqueado){ const w=document.createElement('div'); w.className='eq3'; w.title='Ecualizador: graves · medios · agudos (doble clic = 0)';
+  w.append(potenciometro('GRA',c,'eqG',-12,12,txtEq,bloqueado), potenciometro('MED',c,'eqM',-12,12,txtEq,bloqueado), potenciometro('AGU',c,'eqA',-12,12,txtEq,bloqueado)); return w; }
 function pintarRack(){
   if(E.audio) return pintarRackAudio();
   const rack=$('rack'); rack.textContent=''; rack.classList.remove('rack-audio');
@@ -1988,6 +2080,7 @@ function pintarRack(){
     const tono=potenciometro('TONO',c,'st',-24,24,v=> c.bat ? 'kit' : (v>0?'+':'')+v, c.bat);
     // potenciómetros
     t.append(tono, potenciometro('PAN',c,'pan',-64,63,txtPan), potenciometro('DIST',c,'prof',0,127,v=>v), potenciometro('REV',c,'rev',0,127,v=>v), potenciometro('CHO',c,'cho',0,127,v=>v));
+    t.append(eqCanal(c));
     // mute / solo
     const ms=document.createElement('div'); ms.className='c-ms';
     const bm=document.createElement('button'); bm.type='button'; bm.className='bm'; bm.textContent='M'; bm.id='mute'+c.ch; bm.setAttribute('aria-label','Silenciar canal '+(c.ch+1));
@@ -1998,8 +2091,8 @@ function pintarRack(){
     // vúmetro LED + fader
     const zona=document.createElement('div'); zona.className='c-fader';
     const led=document.createElement('div'); led.className='led'; led.id='vu'+c.ch; led.append(document.createElement('i'), document.createElement('b'));
-    const escala=document.createElement('div'); escala.className='escala'; [[0,'0'],[-6,'−6'],[-12,'−12'],[-24,'−24'],[-48,'−48']].forEach(([d,x])=>{ const s=document.createElement('span'); s.textContent=x; s.style.bottom='calc(15px + (100% - 30px) * '+(Math.pow(10,d/40)).toFixed(4)+')'; escala.append(s); });
-    const f=document.createElement('input'); f.type='range'; f.className='fader-in'; f.min=0; f.max=127; f.step=1; f.value=val(c,'vol'); f.id='vol'+c.ch; f.disabled=!c.usado;
+    const escala=escalaFader();
+    const f=document.createElement('input'); f.type='range'; f.className='fader-in'; f.min=0; f.max=VMAX; f.step=1; f.value=val(c,'vol'); f.id='vol'+c.ch; f.disabled=!c.usado;
     f.setAttribute('aria-label','Volumen canal '+(c.ch+1)); f.setAttribute('orient','vertical');
     const db=document.createElement('output'); db.className='c-db'; db.id='db'+c.ch; db.textContent=txtDb(+f.value);
     f.oninput=()=>{ c.vol=+f.value; db.textContent=txtDb(c.vol); f.classList.add('tocado'); cambioMesa(false); };
@@ -2030,7 +2123,7 @@ function estadosMesa(){
   if(typeof estadosEscena==='function') estadosEscena();
 }
 function cambioRack(){ pintarRack(); cambioMesa(true); }
-$('reiniciarRack').onclick=()=>{ if(E.audio){ (E.canales||[]).forEach(c=>{ c.mute=c.solo=false; c.vol=c.pan=null; }); pintarRack(); cambioMesa(false); return; } if(!E.canales) return; E.canales.forEach(c=>{ c.mute=c.solo=false; c.vol=c.pan=c.rev=c.cho=c.inst=c.prof=null; c.st=0; c.desdeEsc=false; c.sfId=null; }); asegurarSonidos(); if(typeof soltarEscena==='function') soltarEscena(); cambioRack(); };
+$('reiniciarRack').onclick=()=>{ if(E.audio){ (E.canales||[]).forEach(c=>{ c.mute=c.solo=false; c.vol=c.pan=c.eqG=c.eqM=c.eqA=null; }); pintarRack(); cambioMesa(false); return; } if(!E.canales) return; E.canales.forEach(c=>{ c.mute=c.solo=false; c.vol=c.pan=c.rev=c.cho=c.inst=c.prof=c.eqG=c.eqM=c.eqA=null; c.st=0; c.desdeEsc=false; c.sfId=null; }); asegurarSonidos(); if(typeof soltarEscena==='function') soltarEscena(); cambioRack(); };
 
 // ---- Vúmetros LED: balística suave (subida ~70 ms, caída ~650 ms, pico retenido 1,5 s) ----
 const VU={nivel:new Float32Array(16), pico:new Float32Array(16), picoT:new Float32Array(16), t:0};
@@ -2421,7 +2514,7 @@ $('sepBoton').onclick=async()=>{
     // si se remuestreó, las pistas vuelven a la frecuencia del reproductor
     const volver=async(x,y)=>{ if(a.sr===44100) return [x,y]; const off=new OfflineAudioContext(2,a.L.length,a.sr), b=off.createBuffer(2,x.length,44100); b.getChannelData(0).set(x); b.getChannelData(1).set(y); const s=off.createBufferSource(); s.buffer=b; s.connect(off.destination); s.start(); const r=await off.startRendering(); return [r.getChannelData(0), r.getChannelData(1)]; };
     const def=[['Voz','voz',VL,VR,'--c1'],['Batería','bateria',BL,BR,'--c2']]; if(XL) def.push(['Bajo','bajo',XL,XR,'--c3']); def.push([XL?'Resto':'Instrumentos','resto',OL,OR,'--c4']);
-    const pistas=[]; for(const [nombre,id,x,y,color] of def){ const [l,r]=await volver(x,y); pistas.push({ch:pistas.length, id, nombre, L:l, R:r, color, usado:true, volIni:100, panIni:0, vol:null, pan:null, mute:false, solo:false, st:0}); }
+    const pistas=[]; for(const [nombre,id,x,y,color] of def){ const [l,r]=await volver(x,y); pistas.push({ch:pistas.length, id, nombre, L:l, R:r, color, usado:true, volIni:100, panIni:0, vol:null, pan:null, eqGIni:0, eqMIni:0, eqAIni:0, eqG:null, eqM:null, eqA:null, mute:false, solo:false, st:0}); }
     const t=posMus(), seguia=E.sonando; if(seguia) detener();
     E.canales=pistas; E.mezcla=new FuenteMezcla(pistas); E.est=null;
     pintarRack(); crearEst(); colaVaciar(t); if(seguia) sonar();
@@ -2439,7 +2532,7 @@ function pintarRackAudio(){
     const t=document.createElement('div'); t.className='canal'; t.id='canal'+c.ch; t.style.setProperty('--col','var('+c.color+')');
     const num=document.createElement('div'); num.className='c-num'; num.textContent=c.ch+1; t.append(num);
     const lcd=document.createElement('div'); lcd.className='c-lcd'; lcd.textContent=c.nombre; t.append(lcd);
-    t.append(potenciometro('PAN',c,'pan',-64,63,txtPan));
+    t.append(potenciometro('PAN',c,'pan',-64,63,txtPan), eqCanal(c));
     const ms=document.createElement('div'); ms.className='c-ms';
     const bm=document.createElement('button'); bm.type='button'; bm.className='bm'; bm.textContent='M'; bm.id='mute'+c.ch; bm.setAttribute('aria-label','Silenciar '+c.nombre);
     const bs=document.createElement('button'); bs.type='button'; bs.className='bs'; bs.textContent='S'; bs.id='solo'+c.ch; bs.setAttribute('aria-label','Solo '+c.nombre);
@@ -2447,9 +2540,9 @@ function pintarRackAudio(){
     ms.append(bm,bs); t.append(ms);
     const zona=document.createElement('div'); zona.className='c-fader';
     const led=document.createElement('div'); led.className='led'; led.id='vu'+c.ch; led.append(document.createElement('i'), document.createElement('b'));
-    const escala=document.createElement('div'); escala.className='escala'; [[0,'0'],[-6,'−6'],[-12,'−12'],[-24,'−24'],[-48,'−48']].forEach(([d,x])=>{ const s=document.createElement('span'); s.textContent=x; s.style.bottom='calc(15px + (100% - 30px) * '+(Math.pow(10,d/40)).toFixed(4)+')'; escala.append(s); });
-    const f=document.createElement('input'); f.type='range'; f.className='fader-in'; f.min=0; f.max=127; f.step=1; f.value=val(c,'vol'); f.id='vol'+c.ch; f.setAttribute('aria-label','Volumen '+c.nombre); f.setAttribute('orient','vertical');
-    const db=document.createElement('output'); db.className='c-db'; const dbTxt=v=> v<=0?'−∞':(40*Math.log10(v/100)).toFixed(1).replace('.',','); db.textContent=dbTxt(+f.value);
+    const escala=escalaFader(d=> d<=0 ? 100*Math.pow(10,d/40)/VMAX : (100+d*6)/VMAX);
+    const f=document.createElement('input'); f.type='range'; f.className='fader-in'; f.min=0; f.max=VMAX; f.step=1; f.value=val(c,'vol'); f.id='vol'+c.ch; f.setAttribute('aria-label','Volumen '+c.nombre); f.setAttribute('orient','vertical');
+    const db=document.createElement('output'); db.className='c-db'; const dbTxt=v=> v<=0?'−∞':(v>100?'+':'')+dbPista(v).toFixed(1).replace('.',','); db.textContent=dbTxt(+f.value);
     f.oninput=()=>{ c.vol=+f.value; db.textContent=dbTxt(c.vol); f.classList.add('tocado'); cambioMesa(false); };
     f.ondblclick=()=>{ c.vol=null; f.value=100; db.textContent=dbTxt(100); f.classList.remove('tocado'); cambioMesa(false); };
     zona.append(led,escala,f); t.append(zona,db);
@@ -2464,7 +2557,7 @@ function pintarVuAudio(){
   const ahora=performance.now()/1000, dt=Math.min(0.1, VU.t ? ahora-VU.t : 0.016); VU.t=ahora;
   const aSub=1-Math.exp(-dt/0.07), aBaja=1-Math.exp(-dt/0.65), i0=Math.max(0,Math.round(posMus()*E.audio.sr)-1024);
   for(const c of C){ const el=document.getElementById('vu'+c.ch); if(!el) continue; const ch=c.ch;
-    let s=0; const i1=Math.min(c.L.length,i0+2048); for(let i=i0;i<i1;i+=2){ const v=c.gL*c.L[i], w=c.gR*c.R[i]; s+=v*v+w*w; }
+    let s=0; const i1=Math.min(c.L.length,i0+2048); for(let i=i0;i<i1;i+=2){ const v=c.gL*(c.Lf||c.L)[i], w=c.gR*(c.Rf||c.R)[i]; s+=v*v+w*w; }
     const rms=Math.sqrt(s/Math.max(1,(i1-i0))), d=rms>0?20*Math.log10(rms/0.18):-99, obj=Math.max(0,Math.min(1,(d+48)/54));
     const n=VU.nivel[ch]; VU.nivel[ch]= obj>n ? n+(obj-n)*aSub : n+(obj-n)*aBaja;
     if(VU.nivel[ch]>=VU.pico[ch]){ VU.pico[ch]=VU.nivel[ch]; VU.picoT[ch]=ahora; } else if(ahora-VU.picoT[ch]>1.5) VU.pico[ch]=Math.max(VU.nivel[ch], VU.pico[ch]-dt*0.25);
@@ -2772,6 +2865,164 @@ $('bBuscar').onclick=async()=>{
     $('bEstado').textContent= c==='server_not_connected'||c==='needs_reauth' ? 'Conecta «Parallel Search» en Ajustes de Claude → Conectores.' : c==='not_in_manifest'||c==='approval_required' ? 'Hace falta tu permiso para buscar en la red (menú de permisos del artefacto).' : 'No he podido buscar ahora: '+(err&&err.message||err);
   }finally{ $('bBuscar').disabled=false; }
 };
+// ---------- Teclado e instrumentos MIDI por USB (Web MIDI): sonar en el teclado y grabar tocando ----------
+var USB={acc:null, salida:null, entrada:null, canal:null, prog:0, tomas:[], toma:null};
+var SAL={ev:[], i:0, t:null, perf0:0, seg0:0, timer:0, sonando:new Set()};
+const GM_USB=GM128;
+function avisoUsb(t){ $('usbMsg').textContent=t; }
+async function conectarUsb(){
+  if(!navigator.requestMIDIAccess){ avisoUsb('Este navegador no deja usar MIDI por USB. Usa Chrome o Edge en el ordenador o en Android (Safari e iPhone no lo permiten), en la versión de GitHub.'); return; }
+  try{ USB.acc=await navigator.requestMIDIAccess({sysex:true}); }
+  catch(e){ try{ USB.acc=await navigator.requestMIDIAccess(); }catch(e2){ avisoUsb(window.self!==window.top ? 'Dentro de Claude no se puede usar el MIDI por USB. Abre la versión de GitHub en Chrome o Edge.' : 'No se ha dado permiso para usar MIDI. Revisa el permiso del navegador (icono del candado).'); return; } }
+  USB.acc.onstatechange=listarUsb; listarUsb();
+}
+function listarUsb(){
+  const a=USB.acc; if(!a) return;
+  const outs=[...a.outputs.values()], ins=[...a.inputs.values()];
+  const so=$('usbSalida'), prev=so.value; so.textContent=''; so.append(new Option('este equipo',''));
+  for(const o of outs) so.append(new Option(o.name||'Salida MIDI', o.id)); so.value= outs.some(o=>o.id===prev) ? prev : '';
+  $('usbSalCampo').hidden=false;
+  const si=$('usbEntrada'), pi=si.value; si.textContent=''; for(const i of ins) si.append(new Option(i.name||'Entrada MIDI', i.id));
+  if(ins.some(i=>i.id===pi)) si.value=pi;
+  $('usbGrab').hidden=!ins.length || !E.midi;
+  avisoUsb((outs.length||ins.length) ? 'Conectado: '+[...new Set([...ins,...outs].map(x=>x.name))].join(', ') : 'No veo ningún aparato MIDI. Conéctalo por USB y enciéndelo.');
+  $('usbConectar').hidden=true; elegirEntrada(); canalesLibres();
+}
+$('usbConectar').onclick=conectarUsb;
+
+// ===== Salida: el MIDI suena en el teclado, con la mesa aplicada =====
+$('usbSalida').onchange=()=>{ const seguia=E.sonando, t=posMus(); if(seguia) detener(); apagarTeclado();
+  USB.salida= $('usbSalida').value ? USB.acc.outputs.get($('usbSalida').value) : null; E.salidaMidi=USB.salida;
+  SAL.t=null; if(!E.salidaMidi && E.vivo){ E.vivo.buscar(t); aplicarVivo(); } else SAL.tPausa=t;
+  avisoUsb(E.salidaMidi ? 'El MIDI sonará en «'+USB.salida.name+'» con sus sonidos. La mesa, el tono y la velocidad se aplican.' : 'El MIDI suena en este equipo con el soundfont.');
+  if(seguia) sonar(); };
+// eventos tal como quedarían en el MIDI modificado (mute, volumen, tono, velocidad, distancia, EQ...)
+function eventosSalida(){ const P=param(), m=leerMidi(escribirMidiMod(editarMidi(E.modo), P.semis, P.vel/100, {reverb:E.reverb})); return m.eventos.filter(e=>e.tipo==='ch'||e.tipo==='sysex'); }
+function enviar(b, t){ try{ USB.salida.send(b, t); }catch(e){} }
+function bytesDe(e){ return e.tipo==='sysex' ? [0xF0,...e.datos] : ((e.cmd===0xC||e.cmd===0xD) ? [(e.cmd<<4)|e.ch, e.a] : [(e.cmd<<4)|e.ch, e.a, e.b]); }
+function tSalida(){ if(SAL.t==null) return SAL.tPausa||0; const seg=SAL.seg0+(performance.now()-SAL.perf0)/1000; return seg*param().vel/100; }
+// estado de controles y programas hasta un punto (para empezar a mitad de canción)
+function ponerAlDia(seg){
+  const est=new Map(); for(const e of SAL.ev){ if(e.seg>=seg) break; if(e.tipo==='sysex'){ if(USB.acc.sysexEnabled) enviar(bytesDe(e)); continue; }
+    if(e.cmd===0xB||e.cmd===0xC||e.cmd===0xE) est.set(e.cmd+':'+e.ch+':'+(e.cmd===0xB?e.a:''), e); }
+  for(const e of est.values()) enviar(bytesDe(e));
+}
+function sonarSalida(){
+  const t= SAL.tPausa>=E.midi.duracion-0.01 ? 0 : (SAL.tPausa||0);
+  SAL.ev=eventosSalida(); const seg=t*100/param().vel;
+  ponerAlDia(seg); SAL.i=SAL.ev.findIndex(e=>e.seg>=seg); if(SAL.i<0) SAL.i=SAL.ev.length;
+  SAL.seg0=seg; SAL.perf0=performance.now()+60; SAL.t=t;
+  clearInterval(SAL.timer); SAL.timer=setInterval(programar, 20); programar();
+  E.sonando=true; for(const id of ['play','rPlay']){ $(id).textContent='❚❚'; $(id).setAttribute('aria-label','Pausa'); }
+  cancelAnimationFrame(E.raf); const bucle=()=>{ pintarPos(); if(E.sonando) E.raf=requestAnimationFrame(bucle); }; bucle();
+}
+function programar(){
+  const ahora=performance.now(), hasta=SAL.seg0+(ahora-SAL.perf0)/1000+0.15;
+  while(SAL.i<SAL.ev.length && SAL.ev[SAL.i].seg<=hasta){ const e=SAL.ev[SAL.i++];
+    if(e.tipo==='sysex'){ if(USB.acc.sysexEnabled) enviar(bytesDe(e)); continue; }
+    const cuando=Math.max(ahora, SAL.perf0+(e.seg-SAL.seg0)*1000);
+    if(e.cmd===9&&e.b>0) SAL.sonando.add(e.ch*128+e.a); else if(e.cmd===8||e.cmd===9) SAL.sonando.delete(e.ch*128+e.a);
+    enviar(bytesDe(e), cuando); }
+  if(SAL.i>=SAL.ev.length && !E.grabando && ahora>SAL.perf0+((SAL.ev.at(-1)?.seg||0)-SAL.seg0)*1000+1500){ detener(); SAL.tPausa=0; pintarPos(); }
+}
+function apagarTeclado(){ if(!USB.salida) return; for(const k of SAL.sonando) enviar([0x80|(k>>7), k&127, 0]); SAL.sonando.clear();
+  for(let ch=0;ch<16;ch++){ enviar([0xB0|ch,64,0]); enviar([0xB0|ch,123,0]); enviar([0xB0|ch,120,0]); } }
+function pararSalida(){ if(!SAL||SAL.t==null) return; SAL.tPausa=tSalida(); clearInterval(SAL.timer); SAL.t=null; apagarTeclado(); }
+function buscarSalida(t){ const seguia=E.sonando && E.salidaMidi; if(seguia){ clearInterval(SAL.timer); SAL.t=null; apagarTeclado(); } SAL.tPausa=t; if(seguia) sonarSalida(); }
+// cualquier cambio de la mesa mientras suena: se rehace la lista y se mandan los controles nuevos
+function refrescarSalida(){ if(!E.salidaMidi||SAL.t==null) return; clearTimeout(SAL.rt); SAL.rt=setTimeout(()=>{
+  const t=tSalida(); SAL.ev=eventosSalida(); const seg=t*100/param().vel; apagarTeclado(); ponerAlDia(seg);
+  SAL.i=SAL.ev.findIndex(e=>e.seg>=seg); if(SAL.i<0) SAL.i=SAL.ev.length; SAL.seg0=seg; SAL.perf0=performance.now()+30; SAL.t=t; },120); }
+
+// ===== Entrada: tocar con un instrumento USB en un canal libre y grabarlo =====
+function canalesLibres(){
+  const sel=$('usbCanal'), prev=sel.value; sel.textContent=''; if(!E.canales) return;
+  const tomados=new Set(USB.tomas.map(x=>x.ch));
+  for(const c of E.canales){ if(c.ch===9) continue; if(c.usado && !tomados.has(c.ch) && c.ch!==USB.canal) continue;
+    sel.append(new Option('Canal '+(c.ch+1)+(tomados.has(c.ch)?' (tu grabación)':''), c.ch)); }
+  if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
+  if(!sel.options.length){ sel.append(new Option('No quedan canales libres','')); }
+  elegirCanal();
+}
+(function(){ const s=$('usbInst'); GM_USB.forEach((n,i)=>s.append(new Option(String(i+1).padStart(3,'0')+' '+n, i))); })();
+function elegirEntrada(){ if(USB.entrada) USB.entrada.onmidimessage=null; const id=$('usbEntrada').value; USB.entrada= id&&USB.acc ? USB.acc.inputs.get(id) : null; if(USB.entrada) USB.entrada.onmidimessage=alTocar; }
+function elegirCanal(){ const v=$('usbCanal').value; USB.canal= v==='' ? null : +v; USB.prog=+$('usbInst').value||0; prepararCanal(); }
+$('usbEntrada').onchange=elegirEntrada; $('usbCanal').onchange=elegirCanal; $('usbInst').onchange=elegirCanal;
+// el canal elegido se enciende en la mesa con el instrumento elegido (y se cargan sus sonidos)
+function prepararCanal(){
+  if(USB.canal==null||!E.canales) return; const c=E.canales[USB.canal];
+  for(const o of E.canales) if(o!==c && !o.notas && o.usado){ o.usado=false; o.nombre='—'; o.color='--bat'; }
+  if(!c.notas){ c.usado=true; c.prog=USB.prog; c.instOrig=GM128[USB.prog]; c.nombre='Mi grabación'; c.nombrePista=''; if(c.color==='--bat') c.color='--c5'; }
+  c.inst= c.notas && c.prog!==USB.prog ? USB.prog : null; if(!c.notas) c.prog=USB.prog;
+  pintarRack(); if(!E.vivo) crearVivo(); aplicarVivo(); asegurarSonidos();
+  E.vivo.sinte.evento({tipo:'ch',cmd:0xC,ch:c.ch,a:USB.prog,b:0},0);
+  if(E.salidaMidi) enviar([0xC0|c.ch, USB.prog]);
+}
+function alTocar(msg){
+  const d=msg.data, st=d[0]&0xF0; if(USB.canal==null || !E.midi) return;
+  if(st!==0x90&&st!==0x80&&st!==0xB0&&st!==0xE0) return;
+  const ch=USB.canal, cmd=st>>4, a=d[1], b=d[2]??0;
+  // se escucha al momento: en el teclado si el MIDI sale por él, si no en el sintetizador de la app
+  // si se toca el mismo teclado por el que sale el MIDI, ya suena solo (no se duplica)
+  if(E.salidaMidi){ if(!(USB.entrada && USB.salida.name===USB.entrada.name)) enviar([st|ch, a, b]); }
+  else { if(!E.vivo) crearVivo(); if(E.audio) return; E.monitor=true; procMidi(); if(E.ctx.state==='suspended') E.ctx.resume();
+    E.vivo.sinte.evento({tipo:'ch',cmd,ch,a,b},0); }
+  if(E.grabando && USB.toma){
+    // momento de la canción que se estaba oyendo al tocar (descontando el retraso del audio)
+    let t; const ts=msg.timeStamp||performance.now();
+    if(E.salidaMidi) t=SAL.t!=null ? (SAL.seg0+(ts-SAL.perf0)/1000)*param().vel/100 : 0;
+    else { const r=E.reloj; t= r ? r.t+((ts-r.perf)/1000-r.lat)*param().vel/100 : posMus(); }
+    // en «con mis cambios» la canción suena transportada: se guarda la nota en el tono del archivo
+    const nota= (cmd===9||cmd===8) ? Math.max(0,Math.min(127,a-(E.modo==='cambios'?E.semis:0))) : a;
+    USB.toma.ev.push({t:Math.max(0,t), cmd, ch, a:nota, b});
+  }
+}
+$('usbRec').onclick=()=>{
+  if(E.grabando){ detener(); return; }
+  if(USB.canal==null){ avisoUsb('Elige un canal libre.'); return; }
+  USB.toma={ch:USB.canal, prog:USB.prog, ev:[]}; E.grabando=true; $('usbRec').classList.add('on'); $('usbRec').textContent='■ Parar grabación';
+  avisoUsb('Grabando en el canal '+(USB.canal+1)+'… toca encima de la canción.');
+  if(!E.sonando) $('play').click();
+};
+// al parar: la toma se convierte en una pista nueva del MIDI
+function finToma(){
+  if(!E.grabando) return; E.grabando=false; $('usbRec').classList.remove('on'); $('usbRec').textContent='● Grabar';
+  const tm=USB.toma; USB.toma=null; if(!tm||!tm.ev.some(e=>e.cmd===9&&e.b>0)){ avisoUsb('No se ha grabado ninguna nota.'); return; }
+  const m=E.midi, pista=Math.max(...m.eventos.map(e=>e.pista))+1, aTick=segATick(m);
+  let o=1e7+m.eventos.length; const nuevos=[], abiertas=new Map(); const tFin=Math.max(...tm.ev.map(e=>e.t))+0.05;
+  const add=(seg,cmd,a,b)=>nuevos.push({tick:aTick(seg), o:o++, seg, tipo:'ch', cmd, ch:tm.ch, a, b, pista});
+  nuevos.push({tick:0,o:o++,seg:0,tipo:'meta',meta:3,datos:new TextEncoder().encode('Mi grabación'),pista});
+  add(0,0xC,tm.prog,0);
+  for(const e of tm.ev.sort((x,y)=>x.t-y.t)){
+    if(e.cmd===9&&e.b>0){ abiertas.set(e.a,(abiertas.get(e.a)||0)+1); add(e.t,9,e.a,e.b); }
+    else if(e.cmd===8||(e.cmd===9&&e.b===0)){ if(abiertas.get(e.a)){ abiertas.set(e.a,abiertas.get(e.a)-1); add(e.t,8,e.a,0); } }
+    else add(e.t,e.cmd,e.a,e.b);
+  }
+  for(const [a,n] of abiertas) for(let k=0;k<n;k++) add(tFin,8,a,0);
+  m.eventos.push(...nuevos); m.eventos.sort((x,y)=>x.tick-y.tick||x.o-y.o);
+  USB.tomas.push({pista, ch:tm.ch}); $('usbDeshacer').disabled=false;
+  rehacerTrasToma(); avisoUsb('Toma guardada en el canal '+(tm.ch+1)+': '+nuevos.filter(e=>e.cmd===9).length+' notas. Escúchala, o «Deshacer toma».');
+}
+$('usbDeshacer').onclick=()=>{ const x=USB.tomas.pop(); if(!x) return; if(E.sonando) detener();
+  E.midi.eventos=E.midi.eventos.filter(e=>e.pista!==x.pista); $('usbDeshacer').disabled=!USB.tomas.length; rehacerTrasToma(); avisoUsb('Toma borrada.'); };
+// segundos de la canción → ticks del archivo, con su mapa de tempo
+function segATick(m){
+  const cambios=[{tick:0,seg:0,us:500000}]; for(const e of m.eventos) if(e.tipo==='meta'&&e.meta===0x51){ const ult=cambios.at(-1), seg=ult.seg+(e.tick-ult.tick)*ult.us/1e6/m.div; cambios.push({tick:e.tick,seg,us:(e.datos[0]<<16)|(e.datos[1]<<8)|e.datos[2]}); }
+  return s=>{ let c=cambios[0]; for(const x of cambios) if(x.seg<=s) c=x; else break; return Math.round(c.tick+(s-c.seg)*1e6/c.us*m.div); };
+}
+// el MIDI ha cambiado: notas, canales y duración al día, sin perder lo tocado en la mesa
+function rehacerTrasToma(){
+  const m=E.midi, t=posMus(), notas=m.eventos.filter(e=>e.tipo==='ch'&&e.cmd===9&&e.b>0);
+  m.notas=notas.length; m.canales=[...new Set(notas.map(e=>e.ch))].sort((a,b)=>a-b);
+  const ultimo=m.eventos.reduce((x,e)=>Math.max(x,e.seg||0),0); m.duracion=Math.max(ultimo, m.eventos.filter(e=>e.tipo==='meta').reduce((x,e)=>Math.max(x,e.seg||0),0));
+  const viejos=E.canales||[], nuevos=construirCanales(m);
+  for(const c of nuevos){ const v=viejos[c.ch]; if(!v) continue; for(const k of ['mute','solo','vol','pan','rev','cho','inst','st','prof','eqG','eqM','eqA','sfId','desdeEsc']) c[k]=v[k]; if(v.color&&c.usado&&v.usado) c.color=v.color; }
+  E.canales=nuevos; E.vivo=null; crearVivo(); E.vivo.buscar(Math.min(t,m.duracion)); aplicarVivo();
+  pintarRack(); pintarMandos(); pintarInfo(); canalesLibres(); asegurarSonidos(); pintarPos();
+}
+
+// MIDI nuevo: sin tomas pendientes y lista de canales libres al día
+function usbNuevoMidi(){ if(!USB) return; USB.tomas=[]; $('usbDeshacer').disabled=true; if(USB.acc){ $('usbGrab').hidden=![...USB.acc.inputs.values()].length || !E.midi; canalesLibres(); } }
 </script>
 
 </body>
