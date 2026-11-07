@@ -367,18 +367,6 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </details>
   </section>
 
-  <details class="tarjeta" id="plPartitura" open>
-    <summary class="sum-grande"><span>Partitura</span><span class="msg" id="ptInfo"></span></summary>
-    <div class="pt-barra">
-      <label class="pt-campo">Pista <select id="ptPista"></select></label>
-      <label class="pt-campo">Clave <select id="ptClave"><option value="treble">Sol</option><option value="bass">Fa</option><option value="alto">Do en 3.ª</option><option value="tenor">Do en 4.ª</option><option value="piano">Piano (sol + fa)</option></select></label>
-      <label class="pt-campo">Tonalidad <select id="ptTono"></select></label>
-      <button class="btn mini" id="ptImprimir" type="button">🖨 Imprimir</button>
-    </div>
-    <div class="partitura" id="partitura"><p class="msg">Abriendo la partitura…</p></div>
-    <div class="pt-menu" id="ptMenu" hidden></div>
-  </details>
-
   <details class="tarjeta escena-tarjeta" id="plEscena" open>
     <summary class="sum-grande"><span>Instrumentación</span><span class="msg" id="escTipo"></span></summary>
     <div class="esc-barra">
@@ -420,6 +408,18 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
     <p class="msg" id="carga"></p>
   </section>
+
+  <details class="tarjeta" id="plPartitura" open>
+    <summary class="sum-grande"><span>Partitura</span><span class="msg" id="ptInfo"></span></summary>
+    <div class="pt-barra">
+      <label class="pt-campo">Pista <select id="ptPista"></select></label>
+      <label class="pt-campo">Clave <select id="ptClave"><option value="treble">Sol</option><option value="bass">Fa</option><option value="alto">Do en 3.ª</option><option value="tenor">Do en 4.ª</option><option value="piano">Piano (sol + fa)</option></select></label>
+      <label class="pt-campo">Tonalidad <select id="ptTono"></select></label>
+      <button class="btn mini" id="ptImprimir" type="button">🖨 Imprimir</button>
+    </div>
+    <div class="partitura" id="partitura"><p class="msg">Abriendo la partitura…</p></div>
+    <div class="pt-menu" id="ptMenu" hidden></div>
+  </details>
 
   <section class="tarjeta">
     <h2>Tono y velocidad</h2>
@@ -486,7 +486,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 20:46</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 08-11-2026 00:33</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
