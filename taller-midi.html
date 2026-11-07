@@ -242,6 +242,16 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
 .notas-pie{ font-size:13.5px; color:var(--muted); }
 .notas-pie ul{ margin:8px 0 0; padding-left:18px; }
 @media (prefers-reduced-motion: reduce){ .progreso i{ transition:none; } }
+.buscador{ border:1px solid var(--line); border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:6px; }
+.buscador input[type=text]{ flex:1 1 140px; min-width:0; font:500 14px var(--body); color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:7px 9px; }
+.b-lista{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+.b-lista li{ display:flex; align-items:center; gap:8px; padding:5px 2px; border-top:1px solid var(--line); font-size:13.5px; }
+.b-lista li:first-child{ border-top:0; }
+.b-lista .b-t{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.b-lista .b-t small{ color:var(--muted); margin-left:6px; }
+.b-tag{ font:700 10.5px var(--mono); padding:2px 5px; border-radius:4px; background:var(--ambar-suave); color:var(--ambar); flex:none; }
+.b-tag.pago{ background:var(--line); color:var(--muted); }
+.b-lista a.btn{ text-decoration:none; flex:none; }
 </style>
 
 <div class="wrap">
@@ -255,6 +265,16 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     <div class="fila">
       <label class="btn prim" for="fMidi">Elegir MIDI o MP3</label><input type="file" id="fMidi" accept=".mid,.midi,.kar,audio/midi,audio/x-midi,audio/*,.mp3,.wav,.m4a,.flac,.ogg,.aac" hidden>
       <span class="info" id="infoMidi"></span>
+      <button class="btn mini" id="bAbrir" type="button" aria-expanded="false">🔍 Buscar MIDI / KAR</button>
+    </div>
+    <div class="buscador" id="buscador" hidden>
+      <div class="fila">
+        <input type="text" id="bArtista" placeholder="Artista" autocomplete="off" aria-label="Artista">
+        <input type="text" id="bTema" placeholder="Tema" autocomplete="off" aria-label="Tema">
+        <button class="btn prim" id="bBuscar" type="button">Buscar</button>
+        <span class="msg" id="bEstado" aria-live="polite"></span>
+      </div>
+      <ol class="b-lista" id="bLista"></ol>
     </div>
     <div class="fila" id="filaSf">
       <label class="btn" for="fSf2">Elegir soundfont (.sf2)</label><input type="file" id="fSf2" accept=".sf2" hidden><input type="file" id="fSfCanal" accept=".sf2" hidden>
@@ -2498,6 +2518,100 @@ $('igConv').onclick=async()=>{
   finally{ $('igConv').disabled=false; }
 };
 $('igBajar').onclick=async()=>{ if(IG.mp3) guardar(new Uint8Array(await IG.mp3.arrayBuffer()), IG.nombre, 'mp3', 'audio/mpeg', 'igMsg'); };
+// ---------- Buscador de MIDI y KAR en internet (solo .mid / .kar) ----------
+const BUS={mcp:null, sample:null, listo:false};
+const SERVIDOR='Parallel Search';
+const FUERA=/youtube\.|youtu\.be|spotify\.|deezer\.|music\.apple|soundcloud\.|tiktok\.|instagram\.|facebook\.|amazon\.|letras\.|lyrics|genius\.com|musixmatch|azlyrics|chordify|ultimate-guitar|songsterr|tidal\.|shazam/i;
+const SITIOS_MIDI=['bitmidi.com','midiworld.com','freemidi.org','midishow.com','midifind.com','vanbasco.com','mididb.com','karaokespain.com','kar.es','midkar.com','hamienet.com','musescore.com'];
+(async()=>{ try{ BUS.mcp=await window.claude?.use?.('mcp'); }catch(e){} try{ BUS.sample=await window.claude?.use?.('sample'); }catch(e){} BUS.listo=true; })();
+$('bAbrir').onclick=()=>{ const b=$('buscador'); b.hidden=!b.hidden; $('bAbrir').setAttribute('aria-expanded', !b.hidden); if(!b.hidden) $('bArtista').focus(); };
+for(const id of ['bArtista','bTema']) $(id).addEventListener('keydown',e=>{ if(e.key==='Enter') $('bBuscar').click(); });
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9ñ ]+/g,' ').replace(/\s+/g,' ').trim();
+const host=u=>{ try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return u; } };
+// primera criba sin IA: tiene que hablar de MIDI/KAR y nombrar el tema
+function criba(r, artista, tema){
+  const txt=norm(r.title+' '+r.url+' '+(r.excerpts||[]).join(' ').slice(0,4000));
+  if(FUERA.test(r.url)) return null;
+  if(!/\bmidi?\b|\.mid\b|\bkar\b|karaoke|\bsmf\b/.test(txt) && !/\.(mid|midi|kar)(\?|$)/i.test(r.url)) return null;
+  const pt=norm(tema).split(' ').filter(w=>w.length>1), pa=norm(artista).split(' ').filter(w=>w.length>1);
+  const enT=pt.filter(w=>txt.includes(w)).length/(pt.length||1), enA=pa.length ? pa.filter(w=>txt.includes(w)).length/pa.length : 1;
+  if(enT<0.75) return null;
+  const tituloUrl=norm(r.title+' '+r.url), ex=(r.excerpts||[]).join(' ');
+  const kar=/\.kar\b|\bkar\b|karaoke|@kmidi|letra|lyrics included/i.test(r.title+' '+r.url+' '+ex.slice(0,3000));
+  const pago=/\bbuy\b|comprar|£\s?\d|€\s?\d|\$\s?\d|premium|credits|price/i.test(ex.slice(0,3000));
+  const dur=(ex.match(/(?:Duration|Length|Duración)\D{0,12}(\d{1,2}:\d{2})/i)||[])[1]||'';
+  const nota=enT*2+enA+(pt.every(w=>tituloUrl.includes(w))?1:0)+(pa.length&&pa.every(w=>tituloUrl.includes(w))?0.5:0)+(pago?-0.5:0);
+  return {url:r.url, titulo:r.title.replace(/\s*[:|•\-–]+\s*(MidiShow|Nonstop2k|Song Galaxy|BitMidi|MIDIfind).*$/i,'').replace(/\s*Download Free \.mid Music File/i,''), sitio:host(r.url), kar, pago, dur, nota, extracto:ex.slice(0,400)};
+}
+async function buscarWeb(artista, tema){
+  const q=(artista+' '+tema).trim();
+  const llamadas=[
+    {objective:`Archivos MIDI (.mid) o karaoke (.kar) descargables de la canción "${tema}"${artista?' de '+artista:''}. Solo páginas de descarga de MIDI o KAR, nada de MP3, vídeos ni letras.`,
+     search_queries:[q+' midi', tema+' '+artista+' kar karaoke', q+' mid download', q+' archivo midi']},
+    {objective:`Páginas de bancos de MIDI con "${tema}"${artista?' de '+artista:''} en formato .mid o .kar`,
+     search_queries:SITIOS_MIDI.slice(0,6).map(s=>q+' site:'+s)},
+    {objective:`Karaoke .kar o midi de "${tema}"${artista?' ('+artista+')':''} en webs de midis en español y otros idiomas`,
+     search_queries:[q+' .kar', tema+' midi gratis', q+' midi file free', ...SITIOS_MIDI.slice(6,9).map(s=>q+' site:'+s)]},
+  ];
+  const res=await Promise.allSettled(llamadas.map(inp=>BUS.mcp.callTool(SERVIDOR,'web_search',inp,{cache:{staleTime:600000,gcTime:600000}})));
+  const vistos=new Map(); let fallo=null;
+  for(const r of res){
+    if(r.status==='rejected'){ fallo=r.reason; continue; }
+    let p=r.value.payload; if(typeof p==='string'){ try{ p=JSON.parse(p); }catch(e){ p=null; } }
+    for(const x of (p&&p.results)||[]) if(x&&x.url&&!vistos.has(x.url)) vistos.set(x.url,x);
+  }
+  if(!vistos.size && fallo) throw fallo;
+  return [...vistos.values()];
+}
+// segunda criba con IA (si está disponible): solo lo que de verdad es ese tema en MIDI/KAR
+async function afinarConIA(lista, artista, tema){
+  if(!BUS.sample || lista.length<2) return lista;
+  try{
+    const datos=lista.slice(0,30).map((r,i)=>({i, titulo:r.titulo, web:r.sitio, url:r.url, texto:r.extracto.replace(/\s+/g,' ').slice(0,280)}));
+    const out=await BUS.sample.json([{role:'user', content:
+`Busco archivos MIDI (.mid) o karaoke MIDI (.kar) de la canción "${tema}"${artista?' del artista "'+artista+'"':''}.
+Abajo tienes resultados de búsqueda. Quédate SOLO con las páginas donde se puede descargar (gratis o de pago) un .mid o .kar de ESA canción (vale una versión o arreglo de esa canción; NO valen otras canciones del mismo artista, ni listas genéricas sin esa canción, ni MP3, vídeos, letras o partituras PDF).
+Para cada uno indica: i, ok (true/false), kar (true si es karaoke con letra), pago (true si hay que pagar o registrarse con créditos), nota de 0 a 10 (10 = la canción completa con todos los instrumentos), y "que" (máximo 8 palabras en español: qué versión es, p. ej. "completo con batería, 13 canales" o "solo piano").
+Responde solo JSON: {"r":[{"i":0,"ok":true,"kar":false,"pago":false,"nota":8,"que":"..."}]}
+Resultados:
+${JSON.stringify(datos)}`}], {modelTier:'quick'});
+    const m=new Map(((out&&out.r)||[]).map(x=>[x.i,x]));
+    if(!m.size) return lista;
+    return lista.slice(0,30).map((r,i)=>({r,x:m.get(i)})).filter(o=>o.x&&o.x.ok).map(({r,x})=>({...r, kar:!!x.kar||r.kar, pago:!!x.pago, nota:+x.nota||0, que:x.que||''})).sort((a,b)=>b.nota-a.nota);
+  }catch(e){ console.warn('IA no disponible para afinar', e); return lista; }
+}
+function pintarResultados(lista){
+  const ol=$('bLista'); ol.textContent='';
+  for(const r of lista){
+    const li=document.createElement('li');
+    const fmt=document.createElement('span'); fmt.className='b-tag'; fmt.textContent= r.kar ? 'KAR' : 'MID';
+    const t=document.createElement('span'); t.className='b-t'; t.textContent=r.titulo; t.title=r.titulo+' · '+r.url;
+    const sm=document.createElement('small'); sm.textContent=[r.que, r.dur, r.sitio].filter(Boolean).join(' · '); t.append(sm);
+    li.append(fmt, t);
+    if(r.pago){ const p=document.createElement('span'); p.className='b-tag pago'; p.textContent='DE PAGO'; li.append(p); }
+    const a=document.createElement('a'); a.className='btn mini'; a.href=r.url; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent='Abrir ↗'; li.append(a);
+    ol.append(li);
+  }
+}
+$('bBuscar').onclick=async()=>{
+  const artista=$('bArtista').value.trim(), tema=$('bTema').value.trim();
+  if(!tema){ $('bEstado').textContent='Escribe al menos el tema.'; $('bTema').focus(); return; }
+  if(!BUS.listo){ $('bEstado').textContent='Un momento…'; await new Promise(r=>setTimeout(r,800)); }
+  if(!BUS.mcp){ $('bEstado').textContent='El buscador funciona dentro de la app de Claude (necesita el conector Parallel Search).'; return; }
+  $('bBuscar').disabled=true; $('bLista').textContent=''; $('bEstado').textContent='Buscando en la red…';
+  try{
+    const brutos=await buscarWeb(artista, tema);
+    let lista=brutos.map(r=>criba(r,artista,tema)).filter(Boolean).sort((a,b)=>b.nota-a.nota);
+    if(lista.length){ $('bEstado').textContent='Comprobando '+lista.length+' resultados…'; lista=await afinarConIA(lista, artista, tema); }
+    // los gratis primero, luego por nota
+    lista.sort((a,b)=>(a.pago-b.pago)||(b.nota-a.nota));
+    pintarResultados(lista);
+    $('bEstado').textContent= lista.length ? lista.length+' resultado'+(lista.length>1?'s':'')+' en MIDI/KAR · descárgalo en la web y súbelo con «Elegir MIDI o MP3»' : 'No he encontrado ese tema en MIDI ni KAR. Prueba con el título en inglés o sin el artista.';
+  }catch(err){
+    console.error(err); const c=err&&err.code;
+    $('bEstado').textContent= c==='server_not_connected'||c==='needs_reauth' ? 'Conecta «Parallel Search» en Ajustes de Claude → Conectores.' : c==='not_in_manifest'||c==='approval_required' ? 'Hace falta tu permiso para buscar en la red (menú de permisos del artefacto).' : 'No he podido buscar ahora: '+(err&&err.message||err);
+  }finally{ $('bBuscar').disabled=false; }
+};
 </script>
 
 </body>
