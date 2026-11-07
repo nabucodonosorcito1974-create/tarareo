@@ -110,6 +110,23 @@ input[type=range]{ width:100%; accent-color:var(--nota); }
 .afinador[data-ok=si] #aguja{ background:var(--ok); }
 .afinador span{ font:500 12.5px var(--mono); color:var(--muted); min-width:9ch; }
 @media (prefers-reduced-motion: reduce){ .rec i, #aguja, .aguja-a{ transition:none; } }
+.fila-c{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; }
+.fila-c .chk{ padding-top:0; font-size:13.5px; }
+.mini{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); }
+.mini input[type=text]{ width:6.5ch; padding:5px 6px; font-size:13px; }
+.fila-c.tit b{ font:600 13px var(--body); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-right:auto; }
+.seg-mini button{ padding:4px 10px; font-size:12.5px; flex:none; }
+.mini-b{ padding:5px 10px; font-size:13px; }
+.stems{ display:flex; flex-direction:column; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-top:6px; }
+.stem{ display:flex; align-items:center; gap:6px; padding:5px 8px; flex-wrap:wrap; }
+.stem + .stem{ border-top:1px solid var(--line); }
+.stem .nom{ flex:1 1 150px; font-size:14px; font-weight:500; min-width:0; }
+.stem .nom small{ color:var(--muted); font-weight:400; margin-left:6px; }
+.stem .btn{ padding:4px 10px; font-size:13px; }
+.stem [data-a=midi]{ min-width:8.6em; justify-content:center; }
+.stem .btn.on{ border-color:var(--nota); color:var(--nota); }
+@media (max-width:520px){ .stem{ flex-wrap:nowrap; gap:4px; } .stem .nom{ flex:1 1 0; font-size:13.5px; } .stem .nom small{ display:none; } .stem .btn{ padding:4px 7px; } .stem [data-a=midi]{ min-width:0; } }
+.stem i.sw{ width:8px; height:8px; border-radius:50%; flex:none; }
 </style>
 <div class="wrap">
   <header>
@@ -140,7 +157,7 @@ input[type=range]{ width:100%; accent-color:var(--nota); }
       <label class="btn" for="archivo">Subir nota de voz</label>
       <input type="file" id="archivo" accept="audio/*" hidden>
       <label class="btn" for="cancion">Subir canción</label>
-      <input type="file" id="cancion" accept="audio/*" hidden>
+      <input type="file" id="cancion" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg,.aac" hidden>
       <button class="btn" id="ejemplo">Cargar ejemplo</button>
     </div>
     <p class="aviso" id="avisoMic" hidden style="margin-top:12px"></p>
@@ -148,16 +165,24 @@ input[type=range]{ width:100%; accent-color:var(--nota); }
 
   <section data-pane="midi" class="pista" id="panelCancion" hidden>
     <div class="cab"><span class="fuente" id="cNombre">Canción</span><span class="msg" id="cMotor"></span></div>
-    <p class="msg" style="margin:0">La app separa la voz cantada de los instrumentos con inteligencia artificial, en tu propio móvil, y saca su melodía.</p>
-    <div class="ajustes">
-      <div class="campo"><span>Desde (min:seg)</span><input type="text" id="cDesde" value="0:00" inputmode="decimal"></div>
-      <div class="campo"><span>Hasta (min:seg)</span><input type="text" id="cHasta" value="0:00" inputmode="decimal"></div>
+    <div class="fila-c">
+      <label class="mini">Desde <input type="text" id="cDesde" value="0:00" inputmode="decimal"></label>
+      <label class="mini">Hasta <input type="text" id="cHasta" value="0:00" inputmode="decimal"></label>
+      <label class="chk"><input type="checkbox" id="cBat" checked> Separar batería</label>
+      <label class="chk"><input type="checkbox" id="cSoloVoz"> Ya es solo voz</label>
+      <button class="btn prim" id="cExtraer" disabled>Separar pistas</button><button class="btn" id="cCancelar" hidden>Cancelar</button>
     </div>
-    <label class="chk"><input type="checkbox" id="cSoloVoz"> Ya es solo la voz (voz aislada o a capela): no separar</label>
     <p class="msg" id="cEstim" style="margin:0"></p>
     <div class="progreso"><i id="cBarra"></i></div>
     <p class="msg" id="cEstado" style="margin:0" aria-live="polite"></p>
-    <div class="acciones"><button class="btn prim" id="cExtraer" disabled>Extraer melodía</button><button class="btn" id="cCancelar" hidden>Cancelar</button></div>
+    <div id="cPistas" hidden>
+      <div class="fila-c tit"><b>Pistas</b>
+        <div class="seg seg-mini" id="cFormato"><button aria-pressed="true" data-f="mp3">MP3</button><button aria-pressed="false" data-f="wav">WAV</button></div>
+        <button class="btn mini-b" id="cTodas">⬇ Todas</button><button class="btn mini-b" id="cPararP" disabled>■</button>
+      </div>
+      <div id="cLista" class="stems"></div>
+      <p class="msg" id="cMsgP" style="margin:0"></p>
+    </div>
   </section>
 
   <section data-pane="midi" class="pista">
@@ -598,7 +623,9 @@ function tarareoEjemplo(sr){
   return x;
 }
 // ---------- Separación de voz (modelo MDX-Net de voz, UVR) ----------
-const MDX=(()=>{ const NFFT=7680, HOP=1024, DIMF=3072, DIMT=256; const CHUNK=HOP*(DIMT-1), TRIM=NFFT/2; return {NFFT,HOP,DIMF,DIMT,CHUNK,TRIM,GEN:CHUNK-2*TRIM,NB:NFFT/2+1,COMP:1.021}; })();
+function cfgMDX(NFFT, DIMF, DIMT, COMP){ const HOP=1024, CHUNK=HOP*(DIMT-1), TRIM=NFFT/2; return {NFFT,HOP,DIMF,DIMT,CHUNK,TRIM,GEN:CHUNK-2*TRIM,NB:NFFT/2+1,COMP}; }
+const MDX=cfgMDX(7680,3072,256,1.021);          // voz (UVR-MDX-NET Voc_FT)
+const MDX_BAT=cfgMDX(4096,2048,128,1.0);         // batería (kuielab_b_drums)
 
 // FFT compleja radix-2 (tamaño potencia de 2), in situ
 function crearFFT2(M){
@@ -640,8 +667,8 @@ function crearDFT(N){
   };
 }
 
-function crearSTFT(){
-  const {NFFT,HOP,DIMF,DIMT,CHUNK}=MDX, H=NFFT/2;
+function crearSTFT(cfg=MDX){
+  const {NFFT,HOP,DIMF,DIMT,CHUNK}=cfg, H=NFFT/2;
   const dft=crearDFT(NFFT), win=new Float64Array(NFFT);
   for(let i=0;i<NFFT;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/NFFT);
   const xr=new Float64Array(NFFT), xi=new Float64Array(NFFT), Xr=new Float64Array(NFFT), Xi=new Float64Array(NFFT);
@@ -683,12 +710,12 @@ function crearSTFT(){
   };
 }
 
-// Separa la voz. ejecutar(tensorPlano) -> Promise<Float32Array> (salida del modelo). Devuelve voz mono.
-async function separarVoz(L, R, ejecutar, alProgreso, cancelado){
-  const {CHUNK,TRIM,GEN,DIMF,DIMT,COMP}=MDX;
+// Separa una pista (voz o batería) en estéreo. ejecutar(tensorPlano) -> Promise<Float32Array> (salida del modelo).
+async function separarPista(cfg, L, R, ejecutar, alProgreso, cancelado){
+  const {CHUNK,TRIM,GEN,DIMF,DIMT,COMP}=cfg;
   const n=L.length, pad=(GEN-n%GEN)%GEN, tot=TRIM+n+pad+TRIM;
   const PL=new Float32Array(tot), PR=new Float32Array(tot); PL.set(L,TRIM); PR.set(R,TRIM);
-  const voz=new Float32Array(n+pad), st=crearSTFT(), entrada=new Float32Array(4*DIMF*DIMT);
+  const OL=new Float32Array(n+pad), OR=new Float32Array(n+pad), st=crearSTFT(cfg), entrada=new Float32Array(4*DIMF*DIMT);
   const trozos=(n+pad)/GEN;
   for(let k=0;k<trozos;k++){
     if(cancelado && cancelado()) throw new Error('cancelado');
@@ -696,11 +723,16 @@ async function separarVoz(L, R, ejecutar, alProgreso, cancelado){
     st.directa([PL.subarray(i,i+CHUNK), PR.subarray(i,i+CHUNK)], entrada);
     const salida=await ejecutar(entrada);
     const [vl,vr]=st.inversa(salida);
-    for(let j=0;j<GEN;j++) voz[i+j]=COMP*0.5*(vl[TRIM+j]+vr[TRIM+j]);
+    for(let j=0;j<GEN;j++){ OL[i+j]=COMP*vl[TRIM+j]; OR[i+j]=COMP*vr[TRIM+j]; }
     if(alProgreso) alProgreso(k+1,trozos);
     await new Promise(r=>setTimeout(r,0));
   }
-  return voz.subarray(0,n);
+  return [OL.subarray(0,n), OR.subarray(0,n)];
+}
+// compatibilidad: voz en mono
+async function separarVoz(L, R, ejecutar, alProgreso, cancelado){
+  const [a,b]=await separarPista(MDX, L, R, ejecutar, alProgreso, cancelado);
+  const m=new Float32Array(a.length); for(let i=0;i<a.length;i++) m[i]=0.5*(a[i]+b[i]); return m;
 }
 // ---------- Interfaz ----------
 const $=id=>document.getElementById(id);
@@ -890,9 +922,141 @@ window.addEventListener('resize',()=>dibujar());
 // estado inicial: ejemplo cargado
 cargarAudio(tarareoEjemplo(44100),44100,'Ejemplo: Himno de la alegría (tarareo sintético)','himno-alegria');
 if(enClaude) $('msgBajar').textContent='En Claude el .mid se entrega dentro de un .zip.';
+// ---------- Pistas a MIDI: batería (golpes) y armonía (polifónico) ----------
+
+// Biquad sencillo (RBJ) aplicado a un Float32Array
+function biquad(x, sr, tipo, f, q=0.707){
+  const w=2*Math.PI*f/sr, c=Math.cos(w), s=Math.sin(w), a=s/(2*q); let b0,b1,b2,a0,a1,a2;
+  if(tipo==='lp'){ b0=(1-c)/2; b1=1-c; b2=(1-c)/2; } else if(tipo==='hp'){ b0=(1+c)/2; b1=-(1+c); b2=(1+c)/2; } else { b0=a; b1=0; b2=-a; }
+  a0=1+a; a1=-2*c; a2=1-a;
+  const y=new Float32Array(x.length); let x1=0,x2=0,y1=0,y2=0;
+  for(let i=0;i<x.length;i++){ const v=(b0*x[i]+b1*x1+b2*x2-a1*y1-a2*y2)/a0; x2=x1; x1=x[i]; y2=y1; y1=v; y[i]=v; }
+  return y;
+}
+// Detecta golpes de bombo, caja y charles en la pista de batería. Devuelve [{t, nota, vel}]
+function transcribirBateria(x, sr){
+  const HOP=256, n=Math.floor(x.length/HOP);
+  const bandas=[
+    {nota:36, sig:biquad(biquad(x,sr,'lp',110),sr,'lp',110), nivelMin:-1.2, sep:0.15},          // bombo
+    {nota:38, sig:biquad(biquad(x,sr,'bp',220,0.9),sr,'bp',2600,0.6), nivelMin:-1.6, sep:0.08},  // caja (cuerpo + bordonero)
+    {nota:42, sig:biquad(biquad(x,sr,'hp',7000),sr,'hp',7000), nivelMin:-2.0, sep:0.06},         // charles / platos
+  ];
+  const E=bandas.map(b=>{ const e=new Float32Array(n); for(let k=0;k<n;k++){ let s=0; for(let i=k*HOP;i<(k+1)*HOP;i++) s+=b.sig[i]*b.sig[i]; e[k]=Math.log10(s/HOP+1e-10); } return e; });
+  const golpes=[];
+  bandas.forEach((b,bi)=>{
+    const e=E[bi], fl=new Float32Array(n);
+    for(let k=2;k<n;k++) fl[k]=Math.max(0, e[k]-Math.min(e[k-1], e[k-2]));
+    const orden=Array.from(e).sort((a,c)=>a-c), emax=orden[Math.floor(orden.length*0.995)];   // nivel de los golpes fuertes de esa banda
+    const cand=[];
+    for(let k=2;k<n-2;k++) if(fl[k]>fl[k-1] && fl[k]>=fl[k+1] && fl[k]>0.35) cand.push(k);
+    const fs=cand.map(k=>fl[k]).sort((a,c)=>a-c), ref=fs[Math.floor(fs.length*0.95)]||1;
+    let ultimo=-1e9;
+    for(const k of cand){
+      const pico=Math.max(e[k],e[k+1],e[k+2])-emax;
+      if(fl[k]<0.3*ref || pico<b.nivelMin) continue;
+      if((k-ultimo)*HOP/sr<b.sep) continue;
+      ultimo=k; golpes.push({t:k*HOP/sr, k, nota:b.nota, fuerza:fl[k], nivel:pico});
+    }
+  });
+  // bombo y caja a la vez: se queda el que domina (o los dos si ambos son fuertes)
+  const de=nota=>golpes.filter(g=>g.nota===nota);
+  const quitar=new Set();
+  // el bordonero de la caja (2–5 kHz) es lo que la distingue de un bombo que «mancha» la banda media
+  const hil=biquad(biquad(x,sr,'bp',3200,0.8),sr,'bp',3200,0.8), eh=new Float32Array(n);
+  for(let k=0;k<n;k++){ let s=0; for(let i=k*HOP;i<(k+1)*HOP;i++) s+=hil[i]*hil[i]; eh[k]=Math.log10(s/HOP+1e-10); }
+  const subida=k=>Math.max(eh[k],eh[k+1]||-10,eh[k+2]||-10)-Math.min(eh[Math.max(0,k-2)],eh[Math.max(0,k-3)]);
+  const cajas=de(38), subidas=cajas.map(c=>subida(c.k)), refS=subidas.slice().sort((a,b)=>a-b)[Math.floor(subidas.length*0.9)]||1;
+  cajas.forEach((sn,i)=>{
+    const conBombo=de(36).find(kb=>Math.abs(kb.t-sn.t)<0.03);
+    if(conBombo && subidas[i]<refS-0.4) quitar.add(sn);          // era el bombo
+  });
+  // la caja suena también en agudos: un agudo pegado a una caja no cuenta como charles
+  for(const h of de(42)) if(de(38).some(c=>!quitar.has(c) && Math.abs(c.t-h.t)<0.03)) quitar.add(h);
+  return golpes.filter(g=>!quitar.has(g)).map(g=>({t:g.t, nota:g.nota, vel:Math.max(30,Math.min(127,Math.round(127+g.nivel*35)))})).sort((a,b)=>a.t-b.t);
+}
+
+// MIDI de un solo canal a partir de notas {s, e, m, v} en segundos
+function midiDeNotas(notas, {canal=0, programa=0, bpm=120, nombre='Pista'}={}){
+  const PPQ=480, tk=s=>Math.max(0,Math.round(s*bpm/60*PPQ));
+  const vlq=n=>{ const b=[n&0x7f]; while(n>>=7) b.unshift((n&0x7f)|0x80); return b; };
+  const ev=[];
+  for(const n of notas){ ev.push({t:tk(n.s),o:1,d:[0x90|canal,n.m,Math.max(1,Math.min(127,n.v|0))]}); ev.push({t:Math.max(tk(n.s)+1,tk(n.e)),o:0,d:[0x80|canal,n.m,0]}); }
+  ev.sort((a,b)=>a.t-b.t||a.o-b.o);
+  const us=Math.round(60000000/bpm), nom=Array.from(new TextEncoder().encode(nombre));
+  const tr=[0,0xFF,0x03,nom.length,...nom, 0,0xFF,0x51,0x03,(us>>16)&255,(us>>8)&255,us&255, 0,0xFF,0x58,0x04,4,2,24,8];
+  if(canal!==9) tr.push(0,0xC0|canal,programa&127);
+  let last=0; for(const e of ev){ tr.push(...vlq(e.t-last), ...e.d); last=e.t; }
+  tr.push(0,0xFF,0x2F,0);
+  const L=tr.length;
+  return new Uint8Array([0x4D,0x54,0x68,0x64,0,0,0,6,0,0,0,1,(PPQ>>8)&255,PPQ&255,0x4D,0x54,0x72,0x6B,(L>>>24)&255,(L>>16)&255,(L>>8)&255,L&255,...tr]);
+}
+function midiDeBateria(golpes){ return midiDeNotas(golpes.map(g=>({s:g.t, e:g.t+0.1, m:g.nota, v:g.vel})), {canal:9, nombre:'Bateria'}); }
+
+// Transcripción polifónica con Basic Pitch (Spotify, Apache 2.0) en el navegador
+const BP_DIR='bp/';
+async function prepararBasicPitch(){
+  if(window.__bp) return window.__bp;
+  if(!window.BP) await cargarScript(BP_DIR+'basicpitch.min.js');
+  const man=await (await fetch(BP_DIR+'model.json')).json();
+  const b64=await (await fetch(BP_DIR+'pesos.txt')).text(); const s=atob(b64.trim()), pesos=new Uint8Array(s.length); for(let i=0;i<s.length;i++) pesos[i]=s.charCodeAt(i);
+  const specs=man.weightsManifest.flatMap(g=>g.weights);
+  const modelo=BP.tf.loadGraphModel(BP.tf.io.fromMemory({modelTopology:man.modelTopology, format:man.format, generatedBy:man.generatedBy, convertedBy:man.convertedBy, weightSpecs:specs, weightData:pesos.buffer}));
+  return window.__bp=new BP.BasicPitch(modelo);
+}
+// x: mono a sr Hz → notas {s,e,m,v}
+async function transcribirPolifonico(x, sr, alProgreso){
+  const bp=await prepararBasicPitch();
+  // Basic Pitch trabaja a 22.050 Hz en mono
+  const n=Math.ceil(x.length*22050/sr), off=new OfflineAudioContext(1, n, 22050);
+  const b=off.createBuffer(1, x.length, sr); b.getChannelData(0).set(x);
+  const s=off.createBufferSource(); s.buffer=b; s.connect(off.destination); s.start();
+  const r=(await off.startRendering()).getChannelData(0);
+  const frames=[], onsets=[], contours=[];
+  await bp.evaluateModel(r, (f,o,c)=>{ frames.push(...f); onsets.push(...o); contours.push(...c); }, p=>alProgreso&&alProgreso(p));
+  const notas=BP.noteFramesToTime(BP.outputToNotesPoly(frames, onsets, 0.25, 0.25, 5));
+  return notas.map(q=>({s:q.startTimeSeconds, e:q.startTimeSeconds+q.durationSeconds, m:q.pitchMidi, v:Math.round(40+87*Math.min(1,q.amplitude))}));
+}
+
+// ---------- Exportar pistas de audio ----------
+function wavEstereo(L, R, sr){
+  const n=L.length, buf=new ArrayBuffer(44+n*4), v=new DataView(buf); const w=(o,s)=>{ for(let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
+  w(0,'RIFF'); v.setUint32(4,36+n*4,true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,2,true);
+  v.setUint32(24,sr,true); v.setUint32(28,sr*4,true); v.setUint16(32,4,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40,n*4,true);
+  const q=s=>{ s=Math.max(-1,Math.min(1,s)); return s<0?s*0x8000:s*0x7FFF; };
+  for(let i=0,o=44;i<n;i++,o+=4){ v.setInt16(o,q(L[i]),true); v.setInt16(o+2,q(R[i]),true); }
+  return new Uint8Array(buf);
+}
+const LAME_CDN='https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js';
+async function mp3Estereo(L, R, sr, alProgreso){
+  if(!window.lamejs) await cargarScript(LAME_CDN);
+  const enc=new lamejs.Mp3Encoder(2, sr, 192), partes=[], B=1152*20, iL=new Int16Array(B), iR=new Int16Array(B);
+  const q=s=>Math.max(-32768,Math.min(32767,Math.round(s*32767)));
+  for(let p=0;p<L.length;p+=B){
+    const n=Math.min(B,L.length-p); for(let i=0;i<n;i++){ iL[i]=q(L[p+i]); iR[i]=q(R[p+i]); }
+    const mp=enc.encodeBuffer(iL.subarray(0,n), iR.subarray(0,n)); if(mp.length) partes.push(new Uint8Array(mp));
+    if((p/B)%40===0){ alProgreso&&alProgreso(p/L.length); await new Promise(r=>setTimeout(r,0)); }
+  }
+  const fin=enc.flush(); if(fin.length) partes.push(new Uint8Array(fin));
+  return new Uint8Array(await new Blob(partes).arrayBuffer());
+}
+// ZIP sin comprimir con varios archivos [{nombre, datos}]
+function crearZipVarios(archivos){
+  const u16=v=>[v&255,(v>>8)&255], u32=v=>[v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255];
+  const loc=[], cen=[]; let off=0;
+  for(const a of archivos){
+    const nm=new TextEncoder().encode(a.nombre), crc=crc32(a.datos), n=a.datos.length;
+    const cab=new Uint8Array([...u32(0x04034b50),...u16(20),...u16(0x800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(n),...u32(n),...u16(nm.length),...u16(0),...nm]);
+    loc.push(cab, a.datos);
+    cen.push(new Uint8Array([...u32(0x02014b50),...u16(20),...u16(20),...u16(0x800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(n),...u32(n),...u16(nm.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off),...nm]));
+    off+=cab.length+n;
+  }
+  const lenCen=cen.reduce((s,c)=>s+c.length,0);
+  const fin=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(archivos.length),...u16(archivos.length),...u32(lenCen),...u32(off),...u16(0)]);
+  return new Blob([...loc,...cen,fin]);   // Blob: no hace falta juntarlo todo en un solo bloque de memoria
+}
 // ---------- Modo canción: separar la voz y sacar su melodía ----------
 const ORT_DIR='ort/', MODELO_DIR='modelo/';
-const C={ L:null, R:null, dur:0, nombre:'', ses:null, motor:'', cancel:false, wake:null };
+const C={ L:null, R:null, dur:0, nombre:'', ses:null, sesB:null, motor:'', cancel:false, wake:null, pistas:[] };
 function leerTiempo(txt){ const p=String(txt).trim().split(':').map(Number); if(p.some(isNaN)) return null; return p.length===2? p[0]*60+p[1] : p[0]; }
 
 function cargarScript(src){ return new Promise((ok,ko)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>ko(new Error('No se ha podido cargar '+src)); document.head.appendChild(s); }); }
@@ -916,19 +1080,31 @@ async function bajarPartes(tipo, alProgreso){
   return out;
 }
 
-async function prepararSeparador(alProgreso){
-  if(C.ses) return;
+async function prepararMotor(alProgreso){
+  if(window.ort && ort.env.wasm.proxy) return;
   alProgreso('Cargando el motor', 0);
   if(!window.ort) await cargarScript(ORT_DIR+'ort.wasm.min.js');
   // el motor trabaja en segundo plano para que la página no se congele
   ort.env.wasm.wasmPaths=new URL(ORT_DIR, location.href).href;
   ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.max(1,Math.min(4,(navigator.hardwareConcurrency||2)-1)) : 1;
   ort.env.wasm.proxy=true;
+  C.motor='procesador · '+ort.env.wasm.numThreads+(ort.env.wasm.numThreads>1?' núcleos':' núcleo');
+}
+async function prepararSeparador(alProgreso){
+  if(C.ses) return; await prepararMotor(alProgreso);
   const m=await bajarPartes('cpu', f=>alProgreso('Descargando el separador de voz', f));
   alProgreso('Preparando el separador', 1);
   C.ses=await ort.InferenceSession.create(m,{executionProviders:['wasm']});
-  C.motor='procesador · '+ort.env.wasm.numThreads+(ort.env.wasm.numThreads>1?' núcleos':' núcleo');
 }
+async function prepararBateria(alProgreso){
+  if(C.sesB) return; await prepararMotor(alProgreso);
+  const m=await bajarPartes('bateria', f=>alProgreso('Descargando el separador de batería', f));
+  alProgreso('Preparando el separador de batería', 1);
+  C.sesB=await ort.InferenceSession.create(m,{executionProviders:['wasm']});
+}
+function ejecutor(ses, cfg){ return async inp=>{
+  const r=await ses.run({[ses.inputNames[0]]:new ort.Tensor('float32',inp.slice(),[1,4,cfg.DIMF,cfg.DIMT])});   // copia: el segundo plano se queda con los datos
+  return r[ses.outputNames[0]].data; }; }
 
 function barra(f, txt){ $('cBarra').style.width=Math.round(f*100)+'%'; if(txt!=null) $('cEstado').textContent=txt; }
 
@@ -946,60 +1122,162 @@ $('cancion').onchange=async e=>{
     $('cSoloVoz').checked=/vocal|acapell|a ?cappella|isolated|aislad|solo voz|voz sola|stem/i.test(f.name);
     $('cNombre').textContent=f.name+' · '+fmtT(C.dur);
     $('cDesde').value='0:00'; $('cHasta').value=fmtT(C.dur);
-    estimar(); $('cExtraer').disabled=false; barra(0,'Elige el tramo (por ejemplo, solo el estribillo) y pulsa «Extraer melodía».');
+    pararPista(); C.pistas=[]; pintarPistas(); msgP('');
+    estimar(); $('cExtraer').disabled=false; barra(0,'Elige el tramo (o deja la canción entera) y pulsa «'+$('cExtraer').textContent+'».');
   }catch(err){ barra(0,'No se ha podido leer ese audio. Prueba con un .mp3, .m4a o .wav.'); }
 };
 function tramo(){ const a=leerTiempo($('cDesde').value), b=leerTiempo($('cHasta').value); if(a==null||b==null) return null; const d=Math.max(0,Math.min(a,C.dur)), h=Math.max(0,Math.min(b,C.dur)); return h-d>=1? [d,h] : null; }
 function estimar(){
   const t=tramo(); if(!t){ $('cEstim').textContent='Revisa el tramo: formato min:seg, por ejemplo 1:05.'; return; }
-  const trozos=Math.ceil((t[1]-t[0])/(MDX.GEN/44100));
-  $('cEstim').textContent= $('cSoloVoz').checked ? 'Tramo de '+fmtT(t[1]-t[0])+'. Como ya es solo voz, se analiza al momento.' : 'Tramo de '+fmtT(t[1]-t[0])+' ('+trozos+' bloques de 6 s). Separar la voz tarda de 10 a 30 s por bloque. La primera vez descarga unos 40 MB, que quedan guardados.';
+  const d=t[1]-t[0];
+  if($('cSoloVoz').checked){ $('cEstim').textContent='Tramo de '+fmtT(d)+'. Como ya es solo voz, se saca la melodía al momento.'; $('cExtraer').textContent='Extraer melodía'; return; }
+  $('cExtraer').textContent='Separar pistas';
+  const v=C.velVoz||3, b=C.velBat||2, min=Math.round(d*v/60), max=Math.round(d*(v+($('cBat').checked?b:0))*1.6/60);
+  $('cEstim').textContent='Tramo de '+fmtT(d)+': saca voz, karaoke'+($('cBat').checked?', batería e instrumental sin batería':'')+'. Tardará unos '+Math.max(1,min)+'–'+Math.max(2,max)+' min'+(C.velVoz?'':' (la primera vez descarga unos '+($('cBat').checked?62:40)+' MB, que quedan guardados)')+'. Para ir rápido, elige solo un trozo.';
 }
-$('cDesde').oninput=estimar; $('cHasta').oninput=estimar; $('cSoloVoz').onchange=estimar;
+$('cDesde').oninput=estimar; $('cHasta').oninput=estimar; $('cSoloVoz').onchange=estimar; $('cBat').onchange=estimar;
 
+const espera=()=>new Promise(r=>setTimeout(r,30));
 $('cExtraer').onclick=async()=>{
   const t=tramo(); if(!t||!C.L) return;
-  C.cancel=false; $('cExtraer').disabled=true; $('cCancelar').hidden=false; parar();
+  C.cancel=false; $('cExtraer').disabled=true; $('cCancelar').hidden=false; parar(); pararPista();
   try{ C.wake=await navigator.wakeLock?.request('screen'); }catch(e){ C.wake=null; }
   try{
     const i0=Math.floor(t[0]*44100), i1=Math.floor(t[1]*44100);
-    const L=C.L.subarray(i0,i1), R=C.R.subarray(i0,i1);
+    const L=C.L.slice(i0,i1), R=C.R.slice(i0,i1), base=C.nombre+(t[0]>0||t[1]<C.dur-0.5 ? '-'+fmtT(t[0]).replace(':','m')+'s' : '');
+    C.base=base; C.etq='«'+C.nombre+'» · '+fmtT(t[0])+'–'+fmtT(t[1]);
     // si el audio ya es solo la voz, no hace falta separar nada
     if($('cSoloVoz').checked){
       const voz=new Float32Array(L.length); for(let i=0;i<L.length;i++) voz[i]=(L[i]+R[i])/2;
-      barra(0.5,'Analizando las notas…'); await new Promise(r=>setTimeout(r,30));
-      cargarAudio(voz, 44100, 'Voz de «'+C.nombre+'» · '+fmtT(t[0])+'–'+fmtT(t[1]), C.nombre+'-'+fmtT(t[0]).replace(':','m')+'s');
+      barra(0.5,'Analizando las notas…'); await espera();
+      cargarAudio(voz, 44100, 'Voz de '+C.etq, base);
       $('oirVoz').textContent='▶ Escuchar la voz'; $('cMotor').textContent='Sin separar (ya era solo voz)';
       barra(1,'Hecho. Revisa las notas abajo y descarga el MIDI.');
       document.querySelector('.pista:not(#panelCancion)').scrollIntoView({behavior:'smooth', block:'start'});
       return;
     }
+    C.pistas=[]; pintarPistas();
     await prepararSeparador((txt,f)=>barra(f, txt+' · '+Math.round(f*100)+' %'));
     $('cMotor').textContent='Motor: '+C.motor;
-    const ini=performance.now();
-    barra(0,'Separando la voz… bloque 1');
-    const voz=await separarVoz(L,R, async inp=>{
-      const r=await C.ses.run({input:new ort.Tensor('float32',inp.slice(),[1,4,MDX.DIMF,MDX.DIMT])});   // copia: el segundo plano se queda con los datos
-      const o=r[C.ses.outputNames[0]]; return o.data;
-    }, (k,n)=>{
+    const conBat=$('cBat').checked, segs=(i1-i0)/44100;
+    // 1) voz
+    let ini=performance.now(); barra(0,'Separando la voz… bloque 1');
+    const [VL,VR]=await separarPista(MDX, L,R, ejecutor(C.ses,MDX), (k,n)=>{
       const porBloque=(performance.now()-ini)/k/1000, quedan=Math.round(porBloque*(n-k));
-      barra(k/n, k<n ? 'Separando la voz… bloque '+(k+1)+' de '+n+' · quedan unos '+fmtT(quedan) : 'Analizando las notas…');
+      barra(k/n, 'Separando la voz… bloque '+Math.min(k+1,n)+' de '+n+' · quedan unos '+fmtT(quedan));
     }, ()=>C.cancel);
-    await new Promise(r=>setTimeout(r,30));
-    const nombre=C.nombre+'-'+fmtT(t[0]).replace(':','m')+'s';
-    cargarAudio(new Float32Array(voz), 44100, 'Voz de «'+C.nombre+'» · '+fmtT(t[0])+'–'+fmtT(t[1]), nombre);
+    C.velVoz=(performance.now()-ini)/1000/segs;
+    const KL=new Float32Array(L.length), KR=new Float32Array(L.length);
+    for(let i=0;i<L.length;i++){ KL[i]=L[i]-VL[i]; KR[i]=R[i]-VR[i]; }
+    C.pistas=[
+      {id:'voz', nombre:'Voz', desc:'solo la voz cantada', L:VL, R:VR, midi:'voz', color:'var(--rec)'},
+      {id:'karaoke', nombre:'Karaoke', desc:'todo menos la voz', L:KL, R:KR, midi:'poli', color:'var(--nota)'},
+    ];
+    pintarPistas();
+    barra(1,'Analizando la melodía de la voz…'); await espera();
+    const vm=new Float32Array(VL.length); for(let i=0;i<VL.length;i++) vm[i]=0.5*(VL[i]+VR[i]);
+    cargarAudio(vm, 44100, 'Voz de '+C.etq, base);
     $('oirVoz').textContent='▶ Escuchar voz extraída';
-    barra(1,'Hecho. Revisa las notas abajo y descarga el MIDI.');
-    document.querySelector('.pista:not(#panelCancion)').scrollIntoView({behavior:'smooth', block:'start'});
+    // 2) batería, sacada del karaoke (sin la voz molestando)
+    if(conBat){
+      await prepararBateria((txt,f)=>barra(f, txt+' · '+Math.round(f*100)+' %'));
+      ini=performance.now(); barra(0,'Separando la batería… bloque 1');
+      const [BL,BR]=await separarPista(MDX_BAT, KL,KR, ejecutor(C.sesB,MDX_BAT), (k,n)=>{
+        const porBloque=(performance.now()-ini)/k/1000, quedan=Math.round(porBloque*(n-k));
+        barra(k/n, 'Separando la batería… bloque '+Math.min(k+1,n)+' de '+n+' · quedan unos '+fmtT(quedan));
+      }, ()=>C.cancel);
+      C.velBat=(performance.now()-ini)/1000/segs;
+      const IL=new Float32Array(L.length), IR=new Float32Array(L.length);
+      for(let i=0;i<L.length;i++){ IL[i]=KL[i]-BL[i]; IR[i]=KR[i]-BR[i]; }
+      C.pistas.push({id:'bateria', nombre:'Batería', desc:'solo la batería', L:BL, R:BR, midi:'bat', color:'var(--ok)'},
+                    {id:'instrumental', nombre:'Sin voz ni batería', desc:'bajo, acordes, melodías', L:IL, R:IR, midi:'poli', color:'var(--muted)'});
+      pintarPistas();
+    }
+    barra(1,'Hecho. Escucha o descarga cada pista, o pásala a MIDI. La melodía de la voz ya está abajo.');
   }catch(err){
     const msg=String(err&&err.message||err);
-    barra(0, msg==='cancelado' ? 'Cancelado.' : /WebAssembly|wasm|CompileError|Content Security/i.test(msg) ? 'Este visor no deja arrancar el separador de voz con IA. Si el audio ya es solo voz, marca «Ya es solo la voz».' : 'Error: '+msg+'. Prueba con un tramo más corto o recarga la página.');
+    barra(0, msg==='cancelado' ? 'Cancelado.'+(C.pistas&&C.pistas.length?' Las pistas ya separadas siguen disponibles.':'') : /WebAssembly|wasm|CompileError|Content Security/i.test(msg) ? 'Este visor no deja arrancar el separador con IA. Si el audio ya es solo voz, marca «Ya es solo voz».' : 'Error: '+msg+'. Prueba con un tramo más corto o recarga la página.');
     console.error(err);
   }finally{
     $('cExtraer').disabled=false; $('cCancelar').hidden=true; try{ C.wake && C.wake.release(); }catch(e){}
   }
 };
 $('cCancelar').onclick=()=>{ C.cancel=true; $('cEstado').textContent='Cancelando al acabar el bloque actual…'; };
+
+// ---------- Pistas separadas: escuchar, descargar, pasar a MIDI ----------
+C.formato='mp3';
+document.querySelectorAll('#cFormato button').forEach(b=>b.onclick=()=>{ C.formato=b.dataset.f; document.querySelectorAll('#cFormato button').forEach(x=>x.setAttribute('aria-pressed', x===b)); });
+function pintarPistas(){
+  const lista=$('cLista'); lista.innerHTML=''; $('cPistas').hidden=!C.pistas.length;
+  for(const p of C.pistas){
+    const fila=document.createElement('div'); fila.className='stem';
+    const txtMidi= p.midi==='voz' ? '♪ Melodía' : '⬇ MIDI';
+    fila.innerHTML='<i class="sw" style="background:'+p.color+'"></i><span class="nom">'+p.nombre+'<small>'+p.desc+'</small></span>'+
+      '<button class="btn" data-a="oir" title="Escuchar">▶</button><button class="btn" data-a="bajar" title="Descargar el audio">⬇ Audio</button><button class="btn" data-a="midi">'+txtMidi+'</button>';
+    fila.querySelector('[data-a=oir]').onclick=e=>oirPista(p, e.currentTarget);
+    fila.querySelector('[data-a=bajar]').onclick=e=>bajarPista(p, e.currentTarget);
+    fila.querySelector('[data-a=midi]').onclick=e=>midiPista(p, e.currentTarget);
+    lista.appendChild(fila);
+  }
+}
+function msgP(t){ $('cMsgP').textContent=t; }
+function pararPista(){ if(C.fuente){ try{ C.fuente.onended=null; C.fuente.stop(); }catch(e){} C.fuente=null; } document.querySelectorAll('#cLista [data-a=oir]').forEach(b=>{ b.textContent='▶'; b.classList.remove('on'); }); $('cPararP').disabled=true; }
+$('cPararP').onclick=pararPista;
+function oirPista(p, btn){
+  const sonaba=btn.classList.contains('on'); pararPista(); if(sonaba) return;
+  parar(); renovarAudio(); const ctx=audioCtx();
+  const b=ctx.createBuffer(2, p.L.length, 44100); b.getChannelData(0).set(p.L); b.getChannelData(1).set(p.R);
+  const s=ctx.createBufferSource(); s.buffer=b; s.connect(ctx.destination); s.start();
+  s.onended=()=>pararPista(); C.fuente=s; btn.textContent='■'; btn.classList.add('on'); $('cPararP').disabled=false;
+}
+async function audioDe(p, alProgreso){
+  return C.formato==='wav' ? {datos:wavEstereo(p.L,p.R,44100), ext:'wav', tipo:'audio/wav'} : {datos:await mp3Estereo(p.L,p.R,44100,alProgreso), ext:'mp3', tipo:'audio/mpeg'};
+}
+// En Claude las descargas van dentro de un .zip; fuera, el archivo tal cual
+async function entregar(archivos, nombreZip){
+  if(enClaudeF()){
+    let dl=null; try{ dl=await window.claude.use('downloads'); }catch(e){}
+    if(!dl){ msgP('La descarga no está disponible en esta vista.'); return; }
+    try{ const datos=new Uint8Array(await crearZipVarios(archivos).arrayBuffer()); await dl.save({filename:nombreZip+'.zip', data:datos}); msgP('Guardado '+nombreZip+'.zip ('+archivos.map(a=>a.nombre).join(', ')+').'); }
+    catch(e){ msgP(e&&e.code==='declined' ? 'Descarga cancelada.' : 'No se ha podido guardar.'); }
+    return;
+  }
+  const una=archivos.length===1, blob= una ? new Blob([archivos[0].datos],{type:archivos[0].tipo||'application/octet-stream'}) : crearZipVarios(archivos);
+  const nombre= una ? archivos[0].nombre : nombreZip+'.zip';
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=nombre; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
+  msgP('Descargado '+nombre+'.');
+}
+async function ocupado(btn, fn){ const t=btn.textContent; btn.disabled=true; try{ await fn(f=>{ btn.textContent=Math.round(f*100)+' %'; }); }catch(e){ console.error(e); msgP('Error: '+(e&&e.message||e)); } finally{ btn.disabled=false; btn.textContent=t; } }
+function bajarPista(p, btn){ return ocupado(btn, async prog=>{
+  msgP('Preparando '+p.nombre.toLowerCase()+' en '+C.formato.toUpperCase()+'…');
+  const a=await audioDe(p, prog); await entregar([{nombre:C.base+'-'+p.id+'.'+a.ext, datos:a.datos, tipo:a.tipo}], C.base+'-'+p.id);
+}); }
+$('cTodas').onclick=e=>ocupado(e.currentTarget, async prog=>{
+  const arch=[];
+  for(let i=0;i<C.pistas.length;i++){ const p=C.pistas[i]; msgP('Preparando '+p.nombre.toLowerCase()+'…'); const a=await audioDe(p, f=>prog((i+f)/C.pistas.length)); arch.push({nombre:C.base+'-'+p.id+'.'+a.ext, datos:a.datos}); }
+  await entregar(arch, C.base+'-pistas');
+});
+function mono(p){ const m=new Float32Array(p.L.length); for(let i=0;i<m.length;i++) m[i]=0.5*(p.L[i]+p.R[i]); return m; }
+function midiPista(p, btn){
+  if(p.midi==='voz'){   // la melodía de la voz va al editor de notas de abajo
+    parar(); cargarAudio(mono(p), 44100, 'Voz de '+C.etq, C.base); $('oirVoz').textContent='▶ Escuchar voz extraída';
+    document.querySelector('.pista:not(#panelCancion)').scrollIntoView({behavior:'smooth', block:'start'}); return;
+  }
+  return ocupado(btn, async prog=>{
+    let datos, cuenta;
+    if(p.midi==='bat'){
+      msgP('Buscando bombo, caja y charles…'); await espera();
+      const g=transcribirBateria(mono(p), 44100); cuenta=g.length+' golpes'; datos=midiDeBateria(g);
+    } else {
+      msgP('Cargando el transcriptor de notas…'); await espera();
+      const notas=await transcribirPolifonico(mono(p), 44100, f=>{ prog(f); msgP('Sacando las notas de '+p.nombre.toLowerCase()+'…'); });
+      cuenta=notas.length+' notas'; datos=midiDeNotas(notas, {programa:0, nombre:p.nombre});
+    }
+    if(!datos || (p.midi!=='bat' && cuenta.startsWith('0 '))){ msgP('No he encontrado notas en esa pista.'); return; }
+    await entregar([{nombre:C.base+'-'+p.id+'.mid', datos, tipo:'audio/midi'}], C.base+'-'+p.id+'-midi');
+    msgP($('cMsgP').textContent+' '+cuenta+'.');
+  });
+}
 // ---------- Autotune: corrección de afinación en tiempo real (PSOLA) ----------
 // Clase autocontenida: se usa tal cual dentro de un AudioWorklet (se serializa con toString).
 class Autotune {
@@ -1558,7 +1836,7 @@ async function midiAMp3(midi, sf, opc){
 }
 // ---------- Pestaña «Convertir MIDI» ----------
 const M={ midi:null, nombreMidi:'', sf:null, nombreSf:'', mp3:null, url:null, cancel:false, voces:[] };
-const LAME_URL = enClaude ? 'https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js' : 'lib/lame.min.js';
+const LAME_URL = 'https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js';
 const INSTR_GM=['Piano','Piano brillante','Piano eléctrico','Honky-tonk','Piano Rhodes','Piano chorus','Clave','Clavinet','Celesta','Glockenspiel','Caja de música','Vibráfono','Marimba','Xilófono','Campanas','Dulcémele','Órgano','Órgano percusivo','Órgano rock','Órgano de iglesia','Armonio','Acordeón','Armónica','Bandoneón','Guitarra nylon','Guitarra acero','Guitarra jazz','Guitarra limpia','Guitarra apagada','Guitarra saturada','Guitarra distorsión','Armónicos guitarra','Bajo acústico','Bajo dedos','Bajo púa','Bajo sin trastes','Bajo slap 1','Bajo slap 2','Bajo sinte 1','Bajo sinte 2','Violín','Viola','Violonchelo','Contrabajo','Cuerdas trémolo','Cuerdas pizzicato','Arpa','Timbales','Cuerdas','Cuerdas lentas','Cuerdas sinte 1','Cuerdas sinte 2','Coro aah','Voz ooh','Voz sinte','Golpe orquesta','Trompeta','Trombón','Tuba','Trompeta sordina','Trompa','Metales','Metales sinte 1','Metales sinte 2','Saxo soprano','Saxo alto','Saxo tenor','Saxo barítono','Oboe','Corno inglés','Fagot','Clarinete','Flautín','Flauta','Flauta dulce','Flauta de pan','Botella','Shakuhachi','Silbido','Ocarina'];
 
 function fmtDur(s){ const m=Math.floor(s/60), r=Math.round(s%60); return m+':'+String(r).padStart(2,'0'); }
