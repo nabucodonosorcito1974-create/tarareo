@@ -269,10 +269,14 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
 .b-tag{ font:700 10.5px var(--mono); padding:2px 5px; border-radius:4px; background:var(--ambar-suave); color:var(--ambar); flex:none; }
 .b-tag.pago{ background:var(--line); color:var(--muted); }
 .b-lista a.btn{ text-decoration:none; flex:none; }
-.ed-barra{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:6px 0; }
-.ed-barra .btn.mini{ padding:5px 10px; font-size:13px; }
-.seg-ed button{ padding:5px 10px; font-size:13px; white-space:nowrap; }
-.ed-zoom{ font:600 12.5px var(--mono); color:var(--muted); min-width:3.2em; text-align:center; }
+.ed-barra{ display:flex; flex-wrap:wrap; align-items:center; gap:5px 6px; margin:5px 0; }
+.seg-ed{ flex:none; }
+.seg-ed button{ flex:none; padding:4px 9px; font-size:12.5px; white-space:nowrap; }
+.ed-barra .btn.mini{ padding:4px 9px; font-size:12.5px; }
+.ed-zgrupo{ display:inline-flex; align-items:center; border:1px solid var(--line); border-radius:9px; background:var(--panel); overflow:hidden; flex:none; }
+.ed-zgrupo button{ font:700 14px var(--body); color:var(--ink); background:none; border:0; padding:3px 9px; cursor:pointer; line-height:1.2; }
+.ed-zgrupo button:hover{ background:var(--line); }
+.ed-zoom{ font:600 12px var(--mono); color:var(--muted); min-width:2.4em; text-align:center; }
 .ed-sel{ background:var(--ambar-suave); border-radius:8px; padding:5px 8px; }
 .ed-sel b{ font-size:13.5px; }
 .ed-inst{ display:flex; align-items:center; gap:5px; font-size:13px; color:var(--muted); }
@@ -346,8 +350,8 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
       </div>
       <div class="ed-barra" id="edBarra">
         <div class="seg seg-ed" id="edModo" role="group" aria-label="Qué hace tocar el gráfico"><button data-v="ir" type="button" aria-pressed="true">▶ Mover</button><button data-v="sel" type="button" aria-pressed="false">▭ Seleccionar</button></div>
-        <button class="btn mini" id="edZMenos" type="button" aria-label="Alejar">−</button><span class="ed-zoom" id="rZoom">×1</span><button class="btn mini" id="edZMas" type="button" aria-label="Acercar">+</button>
-        <button class="btn mini" id="edDeshacer" type="button" disabled>↶ Deshacer</button>
+        <span class="ed-zgrupo"><button id="edZMenos" type="button" aria-label="Alejar">−</button><span class="ed-zoom" id="rZoom">×1</span><button id="edZMas" type="button" aria-label="Acercar">+</button></span>
+        <button class="btn mini" id="edDeshacer" type="button" title="Deshacer" aria-label="Deshacer" disabled>↶</button>
       </div>
       <div class="ed-barra ed-sel" id="edSel" hidden>
         <b id="edCuenta">0 notas</b>
@@ -480,7 +484,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 19:55</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 19:56</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
