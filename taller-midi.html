@@ -486,7 +486,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 08-11-2026 00:33</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 08-11-2026 00:40</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -2205,7 +2205,7 @@ function pintarRack(){
     sfs.value=c.sfId||''; sfs.title= c.sfId ? 'Soundfont propio: '+(E.sfs.find(x=>x.id===c.sfId)||{}).nombre : 'Soundfont principal';
     if(c.sfId) t.classList.add('sf-propio');
     sfs.onchange=()=>{
-      if(sfs.value==='+'){ sfs.value=c.sfId||''; E.sfPara=c.ch; $('fSfCanal').click(); return; }
+      if(sfs.value==='+'){ sfs.value=c.sfId||''; E.sfPara=c.ch; if(window.elegirSf) elegirSf($('fSfCanal')); else $('fSfCanal').click(); return; }
       ponerSfCanal(c, sfs.value||null);
     };
     t.append(sfs);
@@ -3356,6 +3356,18 @@ $('nuevoMidi').onclick=()=>{ if(typeof salirAudio==='function') salirAudio(); E.
   addEventListener('dragover',e=>e.preventDefault());
   addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
     if(f && /\.(mid|midi|kar|mp3|wav|m4a|flac|ogg|aac)$/i.test(f.name)) $('fMidi').onchange({target:{files:[f],value:''}}); });
+})();
+
+/* «Elegir soundfont»: con el selector de archivos del sistema (Chrome/Edge) el navegador recuerda la carpeta
+   de la última vez (p. ej. C:\Archivos de programa\MidiPlayer6) y la vuelve a abrir allí */
+(function(){
+  if(!window.showOpenFilePicker) return;
+  const abrir=async(ev, inp)=>{ ev.preventDefault();
+    try{ const [h]=await showOpenFilePicker({id:'soundfont', startIn:'documents', types:[{description:'SoundFont', accept:{'application/octet-stream':['.sf2']}}]});
+      const f=await h.getFile(); inp.onchange({target:{files:[f], value:''}}); }
+    catch(e){ if(e.name!=='AbortError') inp.click(); } };   // si el navegador no lo deja (p. ej. dentro de un marco), el selector de siempre
+  window.elegirSf=inp=>abrir({preventDefault(){}}, inp);
+  const lab=document.querySelector('label[for=fSf2]'); if(lab) lab.addEventListener('click',ev=>abrir(ev,$('fSf2')));
 })();
 // ---------- Partitura de una pista (la melodía), con clave y armadura que se pueden cambiar ----------
 var PT={clave:'treble', tono:'auto', pista:null, auto:null};
