@@ -1941,6 +1941,7 @@ function potenciometro(etq, c, campo, min, max, fmtV, bloqueado){
   if(activo){
     let y0=0, v0=0, arr=false;
     k.addEventListener('pointerdown',e=>{ arr=true; y0=e.clientY; v0=val(c,campo); k.setPointerCapture(e.pointerId); e.preventDefault(); });
+    k.addEventListener('touchstart',e=>e.preventDefault(),{passive:false}); k.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
     k.addEventListener('pointermove',e=>{ if(!arr) return; const d=(y0-e.clientY)*(max-min)/160; fijar(v0+d); });
     const soltar=()=>{ if(arr){ arr=false; dibujar(); } };
     k.addEventListener('pointerup',soltar); k.addEventListener('pointercancel',soltar);
@@ -2250,6 +2251,8 @@ function pintarEscena(){
     const accion=()=>{ const c=E.canales[ch]; if(E.escAccion==='solo') c.solo=!c.solo; else c.mute=!c.mute; cambioMesa(true); };
     let ini=null, mov=false;
     t.addEventListener('pointerdown',e=>{ ini={x:e.clientX,y:e.clientY}; mov=false; t.setPointerCapture(e.pointerId); e.preventDefault(); });
+    // en el móvil, un dedo sobre un instrumento lo arrastra (no desplaza el escenario ni la página)
+    t.addEventListener('touchstart',e=>e.preventDefault(),{passive:false}); t.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
     t.addEventListener('pointermove',e=>{ if(!ini) return;
       if(!mov && Math.hypot(e.clientX-ini.x, e.clientY-ini.y)<6) return;
       mov=true; t.classList.add('arrastrando');
