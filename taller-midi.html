@@ -2541,27 +2541,63 @@ function criba(r, artista, tema){
   const pago=/\bbuy\b|comprar|£\s?\d|€\s?\d|\$\s?\d|premium|credits|price/i.test(ex.slice(0,3000));
   const dur=(ex.match(/(?:Duration|Length|Duración)\D{0,12}(\d{1,2}:\d{2})/i)||[])[1]||'';
   const nota=enT*2+enA+(pt.every(w=>tituloUrl.includes(w))?1:0)+(pa.length&&pa.every(w=>tituloUrl.includes(w))?0.5:0)+(pago?-0.5:0);
-  return {url:r.url, titulo:r.title.replace(/\s*[:|•\-–]+\s*(MidiShow|Nonstop2k|Song Galaxy|BitMidi|MIDIfind).*$/i,'').replace(/\s*Download Free \.mid Music File/i,''), sitio:host(r.url), kar, pago, dur, nota, extracto:ex.slice(0,400)};
+  return {directo:!!r.directo, url:r.url, titulo:r.title.replace(/\s*[:|•\-–]+\s*(MidiShow|Nonstop2k|Song Galaxy|BitMidi|MIDIfind).*$/i,'').replace(/\s*Download Free \.mid Music File/i,''), sitio:host(r.url), kar, pago, dur, nota, extracto:ex.slice(0,400)};
 }
-async function buscarWeb(artista, tema){
-  const q=(artista+' '+tema).trim();
-  const llamadas=[
-    {objective:`Archivos MIDI (.mid) o karaoke (.kar) descargables de la canción "${tema}"${artista?' de '+artista:''}. Solo páginas de descarga de MIDI o KAR, nada de MP3, vídeos ni letras.`,
-     search_queries:[q+' midi', tema+' '+artista+' kar karaoke', q+' mid download', q+' archivo midi']},
-    {objective:`Páginas de bancos de MIDI con "${tema}"${artista?' de '+artista:''} en formato .mid o .kar`,
-     search_queries:SITIOS_MIDI.slice(0,6).map(s=>q+' site:'+s)},
-    {objective:`Karaoke .kar o midi de "${tema}"${artista?' ('+artista+')':''} en webs de midis en español y otros idiomas`,
-     search_queries:[q+' .kar', tema+' midi gratis', q+' midi file free', ...SITIOS_MIDI.slice(6,9).map(s=>q+' site:'+s)]},
+// saca la lista de resultados venga como venga la respuesta del conector
+function extraer(v){
+  const prueba=x=>{ if(typeof x==='string'){ try{ x=JSON.parse(x); }catch(e){ return null; } } if(!x||typeof x!=='object') return null;
+    if(Array.isArray(x.results)) return x; if(x.result&&Array.isArray(x.result.results)) return x.result; return null; };
+  let r=prueba(v&&v.payload)||prueba(v&&v.structuredContent);
+  if(!r && v&&Array.isArray(v.content)) for(const b of v.content){ r=prueba(b&&b.text)||prueba(b&&b.json); if(r) break; }
+  return r ? r.results : [];
+}
+// buscadores propios de las webs de MIDI: sus páginas de resultados traen los enlaces de cada archivo
+const BUSCADORES=[
+  q=>'https://bitmidi.com/search?q='+q, q=>'https://www.midiworld.com/search/?q='+q, q=>'https://midifind.com/search/?q='+q,
+  q=>'https://www.mididb.com/search.asp?q='+q, q=>'https://www.hamienet.com/search.php?q='+q, q=>'https://freemidi.org/search?q='+q,
+];
+function enlacesDe(pagina, tema){
+  const txt=(pagina.excerpts||[]).join('\n'), base=host(pagina.url), pt=norm(tema).split(' ').filter(w=>w.length>1), out=[];
+  for(const linea of txt.split('\n')){
+    const resto=linea.replace(/\[([^\]]*)\]\([^)]*\)/g,' ').replace(/[#*]/g,' ').replace(/\s+/g,' ').trim();
+    for(const m of linea.matchAll(/\[([^\]]{1,200})\]\((https?:\/\/[^)\s"]+)(?:\s+"([^"]*)")?\)/g)){
+      const url=m[2], et=m[1].replace(/[#*]/g,'').trim();
+      let texto=(m[3] && m[3]!==et && !/^result \d+$/i.test(m[3])) ? m[3] : et;
+      if(/^(download|descargar|get|mid|midi)$/i.test(texto) || texto.length<3) texto=resto.replace(/\s*-\s*$/,'');
+      if(host(url)!==base) continue;
+      if(/search|\/tag|login|join|about|random|contact|privacy|\/pro\b|page=|boards|converter|\/help|\/files\/\d+$/i.test(url)) continue;
+      const n=norm(texto+' '+url); if(pt.filter(w=>n.includes(w)).length/(pt.length||1)<0.75) continue;
+      out.push({url, title:texto.replace(/\s+/g,' '), excerpts:['MIDI '+texto+(base.includes('mididb')?' (demo)':'')], directo:/\/download\/\d+|\.(mid|kar)$/i.test(url)});
+    }
+  }
+  return out;
+}
+async function buscarWeb(artista, tema, aviso){
+  const q=(artista+' '+tema).trim(), enc=s=>encodeURIComponent(s).replace(/%20/g,'+');
+  const consultas=[...new Set([tema, q])];
+  const urls=consultas.flatMap(c=>BUSCADORES.map(f=>f(enc(c))));
+  const ob=`Lista de archivos MIDI o KAR encontrados para "${tema}"${artista?' de '+artista:''}, con sus enlaces`;
+  const busq=[
+    {objective:`Archivos MIDI (.mid) o karaoke (.kar) descargables de la canción "${tema}"${artista?' de '+artista:''}. Solo páginas de descarga de MIDI o KAR.`, search_queries:[q+' midi', tema+' '+artista+' kar karaoke', q+' mid download', q+' midi gratis']},
+    {objective:`Páginas de bancos de MIDI con "${tema}"${artista?' de '+artista:''}`, search_queries:SITIOS_MIDI.slice(0,6).map(s=>q+' site:'+s)},
+    {objective:`Karaoke .kar o midi de "${tema}"${artista?' ('+artista+')':''}`, search_queries:[q+' .kar', tema+' midi karaoke', q+' midi file free', ...SITIOS_MIDI.slice(6,9).map(s=>q+' site:'+s)]},
+    {objective:`MIDI de "${tema}" (versión instrumental, piano o completa)`, search_queries:[tema+' midi', tema+' .mid', tema+' midi descargar', tema+' sequence midi file']},
   ];
-  const res=await Promise.allSettled(llamadas.map(inp=>BUS.mcp.callTool(SERVIDOR,'web_search',inp,{cache:{staleTime:600000,gcTime:600000}})));
-  const vistos=new Map(); let fallo=null;
+  const tareas=[
+    ...busq.map(inp=>BUS.mcp.callTool(SERVIDOR,'web_search',inp,{cache:{staleTime:600000,gcTime:600000}}).then(v=>({tipo:'web', lista:extraer(v)}))),
+    ...[urls.slice(0,6), urls.slice(6)].filter(u=>u.length).map(u=>BUS.mcp.callTool(SERVIDOR,'web_fetch',{urls:u, objective:ob},{cache:{staleTime:600000,gcTime:600000}}).then(v=>({tipo:'webs', lista:extraer(v)}))),
+  ];
+  let hechas=0; tareas.forEach(t=>t.finally(()=>aviso('Buscando en la red y en '+BUSCADORES.length+' bancos de MIDI… '+(++hechas)+'/'+tareas.length)));
+  const res=await Promise.allSettled(tareas);
+  const vistos=new Map(); let fallo=null, paginas=0;
   for(const r of res){
     if(r.status==='rejected'){ fallo=r.reason; continue; }
-    let p=r.value.payload; if(typeof p==='string'){ try{ p=JSON.parse(p); }catch(e){ p=null; } }
-    for(const x of (p&&p.results)||[]) if(x&&x.url&&!vistos.has(x.url)) vistos.set(x.url,x);
+    for(const x of r.value.lista){ if(!x||!x.url) continue; paginas++;
+      if(r.value.tipo==='webs'){ for(const e of enlacesDe(x, tema)) if(!vistos.has(e.url)) vistos.set(e.url, e); }
+      else if(!vistos.has(x.url)) vistos.set(x.url, x); }
   }
   if(!vistos.size && fallo) throw fallo;
-  return [...vistos.values()];
+  return {lista:[...vistos.values()], paginas};
 }
 // segunda criba con IA (si está disponible): solo lo que de verdad es ese tema en MIDI/KAR
 async function afinarConIA(lista, artista, tema){
@@ -2577,7 +2613,8 @@ Resultados:
 ${JSON.stringify(datos)}`}], {modelTier:'quick'});
     const m=new Map(((out&&out.r)||[]).map(x=>[x.i,x]));
     if(!m.size) return lista;
-    return lista.slice(0,30).map((r,i)=>({r,x:m.get(i)})).filter(o=>o.x&&o.x.ok).map(({r,x})=>({...r, kar:!!x.kar||r.kar, pago:!!x.pago, nota:+x.nota||0, que:x.que||''})).sort((a,b)=>b.nota-a.nota);
+    const buenos=lista.slice(0,30).map((r,i)=>({r,x:m.get(i)})).filter(o=>o.x&&o.x.ok).map(({r,x})=>({...r, kar:!!x.kar||r.kar, pago:!!x.pago, nota:+x.nota||0, que:x.que||''})).sort((a,b)=>b.nota-a.nota);
+    return buenos.length ? [...buenos, ...lista.slice(30)] : lista;
   }catch(e){ console.warn('IA no disponible para afinar', e); return lista; }
 }
 function pintarResultados(lista){
@@ -2589,7 +2626,7 @@ function pintarResultados(lista){
     const sm=document.createElement('small'); sm.textContent=[r.que, r.dur, r.sitio].filter(Boolean).join(' · '); t.append(sm);
     li.append(fmt, t);
     if(r.pago){ const p=document.createElement('span'); p.className='b-tag pago'; p.textContent='DE PAGO'; li.append(p); }
-    const a=document.createElement('a'); a.className='btn mini'; a.href=r.url; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent='Abrir ↗'; li.append(a);
+    const a=document.createElement('a'); a.className='btn mini'; a.href=r.url; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent= r.directo ? 'Descargar ↓' : 'Abrir ↗'; li.append(a);
     ol.append(li);
   }
 }
@@ -2600,13 +2637,13 @@ $('bBuscar').onclick=async()=>{
   if(!BUS.mcp){ $('bEstado').textContent='El buscador funciona dentro de la app de Claude (necesita el conector Parallel Search).'; return; }
   $('bBuscar').disabled=true; $('bLista').textContent=''; $('bEstado').textContent='Buscando en la red…';
   try{
-    const brutos=await buscarWeb(artista, tema);
+    const {lista:brutos, paginas}=await buscarWeb(artista, tema, t=>{ $('bEstado').textContent=t; });
     let lista=brutos.map(r=>criba(r,artista,tema)).filter(Boolean).sort((a,b)=>b.nota-a.nota);
     if(lista.length){ $('bEstado').textContent='Comprobando '+lista.length+' resultados…'; lista=await afinarConIA(lista, artista, tema); }
     // los gratis primero, luego por nota
     lista.sort((a,b)=>(a.pago-b.pago)||(b.nota-a.nota));
     pintarResultados(lista);
-    $('bEstado').textContent= lista.length ? lista.length+' resultado'+(lista.length>1?'s':'')+' en MIDI/KAR · descárgalo en la web y súbelo con «Elegir MIDI o MP3»' : 'No he encontrado ese tema en MIDI ni KAR. Prueba con el título en inglés o sin el artista.';
+    $('bEstado').textContent= lista.length ? lista.length+' resultado'+(lista.length>1?'s':'')+' en MIDI/KAR ('+paginas+' páginas revisadas) · descárgalo y súbelo con «Elegir MIDI o MP3»' : 'He revisado '+paginas+' páginas y no aparece en MIDI ni KAR. Prueba solo con el tema, con el título en inglés o con otra forma de escribirlo.';
   }catch(err){
     console.error(err); const c=err&&err.code;
     $('bEstado').textContent= c==='server_not_connected'||c==='needs_reauth' ? 'Conecta «Parallel Search» en Ajustes de Claude → Conectores.' : c==='not_in_manifest'||c==='approval_required' ? 'Hace falta tu permiso para buscar en la red (menú de permisos del artefacto).' : 'No he podido buscar ahora: '+(err&&err.message||err);
