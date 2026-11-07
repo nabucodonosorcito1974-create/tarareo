@@ -429,7 +429,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 17:53</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 17:57</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -1803,7 +1803,7 @@ $('fSfCanal').onchange=async e=>{
   }catch(err){ $('error').textContent=err.message; }
 };
 async function ponerSf(sf, nombre){
-  E.sf=sf; E.nombreSf=nombre; $('error').textContent='';
+  E.sf=sf; E.nombreSf=nombre; $('error').textContent=''; if(typeof usbInstrumentos==='function'){ usbInstrumentos(); if(USB&&USB.acc) elegirCanal(); }
   const seguia=E.sonando, t=posMus(); detener(); E.vivo=null;
   pintarInfo(); pintarRack();
   await asegurarSonidos();
@@ -2867,10 +2867,27 @@ $('bBuscar').onclick=async()=>{
 };
 // ---------- Teclado e instrumentos MIDI por USB (Web MIDI): sonar en el teclado y grabar tocando ----------
 var USB={acc:null, salida:null, entrada:null, canal:null, prog:0, tomas:[], toma:null};
+var MON={v:null, proc:null, sf:undefined};
+function monitor(){
+  const c=ctx();
+  if(!MON.v || MON.sf!==E.sf || MON.sr!==c.sampleRate){ MON.v=new Vivo({eventos:[],duracion:0}, E.sf, c.sampleRate); MON.sf=E.sf; MON.sr=c.sampleRate; MON.prog=null; if(MON.proc){ try{ MON.proc.disconnect(); }catch(e){} MON.proc=null; } }
+  if(!MON.proc){ MON.proc=c.createScriptProcessor(1024,0,2); MON.proc.onaudioprocess=ev=>MON.v.libre(ev.outputBuffer.getChannelData(0), ev.outputBuffer.getChannelData(1)); MON.proc.connect(salida()); }
+  MON.v.fijarReverb(E.reverb, false); if(E.canales&&E.canales.length&&!E.audio) MON.v.mesa(E.canales, E.modo);
+  if(c.state==='suspended') c.resume();
+  return MON.v.sinte;
+}
+// instrumento del canal de tocar: banco + programa, y se cargan sus sonidos del .sf2
+async function ponerInstrumentoDirecto(){
+  const ch=USB.canal??0, v=USB.inst??0, banco=Math.floor(v/128), prog=v%128, s=monitor();
+  s.evento({tipo:'ch',cmd:0xB,ch,a:0,b:banco},0); s.evento({tipo:'ch',cmd:0xC,ch,a:prog,b:0},0);
+  const sf=(E.canales&&E.canales[ch]&&typeof sfDe==='function') ? sfDe(E.canales[ch]) : E.sf;
+  if(sf){ const set=new Set(); muestrasDePreset(sf, presetDe(sf,banco,prog), set); const falta=[...set].filter(i=>!sf.mem.has(i)); if(falta.length){ avisoUsb('Cargando el sonido del soundfont…'); await cargarMuestras(sf, falta); avisoUsb('Listo: toca y suena con «'+($('usbInst').selectedOptions[0]?.textContent||'')+'» de tu soundfont.'); } }
+}
 var SAL={ev:[], i:0, t:null, perf0:0, seg0:0, timer:0, sonando:new Set()};
 const GM_USB=GM128;
 function avisoUsb(t){ $('usbMsg').textContent=t; }
 async function conectarUsb(){
+  monitor();   // el clic activa el audio: así el teclado suena desde la primera nota
   if(!navigator.requestMIDIAccess){ avisoUsb('Este navegador no deja usar MIDI por USB. Usa Chrome o Edge en el ordenador o en Android (Safari e iPhone no lo permiten), en la versión de GitHub.'); return; }
   try{ USB.acc=await navigator.requestMIDIAccess({sysex:true}); }
   catch(e){ try{ USB.acc=await navigator.requestMIDIAccess(); }catch(e2){ avisoUsb(window.self!==window.top ? 'Dentro de Claude no se puede usar el MIDI por USB. Abre la versión de GitHub en Chrome o Edge.' : 'No se ha dado permiso para usar MIDI. Revisa el permiso del navegador (icono del candado).'); return; } }
@@ -2884,9 +2901,9 @@ function listarUsb(){
   $('usbSalCampo').hidden=false;
   const si=$('usbEntrada'), pi=si.value; si.textContent=''; for(const i of ins) si.append(new Option(i.name||'Entrada MIDI', i.id));
   if(ins.some(i=>i.id===pi)) si.value=pi;
-  $('usbGrab').hidden=!ins.length || !E.midi;
+  $('usbGrab').hidden=!ins.length;
   avisoUsb((outs.length||ins.length) ? 'Conectado: '+[...new Set([...ins,...outs].map(x=>x.name))].join(', ') : 'No veo ningún aparato MIDI. Conéctalo por USB y enciéndelo.');
-  $('usbConectar').hidden=true; elegirEntrada(); canalesLibres();
+  $('usbConectar').hidden=true; elegirEntrada(); canalesLibres(); if(ins.length) avisoUsb('Toca el teclado: suena con tu soundfont'+(E.sf?' («'+E.nombreSf+'»)':' (sin soundfont cargado: sonido básico)')+'. Si el teclado suena también por sus altavoces, bájale el volumen o pon «Local Off».');
 }
 $('usbConectar').onclick=conectarUsb;
 
@@ -2944,30 +2961,36 @@ function canalesLibres(){
   if(!sel.options.length){ sel.append(new Option('No quedan canales libres','')); }
   elegirCanal();
 }
-(function(){ const s=$('usbInst'); GM_USB.forEach((n,i)=>s.append(new Option(String(i+1).padStart(3,'0')+' '+n, i))); })();
+// instrumentos para tocar: los presets del .sf2 cargado (si no hay, la lista GM)
+function usbInstrumentos(){
+  const s=$('usbInst'), prev=s.value; s.textContent='';
+  if(E.sf){ for(const p of E.sf.presets.filter(p=>p.banco!==128).sort((a,b)=>a.banco-b.banco||a.preset-b.preset)) s.append(new Option(String(p.preset+1).padStart(3,'0')+(p.banco?'/'+p.banco:'')+' '+p.nombre, p.banco*128+p.preset)); }
+  else GM_USB.forEach((n,i)=>s.append(new Option(String(i+1).padStart(3,'0')+' '+n, i)));
+  if([...s.options].some(o=>o.value===prev)) s.value=prev;
+}
+usbInstrumentos();
 function elegirEntrada(){ if(USB.entrada) USB.entrada.onmidimessage=null; const id=$('usbEntrada').value; USB.entrada= id&&USB.acc ? USB.acc.inputs.get(id) : null; if(USB.entrada) USB.entrada.onmidimessage=alTocar; }
-function elegirCanal(){ const v=$('usbCanal').value; USB.canal= v==='' ? null : +v; USB.prog=+$('usbInst').value||0; prepararCanal(); }
+function elegirCanal(){ const v=$('usbCanal').value; USB.canal= v==='' ? null : +v; USB.inst=+$('usbInst').value||0; USB.prog=USB.inst%128; USB.banco=Math.floor(USB.inst/128); prepararCanal(); ponerInstrumentoDirecto(); }
 $('usbEntrada').onchange=elegirEntrada; $('usbCanal').onchange=elegirCanal; $('usbInst').onchange=elegirCanal;
 // el canal elegido se enciende en la mesa con el instrumento elegido (y se cargan sus sonidos)
 function prepararCanal(){
   if(USB.canal==null||!E.canales) return; const c=E.canales[USB.canal];
   for(const o of E.canales) if(o!==c && !o.notas && o.usado){ o.usado=false; o.nombre='—'; o.color='--bat'; }
-  if(!c.notas){ c.usado=true; c.prog=USB.prog; c.instOrig=GM128[USB.prog]; c.nombre='Mi grabación'; c.nombrePista=''; if(c.color==='--bat') c.color='--c5'; }
-  c.inst= c.notas && c.prog!==USB.prog ? USB.prog : null; if(!c.notas) c.prog=USB.prog;
+  if(!c.notas){ c.usado=true; c.instOrig=($('usbInst').selectedOptions[0]?.textContent||GM128[USB.prog]).replace(/^\d{3}(\/\d+)?\s/,''); c.nombre='Mi grabación'; c.nombrePista=''; if(c.color==='--bat') c.color='--c5'; }
+  if(!c.notas){ c.prog=USB.prog; c.banco=USB.banco; c.inst= USB.banco ? USB.inst : null; } else c.inst=USB.inst;
   pintarRack(); if(!E.vivo) crearVivo(); aplicarVivo(); asegurarSonidos();
-  E.vivo.sinte.evento({tipo:'ch',cmd:0xC,ch:c.ch,a:USB.prog,b:0},0);
-  if(E.salidaMidi) enviar([0xC0|c.ch, USB.prog]);
+  if(E.salidaMidi){ enviar([0xB0|c.ch, 0, USB.banco||0]); enviar([0xC0|c.ch, USB.prog]); }
 }
 function alTocar(msg){
-  const d=msg.data, st=d[0]&0xF0; if(USB.canal==null || !E.midi) return;
+  const d=msg.data, st=d[0]&0xF0;
   if(st!==0x90&&st!==0x80&&st!==0xB0&&st!==0xE0) return;
-  const ch=USB.canal, cmd=st>>4, a=d[1], b=d[2]??0;
+  const ch=USB.canal??0, cmd=st>>4, a=d[1], b=d[2]??0;
   // se escucha al momento: en el teclado si el MIDI sale por él, si no en el sintetizador de la app
   // si se toca el mismo teclado por el que sale el MIDI, ya suena solo (no se duplica)
   if(E.salidaMidi){ if(!(USB.entrada && USB.salida.name===USB.entrada.name)) enviar([st|ch, a, b]); }
-  else { if(!E.vivo) crearVivo(); if(E.audio) return; E.monitor=true; procMidi(); if(E.ctx.state==='suspended') E.ctx.resume();
-    E.vivo.sinte.evento({tipo:'ch',cmd,ch,a,b},0); }
-  if(E.grabando && USB.toma){
+  else monitor().evento({tipo:'ch',cmd,ch,a,b},0);
+  if(E.audio) return;
+  if(E.grabando && USB.toma && E.midi){
     // momento de la canción que se estaba oyendo al tocar (descontando el retraso del audio)
     let t; const ts=msg.timeStamp||performance.now();
     if(E.salidaMidi) t=SAL.t!=null ? (SAL.seg0+(ts-SAL.perf0)/1000)*param().vel/100 : 0;
@@ -2980,7 +3003,7 @@ function alTocar(msg){
 $('usbRec').onclick=()=>{
   if(E.grabando){ detener(); return; }
   if(USB.canal==null){ avisoUsb('Elige un canal libre.'); return; }
-  USB.toma={ch:USB.canal, prog:USB.prog, ev:[]}; E.grabando=true; $('usbRec').classList.add('on'); $('usbRec').textContent='■ Parar grabación';
+  USB.toma={ch:USB.canal, prog:USB.prog, banco:USB.banco||0, ev:[]}; E.grabando=true; $('usbRec').classList.add('on'); $('usbRec').textContent='■ Parar grabación';
   avisoUsb('Grabando en el canal '+(USB.canal+1)+'… toca encima de la canción.');
   if(!E.sonando) $('play').click();
 };
@@ -2992,7 +3015,7 @@ function finToma(){
   let o=1e7+m.eventos.length; const nuevos=[], abiertas=new Map(); const tFin=Math.max(...tm.ev.map(e=>e.t))+0.05;
   const add=(seg,cmd,a,b)=>nuevos.push({tick:aTick(seg), o:o++, seg, tipo:'ch', cmd, ch:tm.ch, a, b, pista});
   nuevos.push({tick:0,o:o++,seg:0,tipo:'meta',meta:3,datos:new TextEncoder().encode('Mi grabación'),pista});
-  add(0,0xC,tm.prog,0);
+  if(tm.banco) add(0,0xB,0,tm.banco); add(0,0xC,tm.prog,0);
   for(const e of tm.ev.sort((x,y)=>x.t-y.t)){
     if(e.cmd===9&&e.b>0){ abiertas.set(e.a,(abiertas.get(e.a)||0)+1); add(e.t,9,e.a,e.b); }
     else if(e.cmd===8||(e.cmd===9&&e.b===0)){ if(abiertas.get(e.a)){ abiertas.set(e.a,abiertas.get(e.a)-1); add(e.t,8,e.a,0); } }
