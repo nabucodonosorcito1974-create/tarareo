@@ -172,7 +172,7 @@ details.tarjeta:not([open]){ gap:0; }
 .conv-fila{ display:flex; align-items:center; gap:8px 10px; flex-wrap:wrap; }
 .conv-fila h2{ margin-right:4px; }
 .conv-fila select{ width:auto; padding:7px 8px; }
-.usb{ display:flex; flex-direction:column; gap:6px; border-top:1px solid var(--line); padding-top:8px; margin-top:4px; }
+.usb{ display:flex; flex-direction:column; gap:6px; }
 .usb-fila{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; }
 .usb-campo{ display:flex; align-items:center; gap:5px; font-size:13px; color:var(--muted); }
 .usb-campo select{ width:auto; max-width:190px; padding:5px 7px; font-size:13px; }
@@ -279,6 +279,20 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
       <span class="info" id="infoMidi"></span>
       <button class="btn mini" id="bAbrir" type="button" aria-expanded="false">🔍 Buscar MIDI / KAR</button>
     </div>
+    <div class="usb" id="usb">
+      <div class="usb-fila">
+        <button class="btn" id="usbConectar" type="button">🎹 Conectar teclado MIDI (USB)</button>
+        <label class="usb-campo" id="usbSalCampo" hidden>Sonar en <select id="usbSalida"><option value="">este equipo</option></select></label>
+        <span class="msg" id="usbMsg"></span>
+      </div>
+      <div class="usb-fila" id="usbGrab" hidden>
+        <label class="usb-campo">Tocar con <select id="usbEntrada"></select></label>
+        <label class="usb-campo">en el canal <select id="usbCanal"></select></label>
+        <label class="usb-campo">como <select id="usbInst"></select></label>
+        <button class="btn mini rec" id="usbRec" type="button">● Grabar</button>
+        <button class="btn mini" id="usbDeshacer" type="button" disabled>Deshacer toma</button>
+      </div>
+    </div>
     <div class="buscador" id="buscador" hidden>
       <div class="fila">
         <input type="text" id="bArtista" placeholder="Artista" autocomplete="off" aria-label="Artista">
@@ -346,20 +360,6 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
       <span class="tiempo" id="tiempo">0:00 / 0:00</span>
     </div>
     <p class="msg" id="carga"></p>
-    <div class="usb" id="usb">
-      <div class="usb-fila">
-        <button class="btn mini" id="usbConectar" type="button">🎹 Conectar MIDI (USB)</button>
-        <label class="usb-campo" id="usbSalCampo" hidden>Sonar en <select id="usbSalida"><option value="">este equipo</option></select></label>
-        <span class="msg" id="usbMsg"></span>
-      </div>
-      <div class="usb-fila" id="usbGrab" hidden>
-        <label class="usb-campo">Tocar con <select id="usbEntrada"></select></label>
-        <label class="usb-campo">en el canal <select id="usbCanal"></select></label>
-        <label class="usb-campo">como <select id="usbInst"></select></label>
-        <button class="btn mini rec" id="usbRec" type="button">● Grabar</button>
-        <button class="btn mini" id="usbDeshacer" type="button" disabled>Deshacer toma</button>
-      </div>
-    </div>
   </section>
 
   <section class="tarjeta">
@@ -426,7 +426,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 18:00</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 18:03</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -1417,7 +1417,8 @@ class FuenteMezcla{
 // ---------- Modo audio en la interfaz ----------
 function durBase(){ return E.audio ? E.audio.dur : (E.midi ? E.midi.duracion : 0); }
 function vistaAudio(si){
-  for(const id of ['filaSf','plEscena','otrosRev','bajarMid','usb']) $(id).hidden=si;
+  for(const id of ['filaSf','plEscena','otrosRev','bajarMid']) $(id).hidden=si;
+  if(typeof USB!=='undefined' && USB && USB.acc) $('usbGrab').hidden=si || ![...USB.acc.inputs.values()].length;
   $('mesaAudio').hidden=!si; $('reiniciarRack').hidden=false;
   $('modoTxt').textContent= si ? (E.modo==='original' ? 'La canción tal cual, sin cambios.' : 'Tal cual quedará el MP3: con el tono y la velocidad elegidos.') : (E.modo==='original' ? 'MIDI original con tu soundfont: tono y velocidad sin tocar (la mesa sí se aplica).' : 'Tal cual quedará el MP3: con el tono, la velocidad, la mesa y la reverberación elegidos.');
   $('rolloTit').textContent= si ? 'La canción en el tiempo' : 'Notas en el tiempo';
@@ -2898,7 +2899,7 @@ function listarUsb(){
   $('usbSalCampo').hidden=false;
   const si=$('usbEntrada'), pi=si.value; si.textContent=''; for(const i of ins) si.append(new Option(i.name||'Entrada MIDI', i.id));
   if(ins.some(i=>i.id===pi)) si.value=pi;
-  $('usbGrab').hidden=!ins.length;
+  $('usbGrab').hidden=!ins.length || !!E.audio;
   avisoUsb((outs.length||ins.length) ? 'Conectado: '+[...new Set([...ins,...outs].map(x=>x.name))].join(', ') : 'No veo ningún aparato MIDI. Conéctalo por USB y enciéndelo.');
   $('usbConectar').hidden=true; elegirEntrada(); canalesLibres(); if(ins.length) avisoUsb('Toca el teclado: suena con tu soundfont'+(E.sf?' («'+E.nombreSf+'»)':' (sin soundfont cargado: sonido básico)')+'. Si el teclado suena también por sus altavoces, bájale el volumen o pon «Local Off».');
 }
