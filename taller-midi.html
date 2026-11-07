@@ -427,7 +427,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 19:02</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 19:08</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -978,7 +978,7 @@ class Chorus {
       L[i]+=0.85*this.leer(this.base+this.dep*s); R[i]+=0.85*this.leer(this.base*1.3+this.dep*c);
       this.ph+=this.inc; if(this.ph>6.283185307) this.ph-=6.283185307; if(++this.i>=this.N) this.i=0; } }
 }
-const REVERBS={ no:null, estudio:{sala:0.35,amort:0.6,mezcla:1.35,cola:1.5}, sala:{sala:0.62,amort:0.45,mezcla:1.6,cola:2.5}, iglesia:{sala:0.92,amort:0.25,mezcla:2.2,cola:5} };
+const REVERBS={ no:null, estudio:{sala:0.6,amort:0.5,mezcla:1.1,cola:3}, sala:{sala:0.86,amort:0.3,mezcla:1.2,cola:5}, iglesia:{sala:0.97,amort:0.18,mezcla:1.5,cola:9} };   // colas largas: el eco se alarga, no solo suena más
 
 // ===== Sintetizador offline =====
 const tc2s=tc=>Math.pow(2,tc/1200);
@@ -1842,7 +1842,8 @@ function procMidi(){
     if(!E.sonando){ if(E.monitor) E.vivo.libre(L,R); else { L.fill(0); R.fill(0); } return; }
     E.vivo.render(L,R);
     E.reloj={perf:performance.now(), t:E.vivo.tMus, lat:(2*L.length/c.sampleRate)+(c.outputLatency||c.baseLatency||0)};
-    if(E.vivo.fin() || E.vivo.tMus>E.midi.duracion+8){ if(E.grabando) return; E.sonando=false; setTimeout(()=>{ detener(); if(E.vivo){ E.vivo.buscar(0); aplicarVivo(); } pintarPos(); },0); } };
+    const cola=(REVERBS[E.vivo.tipoRev]||{cola:0}).cola*E.vivo.vel;   // al acabar, se deja sonar la cola de la reverb
+    if((E.vivo.fin() && E.vivo.tMus>E.midi.duracion+cola) || E.vivo.tMus>E.midi.duracion+cola+8){ if(E.grabando) return; E.sonando=false; setTimeout(()=>{ detener(); if(E.vivo){ E.vivo.buscar(0); aplicarVivo(); } pintarPos(); },0); } };
   E.proc.connect(salida()); return E.proc;
 }
 function sonar(){
@@ -2889,7 +2890,9 @@ function codigoWorklet(){
           else if(m.t==='silencio'){ this.s.voces=[]; } }; }
       process(i,o){ const L=o[0][0], R=o[0][1]||o[0][0], n=L.length, s=this.s;
         if(!s.revBus||s.revBus.length!==n){ s.revBus=new Float32Array(n); s.choBus=new Float32Array(n); } s.revBus.fill(0); s.choBus.fill(0);
-        if(s.voces.length){ s.render(L,R,0,n); if(this.rv) this.rv.bus(s.revBus,L,R,n); this.cho.bus(s.choBus,L,R,n); }
+        // tras la última nota, la reverb sigue sonando hasta apagarse sola (no se corta el eco)
+        if(s.voces.length) this.cola=sampleRate*10;
+        if(s.voces.length || this.cola>0){ this.cola-=n; s.render(L,R,0,n); if(this.rv) this.rv.bus(s.revBus,L,R,n); this.cho.bus(s.choBus,L,R,n); }
         if((this.cuenta=(this.cuenta||0)+n)>=1024){ this.cuenta=0; const viv=new Array(16).fill(0); for(const v of s.voces) viv[v.ch]=1;
           this.port.postMessage({t:'vu', cuad:Array.from(s.cuad), n:Array.from(s.muestras), viv}); s.cuad.fill(0); s.muestras.fill(0); }
         return true; } }
