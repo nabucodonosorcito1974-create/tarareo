@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#18202b">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Taller MIDI">
+<meta name="apple-mobile-web-app-title" content="Taller Musical">
 <meta name="mobile-web-app-capable" content="yes">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
-<title>Taller MIDI</title>
+<title>Taller Musical - Midi&amp;MP3</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
@@ -37,6 +37,14 @@ body{ background:var(--bg); color:var(--ink); font:15px/1.5 var(--body); }
 .wrap{ max-width:1100px; margin:0 auto; padding-block:28px 56px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); display:flex; flex-direction:column; gap:18px; }
 h1{ font:700 clamp(36px,9vw,56px)/0.95 var(--display); letter-spacing:-0.025em; margin:0; }
 h1 i{ font-style:normal; color:var(--ambar); }
+h1 .h1-sub{ font-size:0.36em; font-weight:600; letter-spacing:0; color:var(--muted); vertical-align:0.3em; white-space:nowrap; }
+.ig-fila{ display:flex; align-items:center; gap:6px 10px; flex-wrap:wrap; }
+.ig-fila .info{ flex:1 1 140px; min-width:0; color:var(--muted); font-size:13.5px; overflow-wrap:anywhere; }
+.ig-fila .info b{ color:var(--ink); }
+.ig-res{ font:500 13.5px var(--mono); background:var(--ambar-suave); border-radius:8px; padding:8px 10px; }
+.ig-res b{ color:var(--ambar); }
+.ig .progreso{ height:5px; }
+.ig .btn.on{ border-color:var(--ambar); color:var(--ambar); }
 .sub{ color:var(--muted); margin:10px 0 0; max-width:58ch; }
 h2{ font:700 12.5px/1 var(--body); letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:0; }
 .tarjeta{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:14px; }
@@ -233,8 +241,8 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
 
 <div class="wrap">
   <header>
-    <h1>Taller <i>MIDI</i></h1>
-    <p class="sub">Cambia el tono y la velocidad de un MIDI o de una canción (MP3, WAV…) por separado y guárdalo en MP3.</p>
+    <h1>Taller <i>Musical</i> <small class="h1-sub">- Midi&amp;MP3</small></h1>
+    <p class="sub">Cambia el tono y la velocidad de un MIDI o de una canción (MP3, WAV…) por separado y guárdalo en MP3. Y lleva un cover al tempo del original.</p>
   </header>
 
   <section class="tarjeta">
@@ -336,6 +344,30 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
       <span class="msg conv-nombre" id="resTxt"></span>
       <button class="btn prim" id="bajarMp3">Descargar MP3</button><button class="btn" id="bajarMid">Descargar MIDI</button>
       <span class="msg" id="msgBajar"></span>
+    </div>
+  </section>
+
+  <section class="tarjeta ig">
+    <h2>Igualador de velocidad <span class="msg" style="text-transform:none;letter-spacing:0;font-weight:400">· el cover al tempo del original</span></h2>
+    <div class="ig-fila">
+      <label class="btn mini" for="igFO">Original</label><input type="file" id="igFO" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg,.aac" hidden><span class="info" id="igIO">—</span>
+      <label class="btn mini" for="igFC">Cover</label><input type="file" id="igFC" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg,.aac" hidden><span class="info" id="igIC">—</span>
+      <button class="btn ambar" id="igIgualar" type="button" disabled>Igualar</button>
+    </div>
+    <div class="progreso"><i id="igBarra"></i></div>
+    <p class="msg" id="igEstado" style="margin:0" aria-live="polite"></p>
+    <div id="igRes" hidden>
+      <p class="ig-res" id="igTxt" style="margin:0"></p>
+      <div class="ig-fila" style="margin-top:8px">
+        <label class="chk-esc"><input type="checkbox" id="igTono"> Igualar también el tono</label>
+        <span class="msg">Velocidad del cover</span><input type="number" id="igVel" step="0.1" min="25" max="400" style="width:6.5em"><span class="msg">%</span>
+      </div>
+      <div class="ig-fila" style="margin-top:8px">
+        <button class="btn mini" id="igOirO" type="button">▶ Original</button><button class="btn mini" id="igOirC" type="button">▶ Cover igualado</button><button class="btn mini" id="igOirA" type="button" title="Original por la izquierda, cover por la derecha">▶ Los dos</button><button class="btn mini" id="igParar" type="button" disabled>■</button>
+        <select id="igKbps" aria-label="Calidad del MP3" style="width:auto;padding:5px 8px"><option value="192" selected>192 kbps</option><option value="320">320 kbps</option></select>
+        <button class="btn ambar" id="igConv" type="button">Cover igualado a MP3</button><button class="btn prim" id="igBajar" type="button" hidden>Descargar MP3</button>
+        <span class="msg" id="igMsg"></span>
+      </div>
     </div>
   </section>
 
@@ -1554,21 +1586,21 @@ $('convertir').onclick=async()=>{
 };
 $('cancelar').onclick=()=>{ E.cancel=true; };
 
-async function guardar(datos, nombre, ext, tipo){
+async function guardar(datos, nombre, ext, tipo, msgId='msgBajar'){
   if(enClaude()){
     let dl=null; try{ dl=await window.claude.use('downloads'); }catch(e){}
-    if(!dl){ $('msgBajar').textContent='La descarga no está disponible en esta vista.'; return; }
-    try{ await dl.save({filename:nombre+'.'+ext, data:datos}); $('msgBajar').textContent='Guardado '+nombre+'.'+ext; return; }
+    if(!dl){ $(msgId).textContent='La descarga no está disponible en esta vista.'; return; }
+    try{ await dl.save({filename:nombre+'.'+ext, data:datos}); $(msgId).textContent='Guardado '+nombre+'.'+ext; return; }
     catch(e){
-      if(e&&e.code==='declined'){ $('msgBajar').textContent='Descarga cancelada.'; return; }
-      if(!(e&&(e.code==='rejected_extension'||e.code==='extension_not_enabled'))){ $('msgBajar').textContent='No se ha podido guardar.'; return; }
+      if(e&&e.code==='declined'){ $(msgId).textContent='Descarga cancelada.'; return; }
+      if(!(e&&(e.code==='rejected_extension'||e.code==='extension_not_enabled'))){ $(msgId).textContent='No se ha podido guardar.'; return; }
     }
     // Claude no deja guardar .mp3/.mid sueltos: se entrega dentro de un .zip
-    try{ await dl.save({filename:nombre+'.zip', data:crearZip(nombre+'.'+ext, datos)}); $('msgBajar').textContent='Dentro de Claude el .'+ext+' solo se puede guardar dentro de un .zip. Abriendo la app en tu navegador se descarga el .'+ext+' directo.'; }
-    catch(e){ $('msgBajar').textContent= e&&e.code==='declined' ? 'Descarga cancelada.' : 'No se ha podido guardar.'; }
+    try{ await dl.save({filename:nombre+'.zip', data:crearZip(nombre+'.'+ext, datos)}); $(msgId).textContent='Dentro de Claude el .'+ext+' solo se puede guardar dentro de un .zip. Abriendo la app en tu navegador se descarga el .'+ext+' directo.'; }
+    catch(e){ $(msgId).textContent= e&&e.code==='declined' ? 'Descarga cancelada.' : 'No se ha podido guardar.'; }
   } else {
     const url=URL.createObjectURL(new Blob([datos],{type:tipo})), a=document.createElement('a'); a.href=url; a.download=nombre+'.'+ext; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),3000);
-    $('msgBajar').textContent='Descargado '+nombre+'.'+ext;
+    $(msgId).textContent='Descargado '+nombre+'.'+ext;
   }
 }
 $('bajarMp3').onclick=async()=>{ if(E.mp3) guardar(new Uint8Array(await E.mp3.arrayBuffer()), E.nombreBase, 'mp3', 'audio/mpeg'); };
@@ -2065,6 +2097,165 @@ $('escColocar').onclick=()=>{ if(!E.canales) return; E.pos={}; E.canales.forEach
 
 cargarMidi(b64(EJEMPLO_B64), 'Himno de la alegría (ejemplo)');
 pintarInfo(); recuperarSf();
+// ---------- Igualador de velocidad: original y cover ----------
+// Cromagrama (12 notas) de cada audio, alineación DTW y recta robusta: da la relación de velocidad,
+// el desfase inicial y la diferencia de tono. El BPM del original sale de la autocorrelación de golpes.
+const IG_FPS=10;
+function igMono(L,R){ if(L===R) return L; const m=new Float32Array(L.length); for(let i=0;i<m.length;i++) m[i]=0.5*(L[i]+R[i]); return m; }
+async function igCroma(x, sr, fps=IG_FPS){
+  const N=4096, hop=Math.round(sr/fps), fft=crearFFTr(N), win=new Float64Array(N); for(let i=0;i<N;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/N);
+  const pc=new Int8Array(N/2); for(let k=1;k<N/2;k++){ const f=k*sr/N; pc[k]= f<55||f>5000 ? -1 : ((Math.round(12*Math.log2(f/440))+9)%12+12)%12; }
+  const n=Math.max(1,Math.floor((x.length-N)/hop)+1), C=new Float32Array(n*12), re=new Float64Array(N), im=new Float64Array(N);
+  for(let t=0;t<n;t++){
+    const o=t*hop; for(let i=0;i<N;i++){ re[i]=(x[o+i]||0)*win[i]; im[i]=0; } fft(re,im,false);
+    const c=new Float64Array(12); for(let k=1;k<N/2;k++) if(pc[k]>=0) c[pc[k]]+=Math.hypot(re[k],im[k]);
+    let s=0; for(let j=0;j<12;j++){ c[j]=Math.log(1+c[j]); s+=c[j]*c[j]; } s=Math.sqrt(s)||1;
+    for(let j=0;j<12;j++) C[t*12+j]=c[j]/s;
+    if(t%200===0) await new Promise(r=>setTimeout(r,0));
+  }
+  return {C, n};
+}
+// ¿cuántos semitonos está el cover respecto al original? (perfil medio de notas)
+function igTono(A, B){
+  const m=(X)=>{ const p=new Float64Array(12); for(let t=0;t<X.n;t++) for(let j=0;j<12;j++) p[j]+=X.C[t*12+j]; return p; };
+  const pa=m(A), pb=m(B); let mej=0, best=-1e9;
+  for(let r=0;r<12;r++){ let s=0; for(let j=0;j<12;j++) s+=pa[j]*pb[(j+r)%12]; if(s>best){ best=s; mej=r; } }
+  return mej>6 ? mej-12 : mej;   // el cover está "mej" semitonos por encima
+}
+// DTW entre cromagramas (con el cover girado "rot" semitonos) → camino [[i,j]...]
+async function igDTW(A, B, rot){
+  const n=A.n, m=B.n, D=new Float32Array(n*m), P=new Uint8Array(n*m);
+  const coste=(i,j)=>{ let s=0; for(let k=0;k<12;k++) s+=A.C[i*12+k]*B.C[j*12+(k+rot+12)%12]; return 1-s; };
+  for(let i=0;i<n;i++){
+    for(let j=0;j<m;j++){
+      const c=coste(i,j); let v, p=0;
+      if(i===0&&j===0) v=c;
+      else if(i===0){ v=D[j-1]+c; p=2; }
+      else if(j===0){ v=D[(i-1)*m]+c; p=1; }
+      else { const d=D[(i-1)*m+j-1], u=D[(i-1)*m+j], l=D[i*m+j-1]; if(d<=u&&d<=l){ v=d+c; p=0; } else if(u<=l){ v=u+c*1.2; p=1; } else { v=l+c*1.2; p=2; } }
+      D[i*m+j]=v; P[i*m+j]=p;
+    }
+    if(i%150===0) await new Promise(r=>setTimeout(r,0));
+  }
+  const cam=[]; let i=n-1, j=m-1; while(i>0||j>0){ cam.push([i,j]); const p=P[i*m+j]; if(p===0){ i--; j--; } else if(p===1) i--; else j--; } cam.push([0,0]);
+  return cam.reverse();
+}
+// recta j = a·i + b, ajustada sin hacer caso a los tramos que no coinciden (intro distinta, solos…)
+function igRecta(cam){
+  const ini=Math.floor(cam.length*0.05), fin=Math.ceil(cam.length*0.95); let pts=cam.slice(ini,fin);
+  let a=1, b=0;
+  for(let vuelta=0;vuelta<4;vuelta++){
+    let sx=0,sy=0,sxx=0,sxy=0; for(const [x,y] of pts){ sx+=x; sy+=y; sxx+=x*x; sxy+=x*y; } const k=pts.length;
+    a=(k*sxy-sx*sy)/(k*sxx-sx*sx); b=(sy-a*sx)/k;
+    const res=pts.map(([x,y])=>Math.abs(y-a*x-b)), lim=Math.max(3, res.slice().sort((p,q)=>p-q)[Math.floor(res.length*0.7)]*1.5);
+    pts=pts.filter((p,q)=>res[q]<=lim);
+  }
+  return {a, b};
+}
+// BPM por autocorrelación de la envolvente de golpes
+async function igBpm(x, sr){
+  const N=1024, hop=512, fft=crearFFTr(N), win=new Float64Array(N); for(let i=0;i<N;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/N);
+  const n=Math.floor((x.length-N)/hop), env=new Float32Array(n), ant=new Float64Array(N/2), re=new Float64Array(N), im=new Float64Array(N);
+  for(let t=0;t<n;t++){ const o=t*hop; for(let i=0;i<N;i++){ re[i]=x[o+i]*win[i]; im[i]=0; } fft(re,im,false);
+    let s=0; for(let k=1;k<N/2;k++){ const v=Math.log(1+100*Math.hypot(re[k],im[k])); if(v>ant[k]) s+=v-ant[k]; ant[k]=v; } env[t]=s;
+    if(t%2000===0) await new Promise(r=>setTimeout(r,0)); }
+  let mu=0; for(const v of env) mu+=v; mu/=n||1; for(let t=0;t<n;t++) env[t]=Math.max(0,env[t]-mu);
+  const fps=sr/hop, best={v:-1,lag:0}, ac=lag=>{ let s=0; for(let t=lag;t<n;t++) s+=env[t]*env[t-lag]; return s/(n-lag); };
+  const lmin=Math.floor(fps*60/200), lmax=Math.ceil(fps*60/60), vals=[];
+  for(let lag=lmin;lag<=lmax;lag++){ const bpm=60*fps/lag, peso=Math.exp(-0.5*Math.pow(Math.log2(bpm/115)/0.9,2)), v=ac(lag)*peso; vals[lag]=v; if(v>best.v){ best.v=v; best.lag=lag; } }
+  const l=best.lag, y0=vals[l-1]??best.v, y2=vals[l+1]??best.v, d=(y0-2*best.v+y2)? 0.5*(y0-y2)/(y0-2*best.v+y2) : 0;
+  return 60*fps/(l+Math.max(-0.5,Math.min(0.5,d)));
+}
+async function igAnalizar(orig, cover, alPaso){
+  alPaso&&alPaso('Escuchando el original…');  const A=await igCroma(igMono(orig.L,orig.R), orig.sr);
+  alPaso&&alPaso('Escuchando el cover…');     const B=await igCroma(igMono(cover.L,cover.R), cover.sr);
+  const semis=igTono(A,B);
+  alPaso&&alPaso('Comparando las dos versiones…'); const cam=await igDTW(A,B,semis); const {a,b}=igRecta(cam);
+  alPaso&&alPaso('Midiendo el tempo…'); const bpm=await igBpm(igMono(orig.L,orig.R), orig.sr);
+  return {ratio:a, desfase:b/IG_FPS, semis, bpmOrig:bpm, bpmCover:bpm/a};
+}
+
+// ---------- Interfaz del igualador ----------
+const IG={orig:null, cover:null, res:null, proc:null, src:null};
+async function igLeer(f, info){
+  $(info).textContent='Leyendo '+f.name+'…';
+  const ab=await f.arrayBuffer(), b=await ctx().decodeAudioData(ab);
+  const L=new Float32Array(b.getChannelData(0)), R=b.numberOfChannels>1? new Float32Array(b.getChannelData(1)) : L;
+  $(info).innerHTML=''; const n=document.createElement('b'); n.textContent=f.name; $(info).append(n,' · '+fmt(b.duration));
+  return {L, R, sr:b.sampleRate, dur:b.duration, nombre:f.name.replace(/\.[^.]+$/,'')};
+}
+function igListo(){ $('igIgualar').disabled=!(IG.orig&&IG.cover); IG.res=null; $('igRes').hidden=true; $('igBajar').hidden=true; igParar(); }
+$('igFO').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; try{ IG.orig=await igLeer(f,'igIO'); }catch(err){ IG.orig=null; $('igIO').textContent='No he podido leer ese audio.'; } igListo(); };
+$('igFC').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; try{ IG.cover=await igLeer(f,'igIC'); }catch(err){ IG.cover=null; $('igIC').textContent='No he podido leer ese audio.'; } igListo(); };
+const coma=(v,d=1)=>v.toFixed(d).replace('.',',');
+function igPintar(){
+  const r=IG.res, v=+$('igVel').value||r.ratio*100, st=$('igTono').checked ? -r.semis : 0;
+  $('igTxt').innerHTML='Original <b>'+coma(r.bpmOrig)+' BPM</b> · Cover <b>'+coma(r.bpmCover)+' BPM</b> → el cover '+(v>=100?'se acelera':'se frena')+' al <b>'+coma(v)+' %</b>'
+    +(r.semis? ' · está <b>'+(r.semis>0?'+':'')+r.semis+'</b> semitono'+(Math.abs(r.semis)>1?'s':'')+' respecto al original' : ' · mismo tono')
+    +' · empieza '+coma(Math.abs(r.desfase))+' s '+(r.desfase>=0?'más tarde':'antes')
+    +' · dura '+fmt(IG.cover.dur)+' → '+fmt(IG.cover.dur*100/v)+(st?' · tono '+(st>0?'+':'')+st:'');
+}
+$('igIgualar').onclick=async()=>{
+  igParar(); $('igIgualar').disabled=true; $('igRes').hidden=true; $('igBajar').hidden=true; $('igMsg').textContent='';
+  let paso=0; const pasos=4;
+  try{
+    IG.res=await igAnalizar(IG.orig, IG.cover, txt=>{ $('igEstado').textContent=txt; $('igBarra').style.width=Math.round(100*paso++/pasos)+'%'; });
+    $('igBarra').style.width='100%'; $('igEstado').textContent='';
+    $('igVel').value=(IG.res.ratio*100).toFixed(1); $('igTono').checked=false;
+    $('igTono').parentElement.hidden=!IG.res.semis;
+    igPintar(); $('igRes').hidden=false;
+  }catch(err){ console.error(err); $('igEstado').textContent='No he podido compararlos: '+(err.message||err); }
+  finally{ $('igIgualar').disabled=false; }
+};
+$('igVel').oninput=()=>{ if(IG.res){ igPintar(); $('igBajar').hidden=true; if(IG.est) igAjustar(); } };
+$('igTono').onchange=()=>{ if(IG.res){ igPintar(); $('igBajar').hidden=true; if(IG.est) igAjustar(); } };
+function igParam(){ return {vel:+$('igVel').value||IG.res.ratio*100, semis:$('igTono').checked ? -IG.res.semis : 0}; }
+function igAjustar(){ const p=igParam(); IG.est.ajustar(p.vel, p.semis); }
+function igParar(){
+  if(IG.proc){ try{ IG.proc.disconnect(); }catch(e){} IG.proc=null; } IG.est=null;
+  for(const id of ['igOirO','igOirC','igOirA']) $(id).classList.remove('on'); if($('igParar')) $('igParar').disabled=true;
+}
+// modo: 'o' original, 'c' cover igualado, 'a' los dos (original izquierda, cover derecha, sincronizados)
+function igOir(modo){
+  const ya=IG.modo===modo && IG.proc; igParar(); IG.modo=null; if(ya) return;
+  if(E.sonando) detener();
+  const c=ctx(), sr=c.sampleRate, o=IG.orig, cv=IG.cover, r=IG.res, p=igParam();
+  // posición en el cover que corresponde al principio del original
+  IG.est=new Estirador(cv.L, cv.R, cv.sr); IG.est.srOut=sr; igAjustar();
+  const tc0=r.desfase; let retraso=0;
+  if(modo==='a'){ if(tc0>=0) IG.est.buscar(tc0); else { IG.est.buscar(0); retraso=Math.round(-tc0*100/p.vel*sr); } } else IG.est.buscar(0);
+  let io=0; const paso=o.sr/sr, tmpL=new Float32Array(4096), tmpR=new Float32Array(4096);
+  IG.proc=c.createScriptProcessor(4096,0,2);
+  IG.proc.onaudioprocess=ev=>{
+    const L=ev.outputBuffer.getChannelData(0), R=ev.outputBuffer.getChannelData(1), n=L.length;
+    if(modo==='o'){ for(let i=0;i<n;i++){ const k=Math.floor(io); L[i]=o.L[k]||0; R[i]=o.R[k]||0; io+=paso; } if(io>=o.L.length) setTimeout(igParar,0); return; }
+    if(modo==='c'){ IG.est.render(L,R); if(IG.est.fin()) setTimeout(igParar,0); return; }
+    // los dos
+    let d=0; if(retraso>0){ d=Math.min(n,retraso); retraso-=d; tmpL.fill(0,0,d); tmpR.fill(0,0,d); }
+    if(d<n){ const a=tmpL.subarray(d,n), b=tmpR.subarray(d,n); IG.est.render(a,b); }
+    for(let i=0;i<n;i++){ const k=Math.floor(io); L[i]=0.5*((o.L[k]||0)+(o.R[k]||0)); R[i]=0.5*(tmpL[i]+tmpR[i]); io+=paso; }
+    if(io>=o.L.length && IG.est.fin()) setTimeout(igParar,0);
+  };
+  IG.proc.connect(c.destination); IG.modo=modo;
+  $({o:'igOirO',c:'igOirC',a:'igOirA'}[modo]).classList.add('on'); $('igParar').disabled=false;
+}
+$('igOirO').onclick=()=>igOir('o'); $('igOirC').onclick=()=>igOir('c'); $('igOirA').onclick=()=>igOir('a'); $('igParar').onclick=()=>{ igParar(); IG.modo=null; };
+$('igConv').onclick=async()=>{
+  const cv=IG.cover, p=igParam(); $('igConv').disabled=true; $('igBajar').hidden=true;
+  try{
+    const e=new Estirador(cv.L, cv.R, cv.sr); e.ajustar(p.vel, p.semis); e.buscar(0);
+    const enc=new lamejs.Mp3Encoder(2, cv.sr, +$('igKbps').value), partes=[], B=1152*16, L=new Float32Array(B), R=new Float32Array(B), iL=new Int16Array(B), iR=new Int16Array(B);
+    const q=s=>Math.max(-32768,Math.min(32767,Math.round(s*32767))), total=Math.ceil(cv.dur*100/p.vel*cv.sr); let hecho=0, k=0;
+    while(hecho<total){ const n=Math.min(B,total-hecho); e.render(L,R); for(let i=0;i<n;i++){ iL[i]=q(L[i]); iR[i]=q(R[i]); }
+      const mp=enc.encodeBuffer(iL.subarray(0,n), iR.subarray(0,n)); if(mp.length) partes.push(new Uint8Array(mp)); hecho+=n;
+      if(++k%6===0){ $('igBarra').style.width=Math.round(hecho/total*100)+'%'; $('igMsg').textContent='Codificando · '+Math.round(hecho/total*100)+' %'; await new Promise(r=>setTimeout(r,0)); } }
+    const fin=enc.flush(); if(fin.length) partes.push(new Uint8Array(fin));
+    IG.mp3=new Blob(partes,{type:'audio/mpeg'}); IG.nombre=cv.nombre.replace(/[^\w\-áéíóúñÁÉÍÓÚÑ ]+/g,'_')+' (a '+coma(IG.res.bpmOrig,0)+' BPM)';
+    $('igBarra').style.width='100%'; $('igMsg').textContent=IG.nombre+'.mp3 · '+(IG.mp3.size/1048576).toFixed(1).replace('.',',')+' MB'; $('igBajar').hidden=false;
+  }catch(err){ console.error(err); $('igMsg').textContent='Error: '+(err.message||err); }
+  finally{ $('igConv').disabled=false; }
+};
+$('igBajar').onclick=async()=>{ if(IG.mp3) guardar(new Uint8Array(await IG.mp3.arrayBuffer()), IG.nombre, 'mp3', 'audio/mpeg', 'igMsg'); };
 </script>
 
 </body>
