@@ -427,7 +427,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 18:34</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 07-11-2026 19:02</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -968,7 +968,7 @@ class Reverb {
     for(const a of aps){ const bo=a.b[a.i]; a.b[a.i]=o+bo*0.5; if(++a.i>=a.b.length) a.i=0; o=bo-o; }
     return o;
   }
-  bus(x,L,R,n){ for(let i=0;i<n;i++){ const s=x[i]*0.014; const l=this.canal(s,this.cL,this.aL), r=this.canal(s,this.cR,this.aR); L[i]+=l*this.mezcla; R[i]+=r*this.mezcla; } }
+  bus(x,L,R,n){ for(let i=0;i<n;i++){ const s=x[i]*0.02; const l=this.canal(s,this.cL,this.aL), r=this.canal(s,this.cR,this.aR); L[i]+=l*this.mezcla; R[i]+=r*this.mezcla; } }
 }
 // Chorus estéreo (retardo modulado) como bus de envío
 class Chorus {
@@ -1070,7 +1070,7 @@ class Sinte {
   aplicar(ch){ const c=this.can[ch], o=this.ov[ch];
     c.vol=o.vol??c.aVol; c.pan=o.pan??c.aPan; this.fijarPan(c); c.rev=o.rev??c.aRev; c.cho=o.cho??c.aCho;
     c.prog=o.prog??c.aProg; c.banco= ch===9 ? 128 : (o.banco??c.aBanco);
-    c.prof=o.prof??c.aProf??0;
+    c.prof=o.prof??c.aProf??0; c.revMan=o.revMan??c.aRevMan??null;
     // ecualizador de 3 bandas (dB) y refuerzo de volumen por encima del máximo MIDI
     const eq=[o.eqG??c.aEq?.[0]??0, o.eqM??c.aEq?.[1]??0, o.eqA??c.aEq?.[2]??0];
     if(!c.eq || eq.some((v,k)=>v!==c.eq[k])){ c.eq=eq; c.eqCoef= eq.some(v=>v) ? coefEQ(eq,this.sr) : null; }
@@ -1102,6 +1102,7 @@ class Sinte {
       else if(cc===101) c.rpn[0]=v; else if(cc===100) c.rpn[1]=v; else if(cc===6 && c.rpn[0]===0 && c.rpn[1]===0) c.rangoBend=v;
       else if(cc===120||cc===123){ for(const vz of this.voces) if(vz.ch===e.ch){ if(cc===120) vz.libre=true; else vz.soltar(); } }
       else if(cc>=201&&cc<=203){ (c.aEq??=[0,0,0])[cc-201]=(v-64)*12/63; this.aplicar(e.ch); }
+      else if(cc===205){ c.aRevMan=v/127; this.aplicar(e.ch); }
       else if(cc===204){ c.aBoost=Math.pow(10,(v*10/33)/20); this.aplicar(e.ch); }
       else if(cc===121){ c.aVol=100/127; c.expr=1; c.bend=0; c.aPan=0; c.ped=false; this.aplicar(e.ch); }
     }
@@ -1120,7 +1121,8 @@ class Sinte {
       const seco=1-0.42*c.cho, envCho=0.5*c.cho;
       // distancia: a más lejos, menos nivel directo, menos agudos y más proporción de sala
       const p=c.prof||0, gp=Math.pow(10,-7*p/20), fc=22000*Math.pow(2200/22000,p), ap=p>0.001? 1-Math.exp(-2*Math.PI*fc/this.sr) : 1;
-      const envRev= this.soloProf ? 0.75*p : c.rev+(1-c.rev)*0.6*p;
+      const base= c.revMan!=null ? c.revMan*1.4 : (this.soloProf ? 0 : c.rev);   // el REV de la mesa manda y da bastante más eco
+      const envRev= this.soloProf ? base+0.75*p : base+(1-Math.min(1,base))*0.6*p;
       if(c.eqCoef) aplicarEQ(c, tl, tr, a, b);
       const bo=c.boost||1;
       let zl=this.zL[ch], zr=this.zR[ch], wl=this.wL[ch], wr=this.wR[ch];
@@ -1175,7 +1177,7 @@ class Vivo {
       o.vol= c.vol!=null ? c.vol/127 : undefined; o.pan= c.pan!=null ? c.pan : undefined;
       o.vol= c.vol!=null ? Math.min(127,c.vol)/127 : undefined; o.boost= c.vol!=null&&c.vol>127 ? Math.pow(10,((c.vol-127)*10/33)/20) : undefined;
       o.eqG= c.eqG||undefined; o.eqM= c.eqM||undefined; o.eqA= c.eqA||undefined;
-      o.rev= c.rev!=null ? c.rev/127 : undefined; o.cho= c.cho!=null ? c.cho/127 : undefined; o.prof= c.prof!=null ? c.prof/127 : undefined;
+      o.rev= c.rev!=null ? c.rev/127 : undefined; o.revMan= c.rev!=null ? c.rev/127 : undefined; o.cho= c.cho!=null ? c.cho/127 : undefined; o.prof= c.prof!=null ? c.prof/127 : undefined;
       if(c.inst!=null){ if(c.bat){ o.prog=c.inst; o.banco=undefined; } else { o.prog=c.inst%128; o.banco=Math.floor(c.inst/128); } } else { o.prog=undefined; o.banco=undefined; }
       s.gan[c.ch]= (c.mute || (haySolo && !c.solo)) ? 0 : 1;
       s.st[c.ch]= modo==='cambios' && !c.bat ? c.st : 0;
@@ -1207,7 +1209,7 @@ class Vivo {
 async function renderizar(midi, sf, {semis, vel, sr=44100, bloque=8192, reverb='no', vu=null, desde=0, sfCanal=null, alBloque, alProgreso, cancelado}){
   const sinte=new Sinte(sf, sr), ev=midi.eventos.filter(e=>e.tipo==='ch');
   if(sfCanal) sinte.sfCanal=sfCanal.slice();
-  const hayProf=ev.some(e=>e.cmd===0xB&&e.a===200&&e.b>0), tipoR= REVERBS[reverb] ? reverb : (hayProf ? 'sala' : 'no');
+  const hayProf=ev.some(e=>e.cmd===0xB&&(e.a===200||e.a===205)&&e.b>0), tipoR= REVERBS[reverb] ? reverb : (hayProf ? 'sala' : 'no');
   sinte.soloProf= !REVERBS[reverb] && hayProf;
   const rv=REVERBS[tipoR]? new Reverb(sr, REVERBS[tipoR]) : null, cola=(rv? REVERBS[tipoR].cola : 0)+0.1, cho=new Chorus(sr);
   sinte.revBus=new Float32Array(bloque); sinte.choBus=new Float32Array(bloque);
@@ -1822,7 +1824,7 @@ E.modo='cambios'; E.sonando=false; E.vivo=null; E.proc=null;
 function param(modo=E.modo){ return modo==='original' ? {semis:0, vel:100} : {semis:E.semis, vel:E.vel}; }
 function salida(){ const c=ctx(); if(!E.lim){ E.lim=c.createDynamicsCompressor(); E.lim.threshold.value=-6; E.lim.knee.value=4; E.lim.ratio.value=12; E.lim.attack.value=0.003; E.lim.release.value=0.15; E.limG=c.createGain(); E.limG.gain.value=1.4; E.lim.connect(E.limG); E.limG.connect(c.destination); } return E.lim; }
 function crearVivo(){ if(!E.midi) return null; const v=new Vivo(E.midi, E.sf, ctx().sampleRate); E.vivo=v; aplicarVivo(); return v; }
-function aplicarVivo(){ if(E.mezcla) E.mezcla.actualizar(); if(E.salidaMidi && typeof refrescarSalida==='function') refrescarSalida(); if(E.est){ const P=param(); E.est.ajustar(P.vel, P.semis); return; } const v=E.vivo; if(!v) return; const P=param(); v.semis=P.semis; v.vel=P.vel/100; v.mesa(E.canales||[], E.modo); v.fijarReverb(E.reverb, (E.canales||[]).some(c=>c.usado&&c.prof>0)); }
+function aplicarVivo(){ if(typeof refrescarMonitor==='function') refrescarMonitor(); if(E.mezcla) E.mezcla.actualizar(); if(E.salidaMidi && typeof refrescarSalida==='function') refrescarSalida(); if(E.est){ const P=param(); E.est.ajustar(P.vel, P.semis); return; } const v=E.vivo; if(!v) return; const P=param(); v.semis=P.semis; v.vel=P.vel/100; v.mesa(E.canales||[], E.modo); v.fijarReverb(E.reverb, (E.canales||[]).some(c=>c.usado&&(c.prof>0||c.rev>0))); }
 function posMus(){ if(E.audio) return COLA.t ?? (E.est ? E.est.tIn : 0); if(E.salidaMidi) return tSalida(); return E.vivo ? E.vivo.tMus : (E.musPausa||0); }
 function duracionPrevista(){ if(E.audio) return E.audio.dur*100/param().vel; return E.midi ? E.midi.duracion*100/param().vel : 0; }
 function pintarPos(){
@@ -1968,7 +1970,7 @@ function editarMidi(modo){
     if(!c.usado) continue; const ch=c.ch, ini=(a,b,o)=>ev.push({tick:0,o,seg:0,tipo:'ch',cmd:0xB,ch,a,b,pista:-1});
     if(c.inst!=null){ if(!c.bat) ini(0,Math.floor(c.inst/128),-6); ev.push({tick:0,o:-5,seg:0,tipo:'ch',cmd:0xC,ch,a:c.inst%128,b:0,pista:-1}); }
     if(c.vol!=null){ ini(7,Math.min(127,c.vol),-4); if(c.vol>127) ini(204,c.vol-127,-1); }
-    for(const [k,cc] of [['eqG',201],['eqM',202],['eqA',203]]) if(c[k]) ini(cc,Math.round(64+c[k]*63/12),-1); if(c.pan!=null) ini(10,c.pan+64,-3); if(c.rev!=null) ini(91,c.rev,-2); if(c.cho!=null) ini(93,c.cho,-1); if(c.prof) ini(200,c.prof,-1);
+    for(const [k,cc] of [['eqG',201],['eqM',202],['eqA',203]]) if(c[k]) ini(cc,Math.round(64+c[k]*63/12),-1); if(c.pan!=null) ini(10,c.pan+64,-3); if(c.rev!=null){ ini(91,c.rev,-2); ini(205,c.rev,-1); } if(c.cho!=null) ini(93,c.cho,-1); if(c.prof) ini(200,c.prof,-1);
   }
   ev.sort((a,b)=>a.o-b.o);
   for(const e of m.eventos){
@@ -2127,15 +2129,17 @@ $('reiniciarRack').onclick=()=>{ if(E.audio){ (E.canales||[]).forEach(c=>{ c.mut
 // ---- Vúmetros LED: balística suave (subida ~70 ms, caída ~650 ms, pico retenido 1,5 s) ----
 const VU={nivel:new Float32Array(16), pico:new Float32Array(16), picoT:new Float32Array(16), t:0};
 function pintarVu(){
-  const s=E.vivo&&E.vivo.sinte; if(!s) return;
+  const s=E.sonando&&E.vivo&&E.vivo.sinte, m=(typeof MON!=='undefined')&&MON&&MON.vuC; if(!s&&!m) return;
   const ahora=performance.now()/1000, dt=Math.min(0.1, VU.t ? ahora-VU.t : 0.016); VU.t=ahora;
   const aSub=1-Math.exp(-dt/0.07), aBaja=1-Math.exp(-dt/0.65);
   for(let ch=0;ch<16;ch++){
     const el=document.getElementById('vu'+ch); if(!el) continue;
     let objetivo=VU.objetivo?.[ch] ?? 0;
-    if(s.muestras[ch]>0){ const rms=Math.sqrt(s.cuad[ch]/(2*s.muestras[ch])); s.cuad[ch]=0; s.muestras[ch]=0;
+    let cu=0, mu=0; if(s){ cu+=s.cuad[ch]; mu+=s.muestras[ch]; s.cuad[ch]=0; s.muestras[ch]=0; }
+    if(m){ cu+=m[ch]; mu+=MON.vuN[ch]; m[ch]=0; MON.vuN[ch]=0; }
+    if(mu>0){ const rms=Math.sqrt(cu/(2*mu));
       const db=rms>0 ? 20*Math.log10(rms/0.18) : -99; objetivo=Math.max(0,Math.min(1,(db+48)/54)); }
-    else if(!s.voces.some(v=>v.ch===ch)) objetivo=0;
+    else if(!(s && s.voces.some(v=>v.ch===ch)) && !(m && MON.vivas[ch])) objetivo=0;
     (VU.objetivo ??= new Float32Array(16))[ch]=objetivo;
     const n=VU.nivel[ch]; VU.nivel[ch]= objetivo>n ? n+(objetivo-n)*aSub : n+(objetivo-n)*aBaja;
     if(VU.nivel[ch]>=VU.pico[ch]){ VU.pico[ch]=VU.nivel[ch]; VU.picoT[ch]=ahora; } else if(ahora-VU.picoT[ch]>1.5) VU.pico[ch]=Math.max(VU.nivel[ch], VU.pico[ch]-dt*0.25);
@@ -2866,19 +2870,77 @@ $('bBuscar').onclick=async()=>{
 };
 // ---------- Teclado e instrumentos MIDI por USB (Web MIDI): sonar en el teclado y grabar tocando ----------
 var USB={acc:null, salida:null, entrada:null, canal:null, prog:0, tomas:[], toma:null};
-var MON={v:null, proc:null, sf:undefined};
+// Sonido de lo que se toca en el teclado. Va en un «AudioWorklet»: un hilo de audio aparte que no se para
+// aunque la página esté ocupada (en el móvil, el hilo principal provocaba crepitaciones).
+var MON={vuC:new Float64Array(16), vuN:new Float64Array(16), vivas:new Array(16).fill(0), v:null, wk:null, proc:null, sf:undefined, ids:new WeakMap(), sig:1, enviados:new Set(), cargando:null};
+function codigoWorklet(){
+  return [
+    'const tc2s='+tc2s.toString()+';', 'const REVERBS='+JSON.stringify(REVERBS)+';',
+    Reverb.toString(), Chorus.toString(), Voz.toString(), VozSimple.toString(), Sinte.toString(),
+    coefEQ.toString(), aplicarEQ.toString(),
+    'let REGS=[]; function regionesSF2(){ return REGS; }',
+    `class MonitorSF2 extends AudioWorkletProcessor{
+      constructor(){ super(); this.s=new Sinte({}, sampleRate); this.mem=new Map(); this.cho=new Chorus(sampleRate); this.rv=null; this.hay=false;
+        this.port.onmessage=e=>{ const m=e.data;
+          if(m.t==='dat') this.mem.set(m.id, m.data);
+          else if(m.t==='ev'){ REGS=(m.regs||[]).map(r=>({g:r.g, s:r.s, mem:{base:r.base, data:this.mem.get(r.id)}})).filter(r=>r.mem.data); if(m.simple) this.s.sf=null; else this.s.sf=this.s.sf||{}; this.s.evento(m.e,0); REGS=[]; }
+          else if(m.t==='mesa'){ for(let ch=0;ch<16;ch++){ this.s.ov[ch]=m.ov[ch]||{}; this.s.gan[ch]=m.gan[ch]; this.s.st[ch]=m.st[ch]; this.s.aplicar(ch); } }
+          else if(m.t==='rev'){ this.rv= m.p ? new Reverb(sampleRate, m.p) : null; this.s.soloProf=!!m.soloProf; }
+          else if(m.t==='silencio'){ this.s.voces=[]; } }; }
+      process(i,o){ const L=o[0][0], R=o[0][1]||o[0][0], n=L.length, s=this.s;
+        if(!s.revBus||s.revBus.length!==n){ s.revBus=new Float32Array(n); s.choBus=new Float32Array(n); } s.revBus.fill(0); s.choBus.fill(0);
+        if(s.voces.length){ s.render(L,R,0,n); if(this.rv) this.rv.bus(s.revBus,L,R,n); this.cho.bus(s.choBus,L,R,n); }
+        if((this.cuenta=(this.cuenta||0)+n)>=1024){ this.cuenta=0; const viv=new Array(16).fill(0); for(const v of s.voces) viv[v.ch]=1;
+          this.port.postMessage({t:'vu', cuad:Array.from(s.cuad), n:Array.from(s.muestras), viv}); s.cuad.fill(0); s.muestras.fill(0); }
+        return true; } }
+    registerProcessor('monitor-sf2', MonitorSF2);`
+  ].join('\n');
+}
+async function prepararWorklet(c){
+  if(MON.wk || MON.sinWorklet || !c.audioWorklet) return;
+  try{ const url=URL.createObjectURL(new Blob([codigoWorklet()],{type:'text/javascript'}));
+    await c.audioWorklet.addModule(url); MON.wk=new AudioWorkletNode(c,'monitor-sf2',{numberOfInputs:0, outputChannelCount:[2]}); MON.wk.connect(salida());
+    MON.wk.port.onmessage=e=>{ const m=e.data; if(m.t!=='vu') return; for(let ch=0;ch<16;ch++){ MON.vuC[ch]+=m.cuad[ch]; MON.vuN[ch]+=m.n[ch]; } MON.vivas=m.viv; MON.ultimo=performance.now(); vuTeclado(); }; MON.ctx=c; MON.enviados.clear(); }
+  catch(e){ console.warn('Sin AudioWorklet, el teclado suena por el hilo principal', e); MON.sinWorklet=true; }
+}
 function monitor(){
   const c=ctx();
-  if(!MON.v || MON.sf!==E.sf || MON.sr!==c.sampleRate){ MON.v=new Vivo({eventos:[],duracion:0}, E.sf, c.sampleRate); MON.sf=E.sf; MON.sr=c.sampleRate; MON.prog=null; if(MON.proc){ try{ MON.proc.disconnect(); }catch(e){} MON.proc=null; } }
-  if(!MON.proc){ MON.proc=c.createScriptProcessor(1024,0,2); MON.proc.onaudioprocess=ev=>MON.v.libre(ev.outputBuffer.getChannelData(0), ev.outputBuffer.getChannelData(1)); MON.proc.connect(salida()); }
-  MON.v.fijarReverb(E.reverb, false); if(E.canales&&E.canales.length&&!E.audio) MON.v.mesa(E.canales, E.modo);
+  if(!MON.v || MON.sf!==E.sf || MON.sr!==c.sampleRate){ MON.v=new Vivo({eventos:[],duracion:0}, E.sf, c.sampleRate); MON.sf=E.sf; MON.sr=c.sampleRate; if(MON.proc){ try{ MON.proc.disconnect(); }catch(e){} MON.proc=null; } }
+  if(MON.wk && MON.ctx!==c){ try{ MON.wk.disconnect(); }catch(e){} MON.wk=null; }   // el audio se ha reabierto (otra salida)
+  if(!MON.wk && !MON.cargando) MON.cargando=prepararWorklet(c).finally(()=>{ MON.cargando=null; enviarMesa(); });
+  if(!MON.wk && MON.sinWorklet && !MON.proc){ MON.proc=c.createScriptProcessor(2048,0,2); MON.proc.onaudioprocess=ev=>MON.v.libre(ev.outputBuffer.getChannelData(0), ev.outputBuffer.getChannelData(1)); MON.proc.connect(salida()); }
+  MON.v.fijarReverb(E.reverb, (E.canales||[]).some(c=>c.usado&&(c.rev>0||c.prof>0))); if(E.canales&&E.canales.length&&!E.audio) MON.v.mesa(E.canales, E.modo);
+  enviarMesa();
   if(c.state==='suspended') c.resume();
   return MON.v.sinte;
+}
+function enviarMesa(){ if(!MON.wk||!MON.v) return; const s=MON.v.sinte;
+  const firma=JSON.stringify([s.ov, Array.from(s.gan), Array.from(s.st), E.reverb, (E.canales||[]).map(c=>[c.rev,c.prof])]); if(firma===MON.firma) return; MON.firma=firma;
+  MON.wk.port.postMessage({t:'mesa', ov:s.ov.map(o=>({...o})), gan:Array.from(s.gan), st:Array.from(s.st)});
+  const manual=(E.canales||[]).some(c=>c.usado&&(c.rev>0||c.prof>0));
+  MON.wk.port.postMessage({t:'rev', p:REVERBS[E.reverb]||(manual?REVERBS.sala:null), soloProf:!REVERBS[E.reverb]}); }
+// con la canción parada, los vúmetros se mueven con lo que se toca
+function vuTeclado(){ if(E.sonando||MON.rafVu) return; const bucle=()=>{ if(E.sonando){ MON.rafVu=0; return; } pintarVu();
+  if(performance.now()-(MON.ultimo||0)<1500) MON.rafVu=requestAnimationFrame(bucle); else { MON.rafVu=0; apagarVu(); } }; MON.rafVu=requestAnimationFrame(bucle); }
+// un evento del teclado: al hilo de audio (con los sonidos que necesite) o, si no hay, al sintetizador de siempre
+function tocarDirecto(e){
+  const s=monitor();
+  if(!MON.wk){ s.evento(e,0); return; }
+  const msg={t:'ev', e};
+  if(e.cmd===9 && e.b>0){
+    const c=s.can[e.ch], canal=E.canales&&E.canales[e.ch], sf=(canal&&typeof sfDe==='function') ? sfDe(canal) : E.sf;
+    if(!sf){ msg.simple=true; }
+    else { const key=Math.max(0,Math.min(127,e.a+s.st[e.ch])), regs=regionesSF2(sf, c.banco, c.prog, key, e.b);
+      msg.regs=regs.map(r=>{ let id=MON.ids.get(r.mem.data); if(!id){ id=MON.sig++; MON.ids.set(r.mem.data,id); }
+        if(!MON.enviados.has(id)){ MON.wk.port.postMessage({t:'dat', id, data:r.mem.data}); MON.enviados.add(id); }
+        return {g:r.g, s:r.s, base:r.mem.base, id}; }); }
+  } else if(e.cmd===0xB||e.cmd===0xC) s.evento(e,0);   // el hilo principal lleva la cuenta de banco y programa
+  MON.wk.port.postMessage(msg);
 }
 // instrumento del canal de tocar: banco + programa, y se cargan sus sonidos del .sf2
 async function ponerInstrumentoDirecto(){
   const ch=USB.canal??0, v=USB.inst??0, banco=Math.floor(v/128), prog=v%128, s=monitor();
-  s.evento({tipo:'ch',cmd:0xB,ch,a:0,b:banco},0); s.evento({tipo:'ch',cmd:0xC,ch,a:prog,b:0},0);
+  tocarDirecto({tipo:'ch',cmd:0xB,ch,a:0,b:banco}); tocarDirecto({tipo:'ch',cmd:0xC,ch,a:prog,b:0});
   const sf=(E.canales&&E.canales[ch]&&typeof sfDe==='function') ? sfDe(E.canales[ch]) : E.sf;
   if(sf){ const set=new Set(); muestrasDePreset(sf, presetDe(sf,banco,prog), set); const falta=[...set].filter(i=>!sf.mem.has(i)); if(falta.length){ avisoUsb('Cargando el sonido del soundfont…'); await cargarMuestras(sf, falta); avisoUsb('Listo: toca y suena con «'+($('usbInst').selectedOptions[0]?.textContent||'')+'» de tu soundfont.'); } }
 }
@@ -2987,7 +3049,7 @@ function alTocar(msg){
   // se escucha al momento: en el teclado si el MIDI sale por él, si no en el sintetizador de la app
   // si se toca el mismo teclado por el que sale el MIDI, ya suena solo (no se duplica)
   if(E.salidaMidi){ if(!(USB.entrada && USB.salida.name===USB.entrada.name)) enviar([st|ch, a, b]); }
-  else monitor().evento({tipo:'ch',cmd,ch,a,b},0);
+  else tocarDirecto({tipo:'ch',cmd,ch,a,b});
   if(E.audio) return;
   if(E.grabando && USB.toma && E.midi){
     // momento de la canción que se estaba oyendo al tocar (descontando el retraso del audio)
@@ -3045,6 +3107,9 @@ function rehacerTrasToma(){
 
 // MIDI nuevo: sin tomas pendientes y lista de canales libres al día
 function usbNuevoMidi(){ if(!USB) return; USB.tomas=[]; $('usbDeshacer').disabled=true; if(USB.acc){ $('usbGrab').hidden=![...USB.acc.inputs.values()].length || !E.midi; canalesLibres(); } }
+
+// cambios en la mesa con la canción parada: también para lo que se toca
+function refrescarMonitor(){ if(!MON||!MON.v||E.audio||!E.canales) return; MON.v.mesa(E.canales,E.modo); MON.v.fijarReverb(E.reverb, E.canales.some(c=>c.usado&&(c.rev>0||c.prof>0))); enviarMesa(); }
 </script>
 
 </body>
