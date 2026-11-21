@@ -127,7 +127,7 @@ body.land #rot{display:none!important}
 </head>
 <body>
 <div id="start"><div class="st-in"><div id="title2"><span class="t1">Super</span><span class="t2">Autocross</span><span class="by">by JMTorres</span></div><div class="flags"><button class="flag" data-l="ca" aria-label="Català"><i class="f-ca"></i><b>Català</b></button><button class="flag" data-l="es" aria-label="Castellano"><i class="f-es"></i><b>Castellano</b></button><button class="flag" data-l="fr" aria-label="Français"><i class="f-fr"></i><b>Français</b></button></div><div class="hint">▶ Tria · Elige · Choisis &nbsp;🎵</div></div></div>
-<div id="ver">v14</div>
+<div id="ver">v15</div>
 <div id="bz"><span>🛑 FRENO</span></div>
 <div id="rot"><div>↻</div><span id="rotTxt">Gira el móvil en horizontal</span></div>
 <div id="app">
@@ -254,17 +254,20 @@ const endDrag=()=>{dragging=false};wb.addEventListener('pointerup',endDrag);wb.a
    Usa deviceorientation; si no llega, usa devicemotion (gravedad) como alternativa. */
 let gyroOn=false,gyroLive=false,gyroWheel=0,gyroZero=null,gyroTimer=0,gyroSrc='';
 function scrAng(){return (screen.orientation&&screen.orientation.angle)||window.orientation||0}
-function applyTilt(t){if(gyroZero===null)gyroZero=t;let d=t-gyroZero;if(Math.abs(d)<2)d=0;else d-=Math.sign(d)*2;gyroWheel=Math.max(-150,Math.min(150,d*3.3))}
+/* recto = móvil nivelado (0°). 🎯 toma la posición actual como recta */
+let gyroCap=false,gyroLast=0;
+function applyTilt(t){gyroLast=t;if(gyroCap){gyroZero=t;gyroCap=false}if(gyroZero===null)gyroZero=0;let d=t-gyroZero;if(Math.abs(d)<2)d=0;else d-=Math.sign(d)*2;gyroWheel=Math.max(-150,Math.min(150,d*3.3))}
 /* vector "arriba" en coordenadas del móvil -> inclinación lateral respecto a la pantalla (vale en vertical y en horizontal) */
 function tiltFromUp(ux,uy){const a=scrAng();const sx=a==90?-uy:(a==-90||a==270)?uy:a==180?-ux:ux;return Math.asin(Math.max(-1,Math.min(1,-sx)))*180/Math.PI}
-function onOri(e){if(!gyroOn||e.gamma==null||e.beta==null)return;if(gyroSrc==='mot')gyroZero=null;gyroSrc='ori';gyroLive=true;
+function onOri(e){if(!gyroOn||e.gamma==null||e.beta==null)return;gyroSrc='ori';gyroLive=true;
   const b=e.beta*Math.PI/180,g=e.gamma*Math.PI/180;applyTilt(tiltFromUp(-Math.sin(g)*Math.cos(b),Math.sin(b)))}
 function onMot(e){if(!gyroOn||gyroSrc==='ori')return;const g=e.accelerationIncludingGravity;if(!g||g.x==null)return;gyroSrc='mot';gyroLive=true;
   const n=Math.hypot(g.x,g.y,g.z)||9.81;applyTilt(tiltFromUp(g.x/n,g.y/n))}
 function checkPort(){const land=innerWidth>innerHeight&&innerHeight<640;document.body.classList.toggle('port',innerHeight>innerWidth);document.body.classList.toggle('land',land);
   const wbx=document.getElementById('wheelBox'),app=document.getElementById('side'),dash=document.getElementById('dash');
   if(land&&wbx.parentNode!==app)app.appendChild(wbx);else if(!land&&wbx.parentNode!==dash)dash.insertBefore(wbx,dash.children[1])}
-addEventListener('resize',()=>{checkPort();gyroZero=null});checkPort();
+addEventListener('resize',()=>{checkPort()});
+if(screen.orientation)screen.orientation.addEventListener('change',()=>{gyroZero=0});checkPort();
 async function enterDrive(){document.body.classList.add('drive');checkPort();
   try{const el=document.documentElement;if(!document.fullscreenElement){if(el.requestFullscreen)await el.requestFullscreen({navigationUI:'hide'});else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen()}}catch(e){}
   try{if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape')}catch(e){}
@@ -283,7 +286,7 @@ function toggleGyro(){
   enterDrive();
   Promise.allSettled(asks).then(r=>{
     if(r.length&&r.every(x=>x.status==='fulfilled'&&x.value==='denied')){exitDrive();const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);msg(ios?T('permIOS'):T('fileBlock'),4500);return}
-    gyroOn=true;gyroLive=false;gyroZero=null;gyroSrc='';document.getElementById('gyro').classList.add('on');document.getElementById('bz').classList.add('show');
+    gyroOn=true;gyroLive=false;gyroZero=0;gyroSrc='';document.getElementById('gyro').classList.add('on');document.getElementById('bz').classList.add('show');
     GY_EV.forEach(([n,f])=>addEventListener(n,f));msg(T('tiltGo'),1800);
     clearTimeout(gyroTimer);gyroTimer=setTimeout(()=>{if(gyroOn&&!gyroLive){
       const inClaude=window.top!==window.self;
@@ -291,8 +294,8 @@ function toggleGyro(){
   })}
 document.getElementById('gyro').onclick=toggleGyro;
 /* tocar el volante con el giroscopio activo recalibra el centro */
-wb.addEventListener('dblclick',()=>{gyroZero=null});
-document.getElementById('ctr').onclick=()=>{gyroZero=null;msg(T('centered'),800)};
+wb.addEventListener('dblclick',()=>{gyroZero=gyroLast});
+document.getElementById('ctr').onclick=()=>{gyroZero=gyroLast;msg(T('centered'),800)};
 /* freno: mantener pulsado */
 let braking=false;const brEl=document.getElementById('brake');
 const bz=document.getElementById('bz');
