@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
 <title>Autocross</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
@@ -234,7 +235,7 @@ function setGauge(el,pct,txt,low){el.querySelector('.mk').style.left=(6+Math.max
 function updLcd(){const o=String(Math.floor(st.odo)).padStart(6,'0').slice(-6);document.getElementById('odo').innerHTML=[...o].map(d=>'<b>'+d+'</b>').join('');
  const h=Math.max(0,st.health);setGauge(gHp,h,'❤'+h,h<=30);
  const f=Math.max(0,Math.ceil(st.fuel));setGauge(gFu,f,'⛽'+f,f<=20);
- document.getElementById('rec').textContent='REC '+best}
+ document.getElementById('rec').textContent='REC '+best+' · v7'}
 const gHp=document.getElementById('gHp'),gFu=document.getElementById('gFu'),gTm=document.getElementById('gTm'),multEl=document.getElementById('mult');
 /* zonas: exterior x1, intermedio x1.2, interior x1.5 */
 function zoneMult(x,y){const r=Math.hypot(x-380,y-375);return r>=290?1:r>=205?1.2:1.5}
