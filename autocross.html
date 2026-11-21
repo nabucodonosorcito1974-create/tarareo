@@ -6,66 +6,92 @@
 <title>Autocross</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
-html,body{margin:0;height:100%;background:#1b1b1b;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;touch-action:none}
-#app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;background:#ff5a1f;padding:6px;gap:6px}
+html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;touch-action:none;
+ background:#8a5a33 repeating-linear-gradient(95deg,rgba(0,0,0,.08) 0 3px,transparent 3px 11px,rgba(255,255,255,.05) 11px 13px,transparent 13px 23px)}
+#app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;gap:7px;padding:8px;
+ background:linear-gradient(180deg,#ff7a3a,#f2541c 40%,#e44a14);border-radius:18px;
+ box-shadow:inset 0 2px 0 rgba(255,255,255,.45),inset 0 -4px 8px rgba(120,25,0,.45),0 6px 18px rgba(0,0,0,.45)}
 #boardWrap{position:relative;flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
-canvas#board{max-width:100%;max-height:100%;aspect-ratio:758/726;border-radius:8px;box-shadow:inset 0 0 0 3px #e0461a;display:block}
-#msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.72);color:#fff;font-weight:700;padding:8px 14px;border-radius:8px;font-size:15px;pointer-events:none;opacity:0;transition:opacity .25s;white-space:nowrap;text-align:center}
+canvas#board{max-width:100%;max-height:100%;aspect-ratio:758/726;border-radius:10px;display:block;box-shadow:0 0 0 3px #d9420f,0 0 0 5px rgba(255,160,110,.6),inset 0 0 8px #000}
+#msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.75);color:#fff;font-weight:700;padding:8px 14px;border-radius:8px;font-size:15px;pointer-events:none;opacity:0;transition:opacity .25s;white-space:nowrap;text-align:center}
 #msg.on{opacity:1}
-#dash{flex:0 0 auto;background:linear-gradient(#cfd3d6,#a9aeb2);border-radius:10px;padding:6px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:4px;border:3px solid #e0461a}
-.col{display:flex;flex-direction:column;align-items:center;gap:4px}
-#speedo{width:100%;max-width:120px;height:auto}
-.lcd{background:#1d2a1d;color:#9dff8a;font:700 13px ui-monospace,Menlo,monospace;padding:2px 6px;border-radius:4px;letter-spacing:1px}
+#dash{position:relative;flex:0 0 auto;border-radius:12px;padding:8px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:4px;
+ background:repeating-linear-gradient(90deg,rgba(255,255,255,.10) 0 1px,transparent 1px 3px),linear-gradient(180deg,#f1f3f5,#c9cdd1 40%,#e4e7ea 58%,#b3b8bd);
+ box-shadow:inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,.3),0 0 0 2px #c9400e,0 3px 0 2px #a8340a}
+#dash:before,#dash:after{content:"";position:absolute;top:12px;width:10px;height:20px;background:repeating-linear-gradient(#1c1c1c 0 2px,transparent 2px 5px)}
+#dash:before{left:0}#dash:after{right:0}
+.col{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+#speedo{width:100%;max-width:128px;height:auto;filter:drop-shadow(0 1px 0 rgba(255,255,255,.7))}
 .row{display:flex;gap:4px;align-items:center}
-.bar{position:relative;width:52px;height:18px;background:#222;border-radius:4px;overflow:hidden}.bar>div{position:absolute;left:0;top:0;bottom:0;width:100%;background:#3c3;transition:width .3s,background .3s}.bar>span{position:relative;display:block;text-align:center;font:800 10px/18px system-ui;color:#fff;text-shadow:0 0 2px #000}
-#mult{font:800 12px system-ui;color:#c01;min-width:28px}
-#rec{font-size:9px;font-weight:800;color:#333}
-.small{font-size:10px;color:#333;font-weight:700}
-#brake{width:40px;height:112px;border-radius:8px;background:repeating-linear-gradient(0deg,#333 0 6px,#222 6px 12px);border:2px solid #111;color:#ddd;font:800 9px system-ui;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center;justify-content:center;letter-spacing:1px;touch-action:none;box-shadow:0 3px 0 #000}
-#brake.on{transform:translateY(3px);box-shadow:none;color:#ff4d4d;border-color:#a00}
-button.ic.on{background:#1a7f1a}
-button.ic{border:0;background:#333;color:#fff;border-radius:6px;font-size:13px;width:30px;height:24px;padding:0}
-#wheelBox{width:min(38vw,175px);aspect-ratio:1;touch-action:none}
+/* cuentakilómetros estilo original */
+#odo{display:flex;gap:1px;padding:2px;background:#4b4f55;border-radius:3px;box-shadow:inset 0 1px 2px #000}
+#odo b{display:block;width:11px;height:15px;background:linear-gradient(#fff,#e2e2e2);color:#111;font:800 11px/15px ui-monospace,Menlo,monospace;text-align:center;border-radius:1px}
+#odo b:last-child{background:linear-gradient(#e33,#b10f0f);color:#fff}
+#mult{font:900 11px system-ui;color:#fff;background:#d4280f;border-radius:3px;padding:1px 4px;box-shadow:0 1px 0 #7a1506}
+/* relojes pequeños (salud, gasolina, tiempo) */
+.gauge{position:relative;width:34px;height:28px;border-radius:4px;padding:2px;background:linear-gradient(#d8d0e4,#9c93ad);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.4)}
+.gauge .w{position:relative;height:100%;border-radius:2px;overflow:hidden;background:linear-gradient(#f6b29f,#e2694f);box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
+.gauge .w:before{content:"";position:absolute;left:2px;right:2px;top:2px;height:7px;background:#fff repeating-linear-gradient(90deg,#222 0 1px,transparent 1px 5px);border-radius:1px}
+.gauge .mk{position:absolute;top:1px;width:4px;height:10px;margin-left:-2px;background:#d10f0f;border:1px solid #300;transition:left .3s}
+.gauge .v{position:absolute;left:0;right:0;bottom:0;font:800 8.5px/13px system-ui;color:#fff;text-align:center;text-shadow:0 0 2px #5a1000;white-space:nowrap}
+.gauge.low .w{animation:blink .6s infinite alternate}
+@keyframes blink{to{background:linear-gradient(#ff5a5a,#a80000)}}
+#rec{white-space:nowrap;font:800 8px system-ui;color:#555;letter-spacing:.5px;text-shadow:0 1px 0 #fff}
+/* botoncitos cromados */
+button.ic{border:0;width:28px;height:22px;padding:0;font-size:12px;border-radius:5px;background:linear-gradient(#fdfdfd,#aeb3b8);box-shadow:inset 0 -1px 0 rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.45)}
+button.ic.on{background:linear-gradient(#9ff59a,#3fae38)}
+/* volante */
+#wheelBox{width:min(38vw,175px);aspect-ratio:1;touch-action:none;filter:drop-shadow(0 5px 4px rgba(0,0,0,.45))}
 #wheel{width:100%;height:100%;display:block;transform-origin:50% 50%}
-/* gear */
-#gear{position:relative;width:44px;height:112px;background:#2a2a2a;border-radius:8px;touch-action:none}
-#gear .slot{position:absolute;left:60%;top:10px;bottom:10px;width:6px;margin-left:-3px;background:#000;border-radius:3px}
-#gear .n{position:absolute;left:5px;font-size:11px;font-weight:800;color:#ddd;transform:translateY(-50%)}
-#knob{position:absolute;left:60%;width:26px;height:26px;margin-left:-13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#666,#111);box-shadow:0 2px 3px rgba(0,0,0,.5);transform:translateY(-50%);transition:top .12s}
-/* key */
-#keyBox{display:flex;align-items:center;gap:4px}
-#keyLbl{display:flex;flex-direction:column;gap:2px;font-size:9px;font-weight:800;color:#222;text-align:right}
+/* llave */
+#keyBox{display:flex;align-items:center;gap:5px;background:linear-gradient(#45494e,#2a2d31);border-radius:6px;padding:4px 5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 1px 2px rgba(0,0,0,.4)}
+#keyLbl{display:flex;flex-direction:column;gap:2px;font:800 8px system-ui;color:#e9e9e9;text-align:right;letter-spacing:.3px}
 #keyLbl span{display:flex;align-items:center;gap:3px;justify-content:flex-end}
-#keyLbl i{width:7px;height:7px;border-radius:50%;background:#555;display:inline-block}
-#keyLbl i.on{background:#ff2d2d;box-shadow:0 0 5px #f00}
-#key{width:40px;height:40px;flex:0 0 auto;border-radius:50%;background:radial-gradient(circle,#eee,#999);position:relative;border:2px solid #555;touch-action:none}
-#key .blade{position:absolute;left:50%;top:50%;width:9px;height:30px;margin:-15px 0 0 -4.5px;background:#c41c1c;border-radius:4px;transition:transform .15s}
-#key .blade:after{content:"";position:absolute;left:-6px;top:-4px;width:22px;height:14px;background:#fff;border-radius:6px;border:1px solid #999}
+#keyLbl span:nth-child(2){color:#ff4a3a}
+#keyLbl i{width:7px;height:7px;border-radius:50%;background:#1a1a1a;box-shadow:inset 0 1px 1px #000,0 0 0 1px #555;display:inline-block}
+#keyLbl i.on{background:#ff2d2d;box-shadow:0 0 6px #f00}
+#key{width:40px;height:40px;flex:0 0 auto;border-radius:50%;position:relative;touch-action:none;background:radial-gradient(circle at 40% 35%,#fff,#b8bcc0 55%,#7d8287);box-shadow:inset 0 0 0 3px #9aa0a6,0 2px 3px rgba(0,0,0,.5)}
+#key .blade{position:absolute;left:50%;top:50%;width:10px;height:32px;margin:-16px 0 0 -5px;background:linear-gradient(90deg,#e9e9e9,#fff,#cfcfcf);border-radius:5px 5px 3px 3px;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.5)}
+#key .blade:after{content:"";position:absolute;left:-7px;bottom:-5px;width:24px;height:12px;background:radial-gradient(circle at 50% 30%,#ff5a4a,#b81010);border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.5)}
+/* palanca de cambios */
+#gear{position:relative;width:44px;height:112px;border-radius:8px;touch-action:none;background:linear-gradient(90deg,#9ea3a8,#e6e8ea 40%,#a7acb1);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.4)}
+#gear .slot{position:absolute;left:60%;top:10px;bottom:10px;width:8px;margin-left:-4px;background:#111;border-radius:4px;box-shadow:inset 0 1px 2px #000,0 1px 0 #fff}
+#gear .n{position:absolute;left:5px;font:900 11px system-ui;color:#222;transform:translateY(-50%);text-shadow:0 1px 0 #fff}
+#knob{position:absolute;left:60%;width:28px;height:28px;margin-left:-14px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7a7a7a,#1a1a1a 45%,#000);box-shadow:0 3px 4px rgba(0,0,0,.6);transform:translateY(-50%);transition:top .12s}
+/* freno */
+#brake{width:40px;height:112px;border-radius:9px;padding:3px;background:linear-gradient(90deg,#9ea3a8,#eef0f2,#a7acb1);box-shadow:0 1px 2px rgba(0,0,0,.45);touch-action:none}
+#brake div{height:100%;width:100%;border-radius:6px;background:repeating-linear-gradient(0deg,#2b2b2b 0 5px,#151515 5px 9px);display:flex;align-items:center;justify-content:center;color:#ccc;font:900 9px system-ui;writing-mode:vertical-rl;text-orientation:upright;letter-spacing:1px;box-shadow:0 3px 0 #000;transition:transform .05s}
+#bz{position:fixed;top:0;right:0;width:50%;height:42%;z-index:5;display:none;touch-action:none;border-bottom-left-radius:30px}
+#bz.show{display:block}
+#bz span{position:absolute;right:10px;top:10px;font:900 11px system-ui;color:#fff;background:rgba(200,0,0,.55);padding:3px 8px;border-radius:10px;opacity:.85;transition:opacity 1s}
+#bz.on{background:rgba(255,0,0,.18)}
+#brake.on div{transform:translateY(3px);box-shadow:none;color:#ff4d4d}
 </style>
 </head>
 <body>
+<div id="bz"><span>🛑 FRENO</span></div>
 <div id="app">
   <div id="boardWrap"><canvas id="board" width="758" height="726"></canvas><div id="msg"></div></div>
   <div id="dash">
     <div class="col">
-      <svg id="speedo" viewBox="0 0 120 70"></svg>
-      <div class="row"><span class="lcd" id="odo">000000</span><span id="mult">x1</span></div><div class="row"><span class="lcd" id="tm">2:00</span><span id="rec">Récord 0</span></div>
-      <div class="row"><div class="bar" title="Salud del coche"><div id="hpBar"></div><span id="hpTxt">❤100</span></div><div class="bar" title="Gasolina"><div id="fuBar"></div><span id="fuTxt">⛽100</span></div></div>
-      <div class="row"><button class="ic" id="snd" title="Sonido">🔇</button><button class="ic" id="rst" title="Reiniciar">↺</button><button class="ic" id="gyro" title="Girar inclinando el móvil">📱</button></div>
+      <svg id="speedo" viewBox="0 0 140 84"></svg>
+      <div class="row"><div id="odo"></div><span id="mult">x1</span></div>
+      <div class="row"><div class="gauge" id="gHp" title="Salud del coche"><div class="w"><div class="mk"></div><div class="v"></div></div></div><div class="gauge" id="gFu" title="Gasolina"><div class="w"><div class="mk"></div><div class="v"></div></div></div><div class="gauge" id="gTm" title="Tiempo"><div class="w"><div class="mk"></div><div class="v"></div></div></div></div>
+      <div class="row"><button class="ic" id="snd" title="Sonido">🔇</button><button class="ic" id="rst" title="Reiniciar">↺</button><button class="ic" id="gyro" title="Girar inclinando el móvil">📱</button><span id="rec">REC 0</span></div>
     </div>
     <div id="wheelBox"><svg id="wheel" viewBox="-100 -100 200 200">
       <circle r="88" fill="none" stroke="#111" stroke-width="18"/>
-      <circle r="88" fill="none" stroke="#2c2c2c" stroke-width="3" stroke-dasharray="3 6"/>
+      <circle r="88" fill="none" stroke="#3a3a3a" stroke-width="16" stroke-dasharray="2.5 4.5"/><circle r="80" fill="none" stroke="#000" stroke-width="1.5" opacity=".6"/>
       <path d="M-80,10 L-25,6 L-18,60 L18,60 L25,6 L80,10 L80,-6 L25,-14 L-25,-14 L-80,-6Z" fill="#141414"/>
       <circle r="24" fill="#141414"/><circle r="15" fill="#d81e1e"/><circle r="9" cx="-4" cy="-4" fill="#ff5b5b" opacity=".6"/>
       <rect x="-4" y="-97" width="8" height="12" rx="2" fill="#ffcc00"/>
     </svg></div>
     <div class="col">
       <div id="keyBox">
-        <div id="keyLbl"><span>MAX <i id="lMax"></i></span><span>STOP <i id="lStop" class="on"></i></span><span>MIN <i id="lMin"></i></span></div>
+        <div id="keyLbl"><span>MAX.BAT <i id="lMax"></i></span><span>STOP <i id="lStop" class="on"></i></span><span>MIN.BAT <i id="lMin"></i></span></div>
         <div id="key"><div class="blade"></div></div>
       </div>
-      <div class="row" style="gap:6px"><div id="gear"><div class="slot"></div><div id="knob"></div></div><div id="brake" title="Freno">FRENO</div></div>
+      <div class="row" style="gap:6px"><div id="gear"><div class="slot"></div><div id="knob"></div></div><div id="brake" title="Freno"><div>FRENO</div></div></div>
     </div>
   </div>
 </div>
@@ -83,11 +109,15 @@ let dragging=false,lastPtrAng=0,soundOn=false;
 function onRoad(x,y){x=Math.round(x);y=Math.round(y);if(x<0||y<0||x>=W||y>=H)return false;return mask[(y*W+x)*4]>127}
 function loadMask(){const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.drawImage(mimg,0,0);mask=g.getImageData(0,0,W,H).data}
 
-/* ---------- speedometer ---------- */
+/* ---------- velocímetro trapezoidal (como el original) ---------- */
 const sp=document.getElementById('speedo');
-(function(){let s='<path d="M10,62 A50,50 0 0 1 110,62" fill="none" stroke="#222" stroke-width="4"/>';
- for(let i=0;i<=9;i++){const a=Math.PI*(1-i/9),c=Math.cos(a),n=Math.sin(a);s+=`<line x1="${60+c*44}" y1="${62-n*44}" x2="${60+c*50}" y2="${62-n*50}" stroke="#222" stroke-width="2"/>`;if(i%3==0)s+=`<text x="${60+c*34}" y="${66-n*34}" font-size="9" font-weight="700" text-anchor="middle" fill="#222">${i*20}</text>`}
- s+='<line id="needle" x1="60" y1="62" x2="14" y2="62" stroke="#e01b1b" stroke-width="3" stroke-linecap="round"/><circle cx="60" cy="62" r="4" fill="#222"/>';sp.innerHTML=s})();
+(function(){let s='<path d="M3 82 V30 Q3 5 26 5 H108 Q120 5 124 16 L138 82 Z" fill="#d3e86f" stroke="#3d4a12" stroke-width="1.5"/>';
+ s+='<path d="M30 81 V42 Q30 32 40 32 H98 Q106 32 108 40 L116 81 Z" fill="#f6f2b9" stroke="#2a2a2a" stroke-width="1.2"/>';
+ for(let i=0;i<=10;i++){const a=Math.PI*(1-i/10),c=Math.cos(a),n=Math.sin(a);s+=`<line x1="${73+c*18}" y1="${80-n*18}" x2="${73+c*(i%2?30:38)}" y2="${80-n*(i%2?30:38)}" stroke="#2a2a2a" stroke-width="${i%2?1.2:2}"/>`}
+ const N=[[16,80,'0'],[16,64,'20'],[16,47,'40'],[30,23,'60'],[52,23,'80'],[75,23,'100'],[98,23,'120'],[123,44,'160'],[129,70,'180']];
+ for(const [x,y,v] of N)s+=`<text x="${x}" y="${y}" font-size="9.5" font-weight="900" text-anchor="middle" fill="#c8160c" font-family="system-ui">${v}</text>`;
+ s+='<line id="needle" x1="73" y1="80" x2="39" y2="80" stroke="#e01b1b" stroke-width="3" stroke-linecap="round"/><ellipse cx="73" cy="78" rx="8" ry="4" fill="#e8550f" stroke="#7a2a00" stroke-width=".8"/>';
+ sp.innerHTML=s})();
 const needle=()=>document.getElementById('needle');
 
 /* ---------- gear lever (4 posiciones) ---------- */
@@ -123,17 +153,20 @@ function onOri(e){if(!gyroOn||e.gamma==null)return;gyroLive=true;const t=tiltOf(
   if(gyroZero===null)gyroZero=t;let d=t-gyroZero;if(Math.abs(d)<2)d=0;else d-=Math.sign(d)*2;
   gyroWheel=Math.max(-150,Math.min(150,d*6))}
 async function toggleGyro(){const b=document.getElementById('gyro');
-  if(gyroOn){gyroOn=false;gyroLive=false;b.classList.remove('on');removeEventListener('deviceorientation',onOri);msg('Volante táctil',900);return}
+  if(gyroOn){gyroOn=false;gyroLive=false;b.classList.remove('on');document.getElementById('bz').classList.remove('show');removeEventListener('deviceorientation',onOri);msg('Volante táctil',900);return}
   try{if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission){await DeviceOrientationEvent.requestPermission()}}catch(e){}
-  gyroOn=true;gyroLive=false;gyroZero=null;b.classList.add('on');addEventListener('deviceorientation',onOri);
+  gyroOn=true;gyroLive=false;gyroZero=null;b.classList.add('on');document.getElementById('bz').classList.add('show');addEventListener('deviceorientation',onOri);
   msg('📱 Inclina el móvil para girar',1500);
-  clearTimeout(gyroTimer);gyroTimer=setTimeout(()=>{if(gyroOn&&!gyroLive){gyroOn=false;b.classList.remove('on');removeEventListener('deviceorientation',onOri);msg('Giroscopio no disponible aquí<br><small>Úsalo en la versión web</small>',2600)}},1500)}
+  clearTimeout(gyroTimer);gyroTimer=setTimeout(()=>{if(gyroOn&&!gyroLive){gyroOn=false;b.classList.remove('on');document.getElementById('bz').classList.remove('show');removeEventListener('deviceorientation',onOri);msg('Giroscopio no disponible aquí<br><small>Úsalo en la versión web</small>',2600)}},1500)}
 document.getElementById('gyro').onclick=toggleGyro;
 /* tocar el volante con el giroscopio activo recalibra el centro */
 wb.addEventListener('dblclick',()=>{gyroZero=null});
 /* freno: mantener pulsado */
 let braking=false;const brEl=document.getElementById('brake');
-const brOn=e=>{braking=true;brEl.classList.add('on');try{brEl.setPointerCapture(e.pointerId)}catch(_){};click()},brOff=()=>{braking=false;brEl.classList.remove('on')};
+const bz=document.getElementById('bz');
+const brOn=e=>{braking=true;brEl.classList.add('on');bz.classList.add('on');try{e.currentTarget.setPointerCapture(e.pointerId)}catch(_){};click()},brOff=()=>{braking=false;brEl.classList.remove('on');bz.classList.remove('on')};
+/* con el giroscopio activo, mantener pulsada la parte superior derecha de la pantalla = freno */
+bz.addEventListener('pointerdown',brOn);bz.addEventListener('pointerup',brOff);bz.addEventListener('pointercancel',brOff);
 brEl.addEventListener('pointerdown',brOn);brEl.addEventListener('pointerup',brOff);brEl.addEventListener('pointercancel',brOff);
 /* teclado (para probar en ordenador) */
 const keys={};addEventListener('keydown',e=>{keys[e.key]=1;if('1234'.includes(e.key))setGear(+e.key);if(e.key=='m')setKey(-1);if(e.key=='x')setKey(1);if(e.key=='s')setKey(0)});addEventListener('keyup',e=>keys[e.key]=0);
@@ -148,9 +181,12 @@ document.getElementById('rst').onclick=()=>{Object.assign(st,{x:START.x,y:START.
 const msgEl=document.getElementById('msg');let msgT=0;
 function msg(t,ms=1100){msgEl.innerHTML=t;msgEl.classList.add('on');clearTimeout(msgT);if(ms)msgT=setTimeout(()=>msgEl.classList.remove('on'),ms)}
 let best=0;try{best=+localStorage.getItem('autocrossBest')||0}catch(e){}
-function updLcd(){document.getElementById('odo').textContent=String(Math.floor(st.odo)).padStart(6,'0');const h=Math.max(0,st.health);hpBar.style.width=h+'%';hpBar.style.background=h>60?'#3c3':h>30?'#f0b400':'#e22';hpTxt.textContent='❤'+h;
- const f=Math.max(0,Math.ceil(st.fuel));fuBar.style.width=f+'%';fuBar.style.background=f>40?'#2a8cff':f>15?'#f0b400':'#e22';fuTxt.textContent='⛽'+f;document.getElementById('rec').textContent='Récord '+best}
-const hpBar=document.getElementById('hpBar'),hpTxt=document.getElementById('hpTxt'),fuBar=document.getElementById('fuBar'),fuTxt=document.getElementById('fuTxt'),multEl=document.getElementById('mult'),tmEl=document.getElementById('tm');
+function setGauge(el,pct,txt,low){el.querySelector('.mk').style.left=(6+Math.max(0,Math.min(100,pct))*0.84)+'%';el.querySelector('.v').textContent=txt;el.classList.toggle('low',!!low)}
+function updLcd(){const o=String(Math.floor(st.odo)).padStart(6,'0').slice(-6);document.getElementById('odo').innerHTML=[...o].map(d=>'<b>'+d+'</b>').join('');
+ const h=Math.max(0,st.health);setGauge(gHp,h,'❤'+h,h<=30);
+ const f=Math.max(0,Math.ceil(st.fuel));setGauge(gFu,f,'⛽'+f,f<=20);
+ document.getElementById('rec').textContent='REC '+best}
+const gHp=document.getElementById('gHp'),gFu=document.getElementById('gFu'),gTm=document.getElementById('gTm'),multEl=document.getElementById('mult');
 /* zonas: exterior x1, intermedio x1.2, interior x1.5 */
 function zoneMult(x,y){const r=Math.hypot(x-380,y-375);return r>=290?1:r>=205?1.2:1.5}
 /* surtidores (x 322-411, y 532-553) con margen */
@@ -193,14 +229,14 @@ function step(dt){
   // cronómetro de 2 minutos (empieza al girar la llave)
   if(!st.over&&st.key!=0)st.started=true;
   if(st.started&&!st.over){st.time-=dt;if(st.time<=0){st.time=0;gameOver('⏱ ¡Tiempo!')}}
-  {const s=Math.ceil(st.time);tmEl.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');tmEl.style.color=s<=15?'#ff5050':''}
+  {const s=Math.ceil(st.time);setGauge(gTm,s/GAME_TIME*100,Math.floor(s/60)+':'+String(s%60).padStart(2,'0'),s<=15)}
   // repostar: parado (llave en STOP) junto a la gasolinera 5 s
   if(!st.over&&(st.key==0||braking||keys[' '])&&st.v<1&&atStation()&&st.fuel<100){st.refuel+=dt;const left=Math.ceil(5-st.refuel);
     if(st.refuel>=5){st.fuel=100;st.refuel=0;st.lowWarn=false;msg('⛽ Depósito lleno',1300);updLcd()}else msg('⛽ Repostando… '+left,600)}
   else st.refuel=0;
   // velocímetro: 0-180
   const kmh=Math.min(180,st.v*1.4);const ang=Math.PI*(1-kmh/180);
-  const n=needle();n.setAttribute('x2',60+Math.cos(ang)*46);n.setAttribute('y2',62-Math.sin(ang)*46);
+  const n=needle();n.setAttribute('x2',73+Math.cos(ang)*36);n.setAttribute('y2',80-Math.sin(ang)*36);
   if(ac&&gain){gain.gain.value=soundOn&&st.key!=0?0.05:0;osc.frequency.value=45+st.v*1.6+st.gear*6}
 }
 function drawCar(){
