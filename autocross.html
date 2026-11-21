@@ -70,12 +70,13 @@ button.ic.on{background:linear-gradient(#9ff59a,#3fae38)}
 #knob{position:absolute;left:60%;width:28px;height:28px;margin-left:-14px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7a7a7a,#1a1a1a 45%,#000);box-shadow:0 3px 4px rgba(0,0,0,.6);transform:translateY(-50%);transition:top .12s}
 /* freno */
 #brake{width:40px;height:112px;border-radius:9px;padding:3px;background:linear-gradient(90deg,#9ea3a8,#eef0f2,#a7acb1);box-shadow:0 1px 2px rgba(0,0,0,.45);touch-action:none}
-#brake div{height:100%;width:100%;border-radius:6px;background:repeating-linear-gradient(0deg,#2b2b2b 0 5px,#151515 5px 9px);display:flex;align-items:center;justify-content:center;color:#ccc;font:900 9px system-ui;writing-mode:vertical-rl;text-orientation:upright;letter-spacing:1px;box-shadow:0 3px 0 #000;transition:transform .05s}
+#brake div{height:100%;width:100%;border-radius:6px;background:repeating-linear-gradient(0deg,#2b2b2b 0 5px,#151515 5px 9px);display:flex;align-items:center;justify-content:center;color:#ccc;font:900 11px system-ui;writing-mode:vertical-rl;text-orientation:mixed;letter-spacing:3px;box-shadow:0 3px 0 #000;transition:transform .05s}
 #bz{position:fixed;top:0;right:0;width:50%;height:42%;z-index:5;display:none;touch-action:none;border-bottom-left-radius:30px}
 #bz.show{display:block}
 #bz span{position:absolute;right:10px;top:10px;font:900 11px system-ui;color:#fff;background:rgba(200,0,0,.55);padding:3px 8px;border-radius:10px;opacity:.85;transition:opacity 1s}
 #bz.on{background:rgba(255,0,0,.18)}
 #ctr{display:none}
+#dash>.rBtn{grid-column:1/-1;justify-content:center;gap:8px;margin-top:2px}
 #view3d{display:none}
 body.v3d #view3d{display:block;position:absolute;inset:0;width:100%;height:100%;border-radius:10px;box-shadow:0 0 0 3px #f0662c,0 0 0 5px #b8390b,0 8px 18px rgba(60,10,0,.5)}
 body.v3d #boardWrap{padding-bottom:0}
@@ -132,7 +133,7 @@ body.land #rot{display:none!important}
 </head>
 <body>
 <div id="start"><div class="st-in"><div id="title2"><span class="t1">Super</span><span class="t2">Autocross</span><span class="by">by JMTorres</span></div><div class="flags"><button class="flag" data-l="ca" aria-label="Català"><i class="f-ca"></i><b>Català</b></button><button class="flag" data-l="es" aria-label="Castellano"><i class="f-es"></i><b>Castellano</b></button><button class="flag" data-l="fr" aria-label="Français"><i class="f-fr"></i><b>Français</b></button></div><div class="hint">▶ Tria · Elige · Choisis &nbsp;🎵</div></div></div>
-<div id="ver">v16</div>
+<div id="ver">v17</div>
 <div id="bz"><span>🛑 FRENO</span></div>
 <div id="rot"><div>↻</div><span id="rotTxt">Gira el móvil en horizontal</span></div>
 <div id="app">
@@ -143,7 +144,6 @@ body.land #rot{display:none!important}
       <svg id="speedo" class="rSp" viewBox="0 0 140 84"></svg>
       <div class="row rOdo"><div id="odo"></div><span id="mult">x1</span></div>
       <div class="row rGa"><div class="gauge" id="gHp" title="Salud del coche"><div class="w"><div class="mk"></div><div class="v"></div></div></div><div class="gauge" id="gFu" title="Gasolina"><div class="w"><div class="mk"></div><div class="v"></div></div></div><div class="gauge" id="gTm" title="Tiempo"><div class="w"><div class="mk"></div><div class="v"></div></div></div></div>
-      <div class="row rBtn"><button class="ic" id="snd" title="Sonido">🔇</button><button class="ic" id="rst" title="Reiniciar">↺</button><button class="ic" id="gyro" title="Modo móvil: girar inclinando el móvil">📱</button><button class="ic" id="cam3d" title="Vista desde el coche">🎥</button><button class="ic" id="ctr" title="Recentrar el volante">🎯</button><span id="rec">REC 0</span></div>
     </div>
     <div id="wheelBox"><svg id="wheel" viewBox="-100 -100 200 200">
       <circle r="88" fill="none" stroke="#111" stroke-width="18"/>
@@ -159,6 +159,7 @@ body.land #rot{display:none!important}
       </div>
       <div class="row rGear" style="gap:6px"><div id="gear"><div class="slot"></div><div id="knob"></div></div><div id="brake" title="Freno"><div>FRENO</div></div></div>
     </div>
+    <div class="row rBtn"><button class="ic" id="snd" title="Sonido">🔇</button><button class="ic" id="rst" title="Reiniciar">↺</button><button class="ic" id="gyro" title="Modo móvil: girar inclinando el móvil">📱</button><button class="ic" id="cam3d" title="Vista desde el coche">🎥</button><button class="ic" id="ctr" title="Recentrar el volante">🎯</button><span id="rec">REC 0</span></div>
   </div>
 </div>
 <script>
