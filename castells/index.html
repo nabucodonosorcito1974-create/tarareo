@@ -302,12 +302,15 @@ if(shx)o+=`<ellipse cx="190" cy="${by+3}" rx="${shx}" ry="8" fill="#000" opacity
 function ready(){return !!($('ty').value&&$('pi').value&&$('ba').value!==''&&$('cl').value!==''&&(som()||$('co').value))}
 function gate(){const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;$('pi').disabled=!t;$('ba').disabled=!p;$('cl').disabled=b==='';$('co').disabled=c==='';
 $('coL').classList.toggle('hid',som());$('agL').classList.toggle('hid',!(t=='3'||t=='4')||!p)}
-function drawEmpty(){const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;
-const m=!t?'Tria el tipus de castell':!p?'Tria quants pisos':b===''?'Tria la base: pinya, folre, manilles…':c===''?'Tria la colla':'Escriu quantes persones té la colla (mida de la pinya)';
-$('rs').textContent=m;$('rs').style.background='var(--warnb)';$('rs').style.color='var(--warn)';$('rf').textContent='';$('kp').innerHTML='';$('tb').innerHTML='';
+function drawEmpty(msg,bad){const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;
+const m=msg?msg:!t?'Tria el tipus de castell':!p?'Tria quants pisos':b===''?'Tria la base: pinya, folre, manilles…':c===''?'Tria la colla':'Escriu quantes persones té la colla (mida de la pinya)';
+$('rs').textContent=m;$('rs').style.background=bad?'var(--badb)':'var(--warnb)';$('rs').style.color=bad?'var(--bad)':'var(--warn)';$('rf').textContent='';$('kp').innerHTML='';$('tb').innerHTML='';
 const H=420,by=H-24;$('cv').innerHTML=`<svg viewBox="0 0 380 ${H}" role="img" aria-label="Plaça buida"><rect width="380" height="${H}" style="fill:var(--sky)"/>`+bgSVG(H,by,0)+'</svg>';
 if(T3){while(T3.root.children.length)T3.root.remove(T3.root.children[0]);r3()}selK=null;$('sel3').classList.add('hid');if(typeof tocStop=='function'){tocStop(.2);lastSig=''}}
-function run(){gate();if(!ready()){drawEmpty();return}last=null;const R=calc();draw(R);if(som())drawSom();if(v3)build3D(R);drawSel();toc(R)}
+function run(){gate();if(!ready()){drawEmpty();return}last=null;const R=calc();
+if(R.co<R.needOwn||R.miss>=2){const parts=`tronc ${R.tr}${R.fo?', folre '+R.fo:''}${R.ma?', manilles '+R.ma:''}${R.pu?', puntals '+R.pu:''} i ${R.CP} cordons propis de pinya (${R.own})`;
+drawEmpty(R.co<R.needOwn?`No hi ha prou gent: aquest castell en necessita ${R.needOwn} de la colla (${parts}) i en tens ${R.co}. Escriu més persones o tria un castell més petit.`:`Sense altres colles, a la pinya hi faltarien ${R.miss} cordons: el cap de colla no el deixa tirar. Escriu més persones o marca "altres colles".`,true);
+if(som())drawSom();return}draw(R);if(som())drawSom();if(v3)build3D(R);drawSel();toc(R)}
 function drawSom(){
 $('sh').textContent=`Temporada ${G.temp}`+(G.phase=='diada'?` · diada ${G.diada} de 6 · ronda ${G.ronda} de 3`:' · pretemporada');
 $('sst').innerHTML=`<span>Colla <b>${G.memb}</b></span><span>Punts totals <b>${G.total}</b></span><span>Aquesta temporada <b>${G.tempPts}</b></span><span>Tècnica <b>${(G.tech>=0?'+':'')+G.tech.toFixed(2)}</b></span><span>Força <b>×${G.forca.toFixed(2)}</b></span><span>Resistència <b>×${G.res.toFixed(2)}</b></span><span>Pinya <b>×${G.pinya.toFixed(2)}</b></span><span>Millor <b>${G.best}</b></span>`+(G.u11?'<span><b>Castells d\'11 desbloquejats</b></span>':'');
