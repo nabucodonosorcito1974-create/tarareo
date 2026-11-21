@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Joc de castells</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: festiu, de plaça, juganer però net
+   IDEA: la plaça del poble un dia de diada: cel, pedra i el castell al mig
+   PICTURE: el castell de ninots aixecant-se sobre la plaça, gran, a dalt
+   COLOUR and TYPE: cel blau, pedra de plaça, vermell de camisa com a accent; Barlow Condensed per als rètols, Barlow per al text
+   LAYOUT: una columna de mòbil: escena, resultat, xifres, controls i fitxes per pis */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#121417);--ink:light-dark(#1c1d20,#eceae6);--mut:light-dark(#62656b,#a3a6ab);--line:light-dark(#e3e0da,#2c2f34);--sky:light-dark(#bfe1f5,#14283d);--stone:light-dark(#d9cfc0,#3a342d);--card:light-dark(#f5f3ef,#1b1e22);--acc:#c0392b;--ok:light-dark(#1b7f5c,#5fd3a5);--warn:light-dark(#a86400,#f2b45a);--bad:light-dark(#b42318,#ff8a80);--okb:light-dark(#e3f4ec,#173328);--warnb:light-dark(#fdf1dc,#3a2c12);--badb:light-dark(#fde7e5,#3d1a18)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Barlow,system-ui,sans-serif;overflow-x:clip}
+.app{max-width:560px;margin:0 auto}
+header{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+h1{font:700 24px/1 'Barlow Condensed',sans-serif;margin:0;flex:1;letter-spacing:.2px}
+.tabs{display:flex;background:var(--card);border-radius:10px;padding:3px}
+.tabs button{border:0;background:none;color:var(--mut);font:600 14px Barlow;padding:8px 12px;border-radius:8px;min-height:36px;cursor:pointer}
+.tabs button.on{background:var(--bg);color:var(--ink);box-shadow:0 1px 2px #0002}
+.scene{position:relative}
+.scene svg{display:block;width:100%;height:auto}
+.wrap{padding:10px 12px}
+.res{border-radius:12px;padding:8px 12px;font:600 15px Barlow;margin-bottom:4px}
+.ref{font-size:12.5px;color:var(--mut);margin-bottom:8px}
+.kp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:8px}
+.kp div{background:var(--card);border-radius:9px;padding:5px 4px;text-align:center;font-size:12px;color:var(--mut);line-height:1.25}
+.kp b{display:block;font:700 18px 'Barlow Condensed';color:var(--ink);white-space:nowrap}
+.kp .w{grid-column:1/-1;text-align:left;padding:5px 8px}
+.row{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+.row>select{flex:1}
+select,button.b{font:500 15px Barlow;min-height:38px;padding:4px 6px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+button.b{cursor:pointer;padding:6px 12px}
+button.p{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:600}
+button:disabled{opacity:.45}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.sw{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);cursor:pointer;padding:0}
+.sw.on{outline:2px solid var(--ink);outline-offset:1px}
+.lbl{font-size:13px;color:var(--mut)}
+.pr{border-top:1px solid var(--line);padding:7px 0;font-size:12.5px;color:var(--mut);line-height:1.45}
+.l1{display:grid;grid-template-columns:80px minmax(0,1fr) minmax(0,1fr) 40px;gap:5px;align-items:center;margin-bottom:3px}
+.l1 span{font:600 14px Barlow;color:var(--ink)}
+.l1 select{min-height:34px;font-size:14px}
+.pr b{font-weight:600;color:var(--ink)}
+.wn{color:var(--bad)}
+.pb{min-height:34px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);cursor:pointer;padding:0;display:grid;place-items:center}
+.pb.on{border-color:var(--acc);background:var(--badb)}
+.ed{display:grid;grid-template-columns:104px minmax(0,1fr);gap:8px;background:var(--card);border-radius:10px;padding:8px;margin:6px 0}
+.ed svg{width:104px;height:130px;background:var(--bg);border-radius:8px}
+.sl .rw{display:grid;grid-template-columns:70px minmax(0,1fr) 40px;gap:4px;align-items:center;font-size:12.5px}
+.sl input{width:100%;accent-color:var(--acc);height:28px}
+.sl span{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ef{font-size:12.5px;color:var(--ink);margin:4px 0}
+.l4{display:flex;align-items:center;gap:6px}
+.bx{position:relative;flex:1;height:8px;background:var(--card);border-radius:4px;overflow:hidden;display:flex}
+.bx i{display:block;height:100%}
+.bx s{position:absolute;left:66.6%;top:0;bottom:0;width:1px;background:var(--ink)}
+.pc{width:100px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.somni{background:var(--card);border-radius:12px;padding:10px;margin-bottom:8px}
+.somni h2{font:700 19px 'Barlow Condensed';margin:0 0 4px}
+.st{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--mut);margin-bottom:6px}
+.st b{color:var(--ink);font-weight:600}
+.up{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;margin:6px 0}
+.up span{font-size:13.5px}
+.log{font-size:12.5px;color:var(--mut);max-height:150px;overflow:auto;border-top:1px solid var(--line);margin-top:6px;padding-top:4px}
+.log div{padding:2px 0}
+.hid{display:none!important}
+.vt{position:absolute;top:8px;right:8px;display:flex;background:#ffffffcc;border-radius:9px;padding:2px}
+.vt button{border:0;background:none;font:600 14px Barlow;color:#444;min-height:34px;min-width:44px;border-radius:7px;cursor:pointer}
+.vt button.on{background:var(--acc);color:#fff}
+#bM,#bM.on{background:none;color:#444;font-size:17px}#bM:not(.on){opacity:.35;text-decoration:line-through}
+#cn{display:block;width:100%;touch-action:none}
+.hint{position:absolute;left:8px;bottom:6px;font-size:12px;color:#333;background:#ffffffb0;border-radius:6px;padding:2px 6px}
+.selh{display:flex;align-items:center;gap:6px;margin-bottom:4px}.selh b{font:700 18px 'Barlow Condensed';flex:1}
+.foot{font-size:12px;color:var(--mut);padding:8px 0 16px}
+@media (prefers-reduced-motion:no-preference){.scene svg g.tw{transition:transform .5s ease}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<div class="app">
+<header><h1>Castells</h1><div class="tabs"><button id="tSim" class="on">Simulador</button><button id="tSom">Mode somni</button></div></header>
+<div class="scene"><div id="cv"></div><div id="c3" class="hid" style="position:relative"><canvas id="cn" aria-label="Castell en 3D"></canvas><div class="hint">Un dit: girar · dos dits: apropar i desplaçar · toca un casteller per centrar-lo<br>Pinya: crosses (to clar) · contraforts (to fosc) · agulla (groc)</div></div><div class="vt"><button id="bM" class="on" aria-label="So de gralles">♪</button><button id="b2" class="on">2D</button><button id="b3">3D</button></div></div>
+<div id="sel3" class="wrap hid"></div>
+<div class="wrap">
+<div id="rs" class="res"></div>
+<div id="rf" class="ref"></div>
+<div id="som" class="somni hid">
+<h2 id="sh"></h2>
+<div class="st" id="sst"></div>
+<div id="sAct" class="row"><button class="b p" id="bTry">Intentar a plaça</button><button class="b" id="bNext">Plegar la diada</button><button class="b" id="bReset">Començar de nou</button></div>
+<div id="sPre" class="hid"></div>
+<div class="log" id="slog"></div>
+</div>
+<div class="kp" id="kp"></div>
+<div class="row"><select id="ty"><option value="" selected>Castell…</option><option value="1">Pilar</option><option value="2">Torre (2)</option><option value="3">Tres</option><option value="4">Quatre</option><option value="5">Cinc (3+2)</option></select><select id="pi"></select><select id="ba"></select><label class="lbl hid" id="agL" style="display:flex;align-items:center;gap:3px;flex:0 0 auto"><input type="checkbox" id="ag" style="width:18px;height:18px">agulla</label></div>
+<div class="row"><select id="cl" aria-label="Colla" style="flex:1"></select><span class="lbl hid" id="coL">Gent</span><select id="co" style="flex:0 0 auto"><option value="" selected>Gent…</option><option>100</option><option>150</option><option>200</option><option>300</option><option>400</option><option>600</option></select><label class="lbl" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="ot" checked style="width:18px;height:18px">altres colles</label><input type="color" id="cc" value="#c0392b" aria-label="Color propi" class="hid" style="width:40px;height:36px;border:0;padding:0;background:none"></div>
+<div id="tb"></div>
+<div class="foot">Barra: color = càrrega neta · clar = ajuda de la base · ratlla = 100% del que aguanta. Valors per persona. Punts del joc: carregat val un 17% menys que descarregat, com a la taula del Concurs 2026. Rècords reals actualitzats al 2026; percentatges d'ajuda i capacitats són estimacions del joc.</div>
+</div>
+</div>
+<script>
+{
+const SH=['#C0392B','#7BB3E0','#2E8B57','#E87BA8','#6A3D9A','#7A1F2B','#F2C230','#E67E22'];
+const U={s:SH[0],f:'#1E1E1E',p:'#FAFAF7'};
+const PF=[{n:'Corpulent',w:48,wb:52,aw:12,h:1,hair:'#3B2A1E',pes:105,cap:320,ag:25,res:55},
+{n:'Fort',w:50,wb:38,aw:12,h:1,hair:'#1E1E1E',pes:85,cap:330,ag:50,res:70},
+{n:'Àgil',w:36,wb:32,aw:9,h:0.84,hair:'#E0A23A',pes:60,cap:160,ag:95,res:60},
+{n:'Resistent',w:42,wb:38,aw:10,h:0.94,hair:'#8A4B22',pes:72,cap:240,ag:55,res:95}];
+const PS=[{n:'Home',p:1,c:1,a:0,r:1},{n:'Dona',p:.82,c:.8,a:5,r:1.05},{n:'Nen',p:.36,c:.3,a:5,r:.8},{n:'Nena',p:.34,c:.3,a:5,r:.8}];
+const NM=['Baixos','Segons','Terços','Quarts','Quints','Sisens','Setens','Vuitens','Novens','Desens'];
+const DEF={Baixos:[0,0],Segons:[1,0],'Terços':[1,0],Quarts:[3,0],Quints:[3,1],Sisens:[2,1],Setens:[2,1],Vuitens:[2,1],Novens:[2,1],Desens:[2,1],Dosos:[2,2],Acotxador:[2,3],Enxaneta:[2,3]};
+const BN=['Pinya','Folre','Folre i manilles','Folre, manilles i puntals'];
+const LIM={1:[6.3,7.3,8.2,9.1],2:[8.2,9.05,9.4,9.9],3:[9,9.6,10.3,10.8],4:[9.15,9.6,10.2,10.7],5:[8.85,9.3,9.6,10.1]};
+const REF={1:['Real: el pilar de 6 és el màxim amb pinya. No consta cap pilar de 7 net fet.','Real: el pilar de 7 amb folre és el màxim sense manilles.','Real: el pilar de 8 amb folre i manilles.','Real: el pilar de 9 amb folre, manilles i puntals, descarregat per primer cop l\'agost del 2026 (Castellers de Vilafranca).'],
+2:['Real: la torre de 8 neta, només a l\'abast de les millors colles.','Real: la torre de 9 sense manilles és exclusiva de la Joves de Valls.','Real: la torre de 9 amb folre i manilles és el màxim.','Somni: la torre amb puntals no existeix a la realitat.'],
+3:['Real: el 3 de 9 sense folre és un castell extrem, gairebé sempre carregat.','Real: el 3 de 9 amb folre és habitual a dalt; el 3 de 10 sense manilles, mai.','Real: el 3 de 10 amb folre i manilles, a l\'abast de les millors colles.','Somni: cap castell d\'11 s\'ha fet mai a la realitat.'],
+4:['Real: el 4 de 9 net, descarregat per la Vella i la Joves de Valls.','Real: el 4 de 9 amb folre és el màxim sense manilles.','Real: el 4 de 10 amb folre i manilles és el sostre.','Somni: cap castell d\'11 s\'ha fet mai a la realitat.'],
+5:['Real: el 5 de 8 ("la catedral") és el màxim amb pinya.','Real: el 5 de 9 amb folre és gamma extra, només per a les millors colles.','Real: el 5 de 10 no s\'ha fet mai.','Somni: fora de qualsevol rècord real.']};
+const C={};const AGN=['baix','segon','terç','quart','quint','sisè','setè','vuitè'];
+const defOf=r=>DEF[r]||(r=='Ag. baix'?[0,0]:r=='Ag. segon'?[1,0]:r=='Ag. enxaneta'?[2,3]:[2,1]);
+const KEY='castells_somni_v1';
+const G0=()=>({temp:1,diada:1,ronda:1,memb:150,tech:-1.2,forca:1,res:1,pinya:1,total:0,tempPts:0,best:'—',bestPts:0,u11:false,assaig:0,phase:'diada',done:{},log:['Temporada 1: la colla neix amb 150 castellers. Comença pels castells de 6 i 7.']});
+let G=G0();
+const save=()=>{};
+let mode='sim',last=null;
+const hx=x=>[1,3,5].map(i=>parseInt(x.substr(i,2),16));
+const mix=(a,b,t)=>{const A=hx(a),B=hx(b);return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,'0')).join('')};
+const sh=(c,k)=>mix(c,'#000000',k);
+const $=id=>document.getElementById(id);
+function fig(o,t,who,pose){
+const kid=who>1,fem=who%2==1,w=o.w*(fem?.9:1),wb=o.wb*(fem?.92:1),aw=o.aw*(fem?.9:1),L=50-w/2,R=50+w/2,BL=50-wb/2,BR=50+wb/2;
+const b=o.h*(kid?.62:1),hs=o.h*(kid?.84:1),ny=148-104*b,sk=mix('#F9D7B0','#EE5A40',t),cv=4-7.5*t,ln=sh(U.s,.25);
+let s=`<g transform="translate(50,148) scale(${b}) translate(-50,-148)">`;
+s+=`<path d="M${BL+1} 96 L49 96 L42 136 L29 136 Z" fill="${U.p}" stroke="${sh(U.p,.3)}" stroke-width="0.7" stroke-linejoin="round"/><path d="M51 96 L${BR-1} 96 L71 136 L58 136 Z" fill="${U.p}" stroke="${sh(U.p,.3)}" stroke-width="0.7" stroke-linejoin="round"/>`;
+[[27,44],[56,73]].forEach(([a,c])=>s+=`<rect x="${a}" y="134" width="${c-a}" height="8" rx="4" fill="#F4F2EC" stroke="#888780" stroke-width="0.6"/><line x1="${a+3}" y1="137" x2="${c-3}" y2="137" stroke="#2C2C2A" stroke-width="0.8"/>`);
+s+=`<rect x="${BL-1}" y="88" width="${wb+2}" height="10" rx="3" fill="${U.p}"/>`;
+const ar=pose==1?[78,-78]:pose==2?[14,-165]:[14,-14];
+[[L+2,ar[0]],[R-2,ar[1]]].forEach(([x,a])=>s+=`<g transform="rotate(${a} ${x} 55)"><rect x="${x-aw/2}" y="52" width="${aw}" height="28" rx="${aw/2}" fill="${SF()}" stroke="${ln}" stroke-width="0.5"/><path d="M${x-3.2} 83 A4 4 0 1 0 ${x+3.2} 83" fill="none" stroke="${sk}" stroke-width="3.2" stroke-linecap="round"/></g>`);
+s+=`<rect x="45" y="44" width="10" height="8" rx="2" fill="${sk}"/><path d="M${L+6} 50 L${R-6} 50 Q${R} 50 ${R} 56 L${BR} 88 L${BL} 88 L${L} 56 Q${L} 50 ${L+6} 50 Z" fill="${SF()}" stroke="${ln}" stroke-width="0.5"/><path d="M45 50 L50 55 L55 50" fill="none" stroke="${ln}" stroke-width="1"/>`;
+s+=`<rect x="${BL-2}" y="80" width="${wb+4}" height="11" rx="2" fill="${U.f}"/><path d="M${BR-4} 85 l5 0 l1 12 l-5 0 Z" fill="${U.f}"/></g>`;
+s+=`<g transform="translate(50,${ny}) scale(${hs}) translate(-50,-44)">`;
+if(who==1)s+=`<ellipse cx="70" cy="34" rx="5" ry="11" fill="${o.hair}" transform="rotate(-15 70 34)"/>`;
+if(who==3)s+=`<circle cx="28" cy="33" r="5.5" fill="${o.hair}"/><circle cx="72" cy="33" r="5.5" fill="${o.hair}"/>`;
+s+=`<rect x="32" y="10" width="36" height="35" rx="15" fill="${sk}"/>`;
+s+=fem?`<path d="M30 36 Q28 6 50 6 Q72 6 70 36 L66 36 L66 19 Q50 15 34 19 L34 36 Z" fill="${o.hair}"/>`:`<path d="M30 30 Q29 6 50 6 Q71 6 70 30 L66 30 L66 19 Q50 15 34 19 L34 30 Z" fill="${o.hair}"/>`;
+s+=`<circle cx="40.5" cy="32" r="3" fill="#F28B78" opacity="${.55*(1-t)}"/><circle cx="59.5" cy="32" r="3" fill="#F28B78" opacity="${.55*(1-t)}"/>`;
+s+=`<path d="M40 ${23.5+2*t} Q43 ${22-t} 46 ${23-2.5*t}" fill="none" stroke="#2C2C2A" stroke-width="0.9"/><path d="M60 ${23.5+2*t} Q57 ${22-t} 54 ${23-2.5*t}" fill="none" stroke="#2C2C2A" stroke-width="0.9"/>`;
+s+=t<.85?`<circle cx="43" cy="28" r="1.8" fill="#1E1E1E"/><circle cx="57" cy="28" r="1.8" fill="#1E1E1E"/>`:`<line x1="41" y1="28" x2="45" y2="28" stroke="#1E1E1E" stroke-width="1.3"/><line x1="55" y1="28" x2="59" y2="28" stroke="#1E1E1E" stroke-width="1.3"/>`;
+s+=`<path d="M44.5 36 Q50 ${36+cv} 55.5 36" fill="none" stroke="#5A2A1A" stroke-width="1.2" stroke-linecap="round"/>`;
+if(t>.45)s+=`<path d="M69 22 q2.6 5 0 7 q-2.6 -2 0 -7Z" fill="#85B7EB"/>`;
+return s+'</g>'}
+const POM=['Dosos','Acotxador','Enxaneta'];
+const som=()=>mode=='som';
+function levels(){const n=+$('ty').value,L=+$('pi').value,a=[];
+const pom=n>=3?POM:n==2?['Acotxador','Enxaneta']:['Enxaneta'];
+for(let i=0;i<L-pom.length;i++)a.push({r:NM[i],n});
+pom.forEach(r=>a.push({r,n:n==5?(r=='Dosos'?4:2):(r=='Dosos'?2:1)}));return a}
+function xs(n,c){if(n==5){const m={5:[-2.1,-1.1,-.1,1.1,2.1],4:[-1.6,-.6,1.1,2.1],2:[-1.1,1.6]}[c];return m.map(v=>v-.1)}
+return Array.from({length:c},(_,j)=>j-(c-1)/2)}
+function maxP(n){const u=som()&&G.u11;return n==1?(u?10:9):(u?11:10)}
+function fillP(){const n=+$('ty').value,cur=$('pi').value;let o='<option value="">Pisos…</option>';if(n){const mn=n==1?4:5,mx=maxP(n);for(let i=mn;i<=mx;i++)o+=`<option value="${i}"${String(i)===cur?' selected':''}>${i} pisos</option>`}$('pi').innerHTML=o}
+function fillB(){const n=+$('ty').value,cur=$('ba').value;let o='<option value="">Base…</option>';if(n){const mx=(n==1||(som()&&G.u11))?3:2;for(let i=0;i<=mx;i++)o+=`<option value="${i}"${String(i)===cur?' selected':''}>${BN[i]}</option>`}$('ba').innerHTML=o}
+function st(c){const f=PF[Math.max(0,c[0])],p=PS[Math.max(0,c[1])],k=som()?G:{forca:1,res:1};return{pes:Math.round(f.pes*p.p),cap:Math.round(f.cap*p.c*k.forca),ag:Math.min(100,f.ag+p.a),res:f.res*p.r*k.res}}
+function aids(i,ba,r){const a=[];
+if(i==0)a.push([ba?'soca: crosses i contraforts':'crosses i contraforts',.15*r]);
+if(i==1)a.push(['primeres mans i laterals',.20*r]);
+if(ba>=1&&i==1)a.push(['folre (falca)',.15]);
+if(ba>=1&&i==2)a.push(['folre',.25]);
+if(ba>=2&&i==3)a.push(['manilles',.25]);
+if(ba==3&&i==4)a.push(['puntals',.25]);return a}
+const swy=(s,i)=>(i+1)*(s.pes/80)*(1.3-s.ag/100);
+const POS={};let openR=null;
+const post=r=>POS[r]||(POS[r]={b:0,k:12,a:60,t:55});
+function pf(P){const cap=(1-Math.pow(Math.abs(P.b)/30,1.5)*.45)*(1-Math.pow((P.k-12)/40,2)*.6)*(.8+P.t/100*.38);
+const fat=((1+P.k/40*.6)/1.18)*((1+P.a/100*.3)/1.18)*(.6+P.t/100*.75)/1.0125;
+const rig=Math.min(1,(1-P.k/40*.5)*(.6+P.a/100*.4)*(.7+P.t/100*.5));return{cap,fat,rig}}
+function skel(P){const b=P.b*Math.PI/180,hy=90+P.k*.35,sx=Math.sin(b),sy=Math.cos(b),nx=60+sx*44,ny=hy-sy*44,px=sy,py=sx;
+const tc=mix('#1D9E75','#E24B4A',P.t/100),kx=P.k*.45,ky=(hy+146)/2;
+const shL=[nx-px*15,ny-py*15],shR=[nx+px*15,ny+py*15],hd=[nx+sx*13,ny-sy*13];
+const arm=(sh,d)=>{const e=[sh[0]+d*14,sh[1]+12-P.a*.11],h=[e[0]+d*12,e[1]+14-P.a*.2];return [e,h]};
+const [eL,hL]=arm(shL,-1),[eR,hR]=arm(shR,1);
+const ln=(a,c)=>`<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${c[0].toFixed(1)}" y2="${c[1].toFixed(1)}"/>`;
+const jt=p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.2" fill="${tc}"/>`;
+const off=hd[0]-60,bad=Math.abs(off)>8;
+let o=`<line x1="${hd[0].toFixed(1)}" y1="${hd[1]}" x2="${hd[0].toFixed(1)}" y2="146" stroke="${bad?'#E24B4A':'#888780'}" stroke-dasharray="3 3" stroke-width="1"/><line x1="40" y1="147" x2="80" y2="147" stroke="#888780" stroke-width="2"/>`;
+o+=`<g stroke="currentColor" stroke-width="3" stroke-linecap="round">`+ln([44,146],[44-kx,ky])+ln([44-kx,ky],[52,hy])+ln([76,146],[76+kx,ky])+ln([76+kx,ky],[68,hy])+ln([52,hy],[68,hy])+ln([60,hy],[nx,ny])+ln(shL,shR)+ln(shL,eL)+ln(eL,hL)+ln(shR,eR)+ln(eR,hR)+`</g>`;
+o+=`<circle cx="${hd[0].toFixed(1)}" cy="${hd[1].toFixed(1)}" r="9" fill="none" stroke="currentColor" stroke-width="3"/>`;
+[[44-kx,ky],[76+kx,ky],[52,hy],[68,hy],[60,hy],shL,shR,eL,eR].forEach(p=>o+=jt(p));return o}
+function edHTML(key,all,cnt){const P=post(key),e=pf(P),rows=[['b','Inclinació',-30,30,'°'],['k','Genolls',0,40,'°'],['a','Braços',0,100,'%'],['t','Tensió',0,100,'%']];
+return `<div class="ed"><svg viewBox="0 0 120 150" style="color:var(--ink)">${skel(P)}</svg><div class="sl">`+rows.map(([k,n,mn,mx,u])=>`<div class="rw"><label>${n}</label><input type="range" min="${mn}" max="${mx}" value="${P[k]}" data-pk="${key}" data-all="${all||''}" data-n="${cnt||1}" data-p="${k}"><span class="vv_${k}">${P[k]}${u}</span></div>`).join('')+
+`<div class="ef efx">${efTxt(e)}</div><button class="b" data-neu="${key}" data-all="${all||''}" data-n="${cnt||1}" style="min-height:32px;font-size:13px">Postura neutra</button></div></div>`}
+const efTxt=e=>`Capacitat ×${e.cap.toFixed(2)} · Fatiga ×${e.fat.toFixed(2)} · Rigidesa ${Math.round(e.rig*100)}%`;
+const nameC=(n,L,ba)=>(n==1?'Pilar de '+L:n==2?'Torre de '+L:n+' de '+L)+['',' amb folre',' amb folre i manilles',' amb folre, manilles i puntals'][ba];
+function calc(rnd){
+const lv=levels(),n=+$('ty').value,ba=+$('ba').value,L=lv.length,co=som()?G.memb:+$('co').value;
+let sc0=0,sc1=0,kids=0,tr=0,emp=0;
+lv.forEach((l,i)=>{if(!C[l.r])C[l.r]=[-1,-1];l.c=C[l.r];l.empty=l.c[0]<0||l.c[1]<0;if(l.empty)emp++;l.s=st(l.empty?defOf(l.r):l.c);
+l.Ps=Array.from({length:l.n},(_,j)=>post(l.r+'#'+j));const es=l.Ps.map(pf),av=f=>es.reduce((a,e)=>a+f(e),0)/l.n,ap=k=>l.Ps.reduce((a,P)=>a+P[k],0)/l.n;
+l.pe={cap:av(e=>e.cap),fat:av(e=>e.fat),rig:av(e=>e.rig)};l.P={b:ap('b'),k:ap('k'),a:ap('a'),t:ap('t')};l.Pab=l.Ps.reduce((a,P)=>a+Math.abs(P.b),0)/l.n;l.s.cap=Math.round(l.s.cap*l.pe.cap);l.W=l.empty?0:l.n*l.s.pes;tr+=l.n;
+l.kid=!l.empty&&l.c[1]>1&&!POM.includes(l.r);if(l.kid)kids++;sc1+=swy(l.s,i);sc0+=swy(st(defOf(l.r)),i)});
+const AG=$('ag').checked&&(n==3||n==4),La=L-2,al=[];
+if(AG){for(let i=0;i<La-1;i++)al.push({r:'Ag. '+AGN[i],n:1});al.push({r:'Ag. enxaneta',n:1})}
+let akids=0,aS1=0,aS0=0;al.forEach((l,i)=>{if(!C[l.r])C[l.r]=[-1,-1];l.c=C[l.r];l.empty=l.c[0]<0||l.c[1]<0;if(l.empty)emp++;l.s=st(l.empty?defOf(l.r):l.c);
+l.Ps=[post(l.r+'#0')];l.pe=pf(l.Ps[0]);l.P=l.Ps[0];l.Pab=Math.abs(l.P.b);l.s.cap=Math.round(l.s.cap*l.pe.cap);l.W=l.empty?0:l.s.pes;tr++;
+l.kid=!l.empty&&l.c[1]>1&&l.r!='Ag. enxaneta';if(l.kid)akids++;aS1+=swy(l.s,i);aS0+=swy(st(defOf(l.r)),i)});if(AG)tr+=6;
+const fo=ba>=1?n*12:0,ma=ba>=2?n*6:0,pu=ba==3?(n==1?4:n*3):0,fix=tr+fo+ma+pu;
+const CR=Math.max(2,n==1?L-1:ba==0?L-2:ba==1?L:L+1),CP=Math.max(1,CR-2),pk=k=>Math.round(3*n+4.5*k),cum=c=>{let t=0;for(let k=1;k<=c;k++)t+=pk(k);return t};
+const pN=cum(CR),own=cum(CP),need=fix+pN,needOwn=fix+own,oth=$('ot')?$('ot').checked:true,left=Math.max(0,co-fix),pA=Math.min(pN,oth?pN:left),fromOth=Math.max(0,pA-left);
+let cords=0;while(cords<CR&&cum(cords+1)<=pA)cords++;const miss=CR-cords,rP=pA/pN,sr=rnd?rnd[1]:1;
+let carry=0,helpT=0;
+for(let i=L-1;i>=0;i--){const l=lv[i];l.raw=Math.round(carry/l.n);let v=carry;l.hp=[];
+aids(i,ba,rP).forEach(([nm,f])=>{const d=v*f;if(d>0.5){l.hp.push([nm,Math.round(d/l.n)]);v-=d;helpT+=d}});
+l.ld=Math.round(v/l.n);l.help=l.raw-l.ld;l.x=l.ld*sr/l.s.cap;carry=v+l.W}
+{let cA=0;for(let i=al.length-1;i>=0;i--){const l=al[i];l.raw=Math.round(cA);let v=cA;l.hp=[];const ah=i==0?[['gent del mig',.2*rP]]:i==1?[['falcat pel castell',.15]]:[];ah.forEach(([nm,f])=>{const d=v*f;if(d>.5){l.hp.push([nm,Math.round(d)]);v-=d}});l.ld=Math.round(v);l.help=l.raw-l.ld;l.x=l.ld*sr/l.s.cap;cA=v+l.W}}
+const socaL=(fo+ma+pu)*72+helpT,socaC=Math.max(1,cum(Math.min(4,cords))*70*(som()?G.pinya:1)),soca=socaL/socaC;
+const ctOf=l=>POM.includes(l.r)||l.r=='Ag. enxaneta'?3+(100-l.s.ag)/25:3+2.2*(l.n-1)+(100-l.s.ag)/12,baseT=(ba>=1?25:0)+(ba>=2?20:0)+(ba==3?15:0);
+const timeCol=a=>{a.forEach(l=>l.ct=ctOf(l));for(let i=0;i<a.length;i++){let ab=0;for(let j=i+1;j<a.length;j++)ab+=a[j].ct;const w=(i<2?baseT:0);
+a[i].tu=ab+3+w;a[i].td=ab*1.8+3+w;a[i].fu=a[i].x*a[i].x*a[i].tu/(a[i].s.res*3.2)*a[i].pe.fat;a[i].f=a[i].x*a[i].x*a[i].td/(a[i].s.res*3.2)*a[i].pe.fat}};
+timeCol(lv);timeCol(al);const Tup=baseT+lv.reduce((a,l)=>a+l.ct,0)+(AG?al.reduce((a,l)=>a+l.ct,0)*.5:0),T=Tup+3+(Tup-baseT)*.8;
+let ws=0,lean=0,babs=0,aav=0,kav=0;lv.forEach((l,i)=>{const w=i+1;ws+=w;lean+=w*l.P.b;babs+=w*l.Pab;aav+=w*l.P.a;kav+=w*l.P.k});
+lean/=ws;babs/=ws;aav/=ws;kav/=ws;
+const PSF=(1+Math.abs(lean)/30*.6)*(1+babs/30*.3)*((1-.2*aav/100)/.88)*((1-.12*Math.min(kav,20)/20)/.928)*(kav>25?1+(kav-25)/15*.3:1);
+const lim0=LIM[n][ba]-(AG?.35:0),lim=lim0+(som()?G.tech:0),Q=Math.max(.92,sc1/sc0)*Math.pow(1.25,kids);
+const psfOf=a=>{if(!a.length)return 1;let w=0,le=0,ba2=0,aa=0,kk=0;a.forEach((l,i)=>{w+=i+1;le+=(i+1)*l.P.b;ba2+=(i+1)*l.Pab;aa+=(i+1)*l.P.a;kk+=(i+1)*l.P.k});le/=w;ba2/=w;aa/=w;kk/=w;
+return(1+Math.abs(le)/30*.6)*(1+ba2/30*.3)*((1-.2*aa/100)/.88)*((1-.12*Math.min(kk,20)/20)/.928)*(kk>25?1+(kk-25)/15*.3:1)};
+const limAg=6.3+1.1+(ba>=1?.3:0)+(som()?G.tech:0),Sag0=AG?92*Math.max(.92,aS1/aS0)*Math.pow(1.25,akids)*psfOf(al)*Math.pow(2,La-limAg)*(1+.25*miss):0;
+const S0b=92*Q*PSF*Math.pow(2,L-lim)*(1+.25*miss),S0=S0b*(AG?1+Sag0/400:1),S=S0*(rnd?rnd[0]:1),Sag=Sag0*(1+S0b/400)*(rnd?rnd[0]:1);
+const LA=lv.concat(al),mx=Math.max(...LA.map(l=>l.x)),mf=Math.max(...LA.map(l=>l.f)),w=lv.find(l=>l.x>1),wa=al.find(l=>l.x>1),wf=LA.find(l=>l.fu>1);
+const pts=Math.round(1000*Math.pow(2,L-lim0));
+let r,k,out='i';
+if(emp){r=`Tria el perfil i la persona de tots els pisos: en falten ${emp}`;k='warn';out='x'}
+else if(co<needOwn){r=`No hi ha prou castellers propis: en calen ${needOwn} i la colla en té ${co}`;k='bad';out='x'}
+else if(miss>=2){r=`El cap de colla no ho deixa tirar: a la pinya hi falten ${miss} cordons`;k='bad';out='x'}
+else if(soca>1){r=ba?'Intent: la pinya cedeix, el folre s\'enfonsa sobre la soca':'Intent: la pinya no aguanta';k='bad'}
+else if(w){r=`Intent: cedeixen els ${w.r.toLowerCase()} pujant`;k='bad'}
+else if(wa){r=`Intent: cedeix l'agulla (${wa.r.replace('Ag. ','')}) i el castell cau`;k='bad'}
+else if(Sag>100){r='Intent: l\'agulla s\'obre i arrossega el castell';k='bad'}
+else if(S>100){r=L>lim+0.5?`Intent: amb ${BN[ba].toLowerCase()} el màxim que s'aguanta és de ${Math.floor(lim+.5)} pisos; aquest s'obre abans de carregar`:(n==5?'Intent: s\'obre per la juntura del tres i el dos':'Intent: el castell s\'obre per oscil·lació');k='bad'}
+else if(wf){r=`Intent: ${wf.r.toLowerCase()} rebentats abans de l'aleta`;k='bad'}
+else if(mf>1||S>85||Sag>85||soca>.9){r='Carregat: fa l\'aleta però cau baixant';k='warn';out='c'}
+else{r='Descarregat! El castell puja i baixa sencer';k='ok';out='d'}
+const fe0=lv.findIndex(l=>l.empty),fe=fe0<0?L:fe0;
+const fa0=al.findIndex(l=>l.empty),fa=fa0<0?al.length:fa0;
+return{T,Tup,AG,al,fa,Sag,La,CR,CP,cords,miss,fromOth,own,needOwn,pk,fe,emp,lv,n,ba,L,co,tr,fo,ma,pu,pN,pA,rP,need,helpT,socaL,socaC,soca,S,S0,mx,mf,pts,r,k,out,kids,lim0}}
+function draw(R,noTab){LR=R;
+const {lv,n,ba,L,S,soca,rP}=R;
+$('rs').textContent=R.r;$('rs').style.background=`var(--${R.k}b)`;$('rs').style.color=`var(--${R.k})`;
+$('rf').textContent=(L>=Math.floor(LIM[n][ba])-1?REF[n][ba]:'')+(R.kids?` Hi ha ${R.kids} nen${R.kids>1?'s':''} fent de tronc: no tenen alçada ni força per falcar.`:'')+(R.miss==1&&R.out!='x'?' Falta un cordó a la pinya: més oscil·lació.':'');
+const got=R.out=='d'?R.pts:R.out=='c'?Math.round(R.pts*.83):0;
+$('kp').innerHTML=R.emp?'':[['Punts',got+' / '+R.pts],['Gent pròpia',R.needOwn+' / '+R.co],[R.ba?'Soca':'Pinya',Math.round(soca*100)+'%'],['Oscil·lació',Math.round(S)+'%'+(R.AG?' / '+Math.round(R.Sag)+'%':'')],['Esforç màx',Math.round(R.mx*100)+'%'],['Fatiga màx',Math.round(R.mf*100)+'%']].map(([a,b])=>`<div><b>${b}</b>${a}</div>`).join('')+
+`<div class="w">Pinya: ${R.cords} de ${R.CR} cordons (${Array.from({length:R.CR},(_,k)=>R.pk(k+1)).join('+')} = ${R.pN} persones; ${R.CP} cordons propis)${R.fromOth?` · ${R.fromOth} d'altres colles`:''}<br>Tronc ${R.tr}${R.fo?' · folre '+R.fo:''}${R.ma?' · manilles '+R.ma:''}${R.pu?' · puntals '+R.pu:''} · total ${R.need} · temps ${Math.floor(R.T/60)}:${String(Math.round(R.T%60)).padStart(2,'0')} (puja ${Math.round(R.Tup)} s) · ${R.ba?'a la soca':'a la pinya'}: ${Math.round(R.socaL)} de ${Math.round(R.socaC)} kg</div>`;
+const col=v=>v>1?'var(--bad)':v>.8?'var(--warn)':'var(--ok)';
+const bc=v=>v>1?'#E24B4A':v>.8?'#EF9F27':'#1D9E75';
+if(!noTab)$('tb').innerHTML=hdr(R)+lv.filter((l,i)=>i<=R.fe).concat(R.AG&&R.fe>=R.L?R.al.filter((l,i)=>i<=R.fa):[]).map(l=>{
+const pn=Math.min(150,l.x*100)/1.5,ph=Math.max(0,Math.min(150,l.raw/l.s.cap*100)/1.5-pn);
+return `<div class="pr"><div class="l1"><span>${l.r}${l.n>1?' ×'+l.n:''}</span><select data-r="${l.r}" data-k="0" aria-label="Perfil ${l.r}"><option value="-1"${l.c[0]<0?' selected':''}>Perfil…</option>${PF.map((p,i)=>`<option value="${i}"${i==l.c[0]?' selected':''}>${p.n}</option>`).join('')}</select><select data-r="${l.r}" data-k="1" aria-label="Persona ${l.r}"><option value="-1"${l.c[1]<0?' selected':''}>Persona…</option>${PS.map((p,i)=>`<option value="${i}"${i==l.c[1]?' selected':''}>${p.n}</option>`).join('')}</select><button class="pb${openR==l.r?' on':''}" data-ed="${l.r}" aria-label="Postura ${l.r}"><svg width="18" height="22" viewBox="0 0 18 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="3.5" r="2.5"/><path d="M9 6v8M3 9h12M9 14l-4 7M9 14l4 7"/></svg></button></div>`+
+(l.empty?`<div>Sense triar</div>`:`<div>Pes <b>${l.s.pes} kg</b> · aguanta <b>${l.s.cap} kg</b> · li arriba de dalt <b>${l.raw} kg</b></div>`)+
+(l.help>0?`<div>Ajuda: ${l.hp.map(([a,d])=>`${a} −${d}`).join(', ')} → <b>${l.ld} kg</b> nets</div>`:'')+
+(l.kid?`<div class="wn">Nen al tronc: +25% d'oscil·lació</div>`:'')+
+(l.empty?'':`<div class="l4"><div class="bx"><i style="width:${pn}%;background:${bc(l.x)}"></i><i style="width:${ph}%;background:${bc(l.x)};opacity:.3"></i><s></s></div><span class="pc" style="color:${col(l.x)}">${Math.round(l.x*100)}% · fat ${Math.round(l.f*100)}%</span></div>`)+(openR==l.r?edHTML(l.r+'#0',l.r,l.n):'')+`</div>`}).join('');
+const sc=n==5?.4:L>=10?.42:.46,stp=98*sc,dx=(n==5?64:72)*sc,nw=n==5?5.4:n;
+const bOf=l=>PF[Math.max(0,l.c[0])].h*(l.c[1]>1?.62:1),ys=[0];lv.forEach((l,i)=>{if(i<L-1)ys.push(ys[i]+98*sc*bOf(l))});
+const H=Math.round(ys[L-1]+150*sc*bOf(lv[L-1])+70),by=H-24;
+let g=`<svg viewBox="0 0 380 ${H}" role="img" aria-label="${nameC(n,L,ba)}"><defs><pattern id="rat" width="7" height="10" patternUnits="userSpaceOnUse"><rect width="3.5" height="10" fill="#C8202F"/><rect x="3.5" width="3.5" height="10" fill="#FFFFFF"/></pattern></defs><rect width="380" height="${H}" style="fill:var(--sky)"/>`;
+g+=bgSVG(H,by,Math.min(185,nw*dx/2+110));
+const fall=R.k=='bad'&&R.out!='x',tilt=fall?Math.min(16,Math.max(S-100,(soca-1)*100,8)/6+5):0,top=R.out=='d'||R.out=='c';
+g+=`<g class="tw" transform="rotate(${tilt} 190 ${by-stp*(ba+1)})">`;
+if(R.AG&&R.fe>=R.L){let ya=0;const s2=sc*.95;R.al.forEach((l,i)=>{if(i>R.fa)return;const x=190+dx*.5,yf=by-ya;g+=`<g ${l.empty?'opacity=".28" style="filter:grayscale(1)"':''} transform="translate(${x-50*s2},${yf-148*s2}) scale(${s2})">${fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],l.r=='Ag. enxaneta'&&top?2:0)}</g>`;ya+=98*s2*bOf(l)})}
+lv.slice().reverse().forEach(l=>{const i=lv.indexOf(l);if(i>R.fe)return;const yf=by-ys[i],pose=l.r=='Enxaneta'?(top?2:0):(l.n>1&&l.r!='Acotxador'?1:0);
+xs(n,l.n).forEach((p,j)=>{const x=190+p*dx;g+=`<g ${l.empty?'opacity=".28" style="filter:grayscale(1)"':''} transform="translate(${x-50*sc},${yf-148*sc}) scale(${sc}) rotate(${l.Ps[j].b*.6} 50 140)">${fig(PF[Math.max(0,l.c[0])],Math.min(1,Math.max(l.x,(S-70)/60,l.f*.8)),l.c[1],pose)}</g>`})});
+g+='</g>';
+const pw=Math.max(.45,rP),nr=Math.min(4,Math.max(2,Math.ceil((R.cords||2)/2)));let yF=by-stp*.95+6*sc;const stands=[];
+if(ba>=1){stands.push([yF,44,.92]);if(ba>=2)stands.push([yF-stp*.9,28,.88]);if(ba==3)stands.push([yF-stp*1.8,16,.84])}
+stands.slice().reverse().forEach(([yy,ext,f],q)=>{const s2=sc*f,half=Math.min(186,nw*dx/2+ext);let k=q*11;for(let x=190-half;x<=190+half+.1;x+=32*s2)g+=standBack(x,yy+((k%3)-1)*2*s2,s2,k++,.08)});
+for(let r=0;r<nr;r++){const t=nr>1?r/(nr-1):1,s2=sc*(.82+.3*t),y=by-stp*(1.02-.5*t),half=Math.min(188,(nw*dx/2+34+72*t)*pw),off=(r%2)*14*s2;let k=r*13;
+for(let x=190-half+off;x<=190+half;x+=29*s2)g+=pinBack(x,y,s2,k++,.2*(1-t))}
+$('cv').innerHTML=g+'</svg>'}
+
+const HC=['#3B2A1E','#1E1E1E','#8A4B22','#E0A23A','#5F5E5A','#6B3E26','#2C2C2A'];
+function pinBack(x,y,s,k,shade){const c=U_str?'url(#rat)':mix(U.s,'#000000',shade+(k%3)*.04),d=x<190?1:-1,hr=HC[(k*5)%7],ay=-2-(k%3)*3;
+return `<g transform="translate(${x.toFixed(1)},${y.toFixed(1)}) scale(${s})"><path d="M-13 18 L${-13+d*7} ${ay}" stroke="${c}" stroke-width="8" stroke-linecap="round"/><path d="M13 18 L${13+d*7} ${ay}" stroke="${c}" stroke-width="8" stroke-linecap="round"/><circle cx="${-13+d*7}" cy="${ay-3}" r="4.2" fill="#F2C9A0"/><circle cx="${13+d*7}" cy="${ay-3}" r="4.2" fill="#F2C9A0"/><path d="M-21 70 L-21 26 Q-21 15 -9 14 L9 14 Q21 15 21 26 L21 70 Z" fill="${c}"/><path d="M-21 26 Q-21 15 -9 14 L9 14 Q21 15 21 26" fill="none" stroke="#00000022" stroke-width="1.5"/><rect x="-5" y="8" width="10" height="8" fill="#E8BB92"/><circle r="12" fill="#F2C9A0"/><path d="M-12.6 4 A12.6 12.6 0 1 1 12.6 4 Q0 11 -12.6 4Z" fill="${hr}"/></g>`}
+function standBack(x,yF,s,k,shade){const c=U_str?'url(#rat)':mix(U.s,'#000000',shade+(k%3)*.04),d=x<190?1:-1,hr=HC[(k*3)%7];
+return `<g transform="translate(${x.toFixed(1)},${yF.toFixed(1)}) scale(${s})"><rect x="-13" y="-42" width="11" height="42" rx="3" fill="#FAFAF7" stroke="#B4B2A9" stroke-width=".8"/><rect x="2" y="-42" width="11" height="42" rx="3" fill="#FAFAF7" stroke="#B4B2A9" stroke-width=".8"/><path d="M-13 -76 L${-13+d*6} -98" stroke="${c}" stroke-width="7" stroke-linecap="round"/><path d="M13 -76 L${13+d*6} -98" stroke="${c}" stroke-width="7" stroke-linecap="round"/><circle cx="${-13+d*6}" cy="-101" r="4" fill="#F2C9A0"/><circle cx="${13+d*6}" cy="-101" r="4" fill="#F2C9A0"/><path d="M-17 -46 L-17 -70 Q-17 -81 -7 -82 L7 -82 Q17 -81 17 -70 L17 -46 Z" fill="${c}"/><rect x="-18" y="-50" width="36" height="8" rx="2" fill="#1E1E1E"/><circle cy="-93" r="11" fill="#F2C9A0"/><path d="M-11.6 -89 A11.6 11.6 0 1 1 11.6 -89 Q0 -82 -11.6 -89Z" fill="${hr}"/></g>`}
+function bgSVG(H,by,shx){let o='';const bk=by-Math.max(130,H*.4);
+o+=`<g fill="#ffffff" opacity=".7"><ellipse cx="64" cy="${Math.min(60,H*.12)+26}" rx="32" ry="9"/><ellipse cx="86" cy="${Math.min(60,H*.12)+19}" rx="20" ry="9"/><ellipse cx="300" cy="${Math.min(60,H*.1)+36}" rx="28" ry="7"/><ellipse cx="318" cy="${Math.min(60,H*.1)+31}" rx="16" ry="7"/></g>`;
+o+=`<rect x="232" y="${bk-110}" width="34" height="110" fill="#E3CBA6"/><path d="M228 ${bk-110} L249 ${bk-142} L270 ${bk-110} Z" fill="#B8714E"/><path d="M241 ${bk-96} a8 8 0 0 1 16 0 v14 h-16 Z" fill="#6E5236" opacity=".55"/><circle cx="249" cy="${bk-62}" r="7" fill="#F7F1E4" stroke="#8A6A48" stroke-width="1.2"/>`;
+o+=`<rect x="70" y="${bk}" width="240" height="${by-bk}" fill="#EFDCC0"/><rect x="70" y="${bk}" width="240" height="5" fill="#D6B994"/>`;
+for(let yy=bk+18;yy<by-40;yy+=40)for(let xx=112;xx<280;xx+=34)o+=`<rect x="${xx}" y="${yy}" width="12" height="20" rx="6" fill="#B89A78" opacity=".45"/>`;
+const bld=(x0,w,col,cor)=>{let b=`<rect x="${x0}" y="${bk-40}" width="${w}" height="${by-bk+40}" fill="${col}"/><rect x="${x0}" y="${bk-46}" width="${w}" height="8" fill="${cor}"/>`;
+for(let yy=bk-22,rw=0;yy<by-44;yy+=48,rw++)for(let xx=x0+14;xx<x0+w-22;xx+=40){b+=`<rect x="${xx-6}" y="${yy}" width="5" height="26" fill="#3E6B4E"/><rect x="${xx+15}" y="${yy}" width="5" height="26" fill="#3E6B4E"/><rect x="${xx}" y="${yy}" width="14" height="26" rx="7" fill="#4A3A2C" opacity=".75"/><rect x="${xx-8}" y="${yy+26}" width="30" height="3" fill="#2F2A26"/>`;
+for(let v=0;v<5;v++)b+=`<rect x="${xx-6+v*6.5}" y="${yy+18}" width="1.2" height="8" fill="#2F2A26"/>`;
+if(rw==1&&((xx-x0)<40))b+=`<g transform="translate(${xx+2},${yy+29})"><rect width="12" height="22" fill="#F4C430"/>${[1,4,7,10].map(q=>`<rect x="${q}" width="1.6" height="22" fill="#C8202F"/>`).join('')}</g>`}return b};
+o+=bld(-4,100,'#E2B07E','#C58E5A')+bld(284,100,'#D8957A','#B8715A');
+const bun=['#F2C230',U.s,'#ffffff','#2E8B57'];o+=`<path d="M0 10 Q190 46 380 10" fill="none" stroke="#7A5A3C" stroke-width="1" opacity=".6"/>`;
+for(let k=0;k<19;k++){const x=10+k*20,u=(x-190)/190,y=10+18*(1-u*u);o+=`<path d="M${x-7} ${y} L${x+7} ${y} L${x} ${y+12} Z" fill="${bun[k%4]}" stroke="#00000022"/>`}
+o+=`<rect y="${by}" width="380" height="${H-by}" style="fill:var(--stone)"/>`;for(let yy=by+5,r=0;yy<H;yy+=6,r++)for(let xx=(r%2)*7;xx<380;xx+=14)o+=`<path d="M${xx} ${yy} q7 -3 13 0" fill="none" stroke="#00000016" stroke-width="1"/>`;
+if(shx)o+=`<ellipse cx="190" cy="${by+3}" rx="${shx}" ry="8" fill="#000" opacity=".14"/>`;return o}
+function ready(){return !!($('ty').value&&$('pi').value&&$('ba').value!==''&&$('cl').value!==''&&(som()||$('co').value))}
+function gate(){const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;$('pi').disabled=!t;$('ba').disabled=!p;$('cl').disabled=b==='';$('co').disabled=c==='';
+$('coL').classList.toggle('hid',som());$('agL').classList.toggle('hid',!(t=='3'||t=='4')||!p)}
+function drawEmpty(){const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;
+const m=!t?'Tria el tipus de castell':!p?'Tria quants pisos':b===''?'Tria la base: pinya, folre, manilles…':c===''?'Tria la colla':'Tria quanta gent té la colla (mida de la pinya)';
+$('rs').textContent=m;$('rs').style.background='var(--warnb)';$('rs').style.color='var(--warn)';$('rf').textContent='';$('kp').innerHTML='';$('tb').innerHTML='';
+const H=420,by=H-24;$('cv').innerHTML=`<svg viewBox="0 0 380 ${H}" role="img" aria-label="Plaça buida"><rect width="380" height="${H}" style="fill:var(--sky)"/>`+bgSVG(H,by,0)+'</svg>';
+if(T3){while(T3.root.children.length)T3.root.remove(T3.root.children[0]);r3()}selK=null;$('sel3').classList.add('hid');if(typeof tocStop=='function'){tocStop(.2);lastSig=''}}
+function run(){gate();if(!ready()){drawEmpty();return}last=null;const R=calc();draw(R);if(som())drawSom();if(v3)build3D(R);drawSel();toc(R)}
+function drawSom(){
+$('sh').textContent=`Temporada ${G.temp}`+(G.phase=='diada'?` · diada ${G.diada} de 6 · ronda ${G.ronda} de 3`:' · pretemporada');
+$('sst').innerHTML=`<span>Colla <b>${G.memb}</b></span><span>Punts totals <b>${G.total}</b></span><span>Aquesta temporada <b>${G.tempPts}</b></span><span>Tècnica <b>${(G.tech>=0?'+':'')+G.tech.toFixed(2)}</b></span><span>Força <b>×${G.forca.toFixed(2)}</b></span><span>Resistència <b>×${G.res.toFixed(2)}</b></span><span>Pinya <b>×${G.pinya.toFixed(2)}</b></span><span>Millor <b>${G.best}</b></span>`+(G.u11?'<span><b>Castells d\'11 desbloquejats</b></span>':'');
+$('sAct').classList.toggle('hid',G.phase!='diada');$('sPre').classList.toggle('hid',G.phase!='pre');
+if(G.phase=='pre'){const ups=[['tech','Tècnica +0,15 (més alçada possible)'],['forca','Força +5% (aguanten més)'],['res','Resistència +5% (menys fatiga)'],['pinya','Pinya +8% (la soca aguanta més)'],['memb','Captació +40 castellers']];
+$('sPre').innerHTML=`<div style="font-size:14px;margin-bottom:4px">Tens <b>${G.assaig}</b> punts d'assaig per repartir.</div>`+ups.map(([k,t])=>`<div class="up"><span>${t}</span><button class="b" data-u="${k}" ${G.assaig<1?'disabled':''}>+</button></div>`).join('')+`<button class="b p" id="bSeason" style="width:100%;margin-top:4px">Començar la temporada ${G.temp+1}</button>`}
+$('slog').innerHTML=G.log.slice(-40).reverse().map(t=>`<div>${t}</div>`).join('')}
+function nextDiada(){G.ronda=1;G.diada++;if(G.diada>6){G.phase='pre';G.assaig=3+Math.floor(G.tempPts/400);G.log.push(`Fi de la temporada ${G.temp}: ${G.tempPts} punts. Tens ${G.assaig} punts d'assaig.`)}}
+function attempt(){if(G.phase!='diada'||!ready())return;
+const rnd=[.85+Math.random()*.3,.95+Math.random()*.1],R=calc(rnd),nm=nameC(R.n,R.L,R.ba);
+if(R.out=='x'){draw(R);drawSom();return}
+const key=nm,rep=G.done[key]||0,mult=rep?.5:1;let got=0,msg;
+if(R.out=='d'){got=Math.round(R.pts*mult);G.memb+=Math.ceil(got/80)+2;if(R.S0>60)G.tech=Math.min(1.3,G.tech+.03);msg=`${nm}: descarregat! +${got} punts`}
+else if(R.out=='c'){got=Math.round(R.pts*.83*mult);G.memb+=Math.ceil(got/150);msg=`${nm}: carregat. +${got} punts`}
+else{const lost=Math.round(G.memb*.02);G.memb-=lost;msg=`${nm}: intent. −${lost} castellers desanimats`}
+if(got){G.done[key]=rep+1;if(R.pts>G.bestPts&&R.out=='d'){G.bestPts=R.pts;G.best=nm}}
+if(rep&&got)msg+=' (repetit: meitat de punts)';
+G.total+=got;G.tempPts+=got;G.log.push(`T${G.temp} D${G.diada} R${G.ronda} · ${msg}`);
+if(R.out=='d'&&R.L>=10&&!G.u11&&R.S0<70&&R.mx<.85){G.u11=true;G.log.push('Llegenda: heu descarregat un castell de 10 amb marge. Castells d\'11 i puntals desbloquejats!');fillP();fillB()}
+G.ronda++;if(G.ronda>3)nextDiada();
+save();draw(R);drawSom()}
+const keysOf=d=>d.all?Array.from({length:+d.n},(_,j)=>d.all+'#'+j):[d.pk];
+function onChg(e){const d=e.target.dataset;if(d.pk){run();return}if(!d.r)return;C[d.r][+d.k]=+e.target.value;run()}
+function onClk(e){const b=e.target.closest('[data-ed],[data-neu]');if(!b)return;
+if(b.dataset.ed){openR=openR==b.dataset.ed?null:b.dataset.ed}else{keysOf(b.dataset).forEach(k=>POS[k]={b:0,k:12,a:60,t:55})}run()}
+function onInp(e){const d=e.target.dataset;if(!d.pk)return;const v=+e.target.value;keysOf(d).forEach(k=>post(k)[d.p]=v);const P=post(d.pk),box=e.target.closest('.ed');
+box.querySelector('.vv_'+d.p).textContent=v+(d.p=='b'||d.p=='k'?'°':'%');box.querySelector('svg').innerHTML=skel(P);box.querySelector('.efx').textContent=efTxt(pf(P));
+const R=calc();draw(R,true);if(v3&&T3){keysOf(d).forEach(k=>{const q=T3.persons[k];if(q)setPose3(q,post(k),q.pose)});(T3.levels||[]).forEach(linkLevel);r3()}}
+['tb','sel3'].forEach(id=>{$(id).addEventListener('change',onChg);$(id).addEventListener('click',onClk);$(id).addEventListener('input',onInp)});
+$('ty').onchange=()=>{$('pi').value='';$('ba').value='';$('ag').checked=false;for(const k in C)delete C[k];for(const k in POS)delete POS[k];openR=null;selK=null;fillP();fillB();$('agL').classList.toggle('hid',!(+$('ty').value==3||+$('ty').value==4));if($('agL').classList.contains('hid'))$('ag').checked=false;run()};$('pi').onchange=run;$('ba').onchange=run;$('ag').onchange=run;$('co').onchange=run;$('ot').onchange=run;
+$('bTry').onclick=attempt;
+$('bNext').onclick=()=>{G.log.push(`T${G.temp} D${G.diada}: la colla plega la diada.`);nextDiada();save();run()};
+$('bReset').onclick=e=>{const b=e.currentTarget;if(b.dataset.c){G=G0();save();b.dataset.c='';b.textContent='Començar de nou';fillP();fillB();run()}else{b.dataset.c='1';b.textContent='Segur? Torna a tocar'}};
+$('sPre').addEventListener('click',e=>{const u=e.target.dataset.u;
+if(u&&G.assaig>0){G.assaig--;if(u=='tech')G.tech=Math.min(1.3,G.tech+.15);else if(u=='memb')G.memb+=40;else if(u=='pinya')G.pinya+=.08;else G[u]+=.05;save();drawSom();return}
+if(e.target.id=='bSeason'){G.temp++;G.diada=1;G.ronda=1;G.tempPts=0;G.done={};G.phase='diada';G.log.push(`Comença la temporada ${G.temp}.`);save();run()}});
+function setMode(m){mode=m;$('tSim').classList.toggle('on',m=='sim');$('tSom').classList.toggle('on',m=='som');
+$('som').classList.toggle('hid',m!='som');$('co').classList.toggle('hid',m=='som');$('coL').classList.toggle('hid',m=='som');
+try{location.hash=m=='som'?'somni':''}catch(e){}fillP();fillB();run()}
+$('tSim').onclick=()=>setMode('sim');$('tSom').onclick=()=>setMode('som');
+const COL=[['Castellers de Vilafranca','#2E8B3E'],['Colla Vella dels Xiquets de Valls','#E99AB9'],['Colla Joves Xiquets de Valls','#C8202F'],['Colla Jove Xiquets de Tarragona','#6B3FA0'],['Minyons de Terrassa','#B07FA6'],['Xiquets de Tarragona','#C8202F','rat'],['Capgrossos de Mataró','#1F2E5A'],['Castellers de Sants','#8E8B80'],['Nens del Vendrell','#D2232A'],['Castellers de Barcelona','#C62828']];
+let U_str=false;const SF=()=>U_str?'url(#rat)':U.s;
+function fillCl(){$('cl').innerHTML='<option value="">Colla…</option>'+COL.map((c,i)=>`<option value="${i}">${c[0]}</option>`).join('');$('cl').value='';setCl()}
+function setCl(){if($('cl').value===''){U.s='#C8C4BC';U_str=false;$('cc').classList.add('hid');run();return}const v=+$('cl').value;$('cc').classList.toggle('hid',v>=0);if(v>=0){U.s=COL[v][1];U_str=COL[v][2]=='rat'}else{U.s=$('cc').value;U_str=false}U.f='#1E1E1E';U.p='#FAFAF7';for(const k in M3)if(k.startsWith('stripe'))delete M3[k];run()}
+$('cl').onchange=setCl;$('cc').oninput=()=>{U.s=$('cc').value;run()};
+let v3=false,T3=null,selK=null,LR=null,AGR=false;const RAD=Math.PI/180;
+const M3={},G3={};
+const shirtMat=()=>{if(!U_str)return mat(U.s);if(M3.stripe)return M3.stripe;const c=document.createElement('canvas');c.width=64;c.height=16;const x=c.getContext('2d');x.fillStyle='#ffffff';x.fillRect(0,0,64,16);x.fillStyle='#C8202F';for(let i=0;i<8;i++)x.fillRect(i*8,0,4,16);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(3,1);return M3.stripe=new THREE.MeshLambertMaterial({map:t})};
+const mat=(c,o)=>{const k=c+(o||'');return M3[k]||(M3[k]=new THREE.MeshLambertMaterial(o?{color:c,transparent:true,opacity:o}:{color:c}))};
+const geo=(k,f)=>G3[k]||(G3[k]=f());
+const cyl=(a,b,h)=>geo('c'+a+b+h,()=>new THREE.CylinderGeometry(a,b,h,14));
+const sph=r=>geo('s'+r,()=>new THREE.SphereGeometry(r,18,14));
+const cap=r=>geo('h'+r,()=>new THREE.SphereGeometry(r,18,10,0,Math.PI*2,0,Math.PI*.52));
+const boxg=(x,y,z)=>geo('b'+x+y+z,()=>new THREE.BoxGeometry(x,y,z));
+const FT={};
+function faceMat(t,ghost){if(ghost)return mat('#9a9a9a',.35);const key=Math.round(t*10);if(FT[key])return FT[key];
+const c=document.createElement('canvas');c.width=256;c.height=128;const x=c.getContext('2d');
+x.fillStyle=mix('#F9D7B0','#EE5A40',key/10);x.fillRect(0,0,256,128);const cx=64,tt=key/10,cv=4-7.5*tt;
+x.fillStyle='rgba(242,139,120,'+(.5*(1-tt))+')';x.beginPath();x.arc(cx-17,72,7,0,7);x.arc(cx+17,72,7,0,7);x.fill();
+x.fillStyle='#1E1E1E';x.strokeStyle='#1E1E1E';x.lineWidth=3;x.lineCap='round';
+if(tt<.85){x.beginPath();x.arc(cx-11,58,4.5,0,7);x.arc(cx+11,58,4.5,0,7);x.fill()}else{x.beginPath();x.moveTo(cx-16,58);x.lineTo(cx-6,58);x.moveTo(cx+6,58);x.lineTo(cx+16,58);x.stroke()}
+x.lineWidth=2.5;x.beginPath();x.moveTo(cx-17,46+4*tt);x.quadraticCurveTo(cx-11,43-2*tt,cx-5,45-5*tt);x.moveTo(cx+17,46+4*tt);x.quadraticCurveTo(cx+11,43-2*tt,cx+5,45-5*tt);x.stroke();
+x.strokeStyle='#5A2A1A';x.lineWidth=3;x.beginPath();x.moveTo(cx-11,78);x.quadraticCurveTo(cx,78+cv*2.6,cx+11,78);x.stroke();
+const tx=new THREE.CanvasTexture(c);return FT[key]=new THREE.MeshLambertMaterial({map:tx})}
+function mkPerson(o,who,t,ghost,shc){
+const kid=who>1,fem=who%2==1,sc=o.h*(kid?.62:1),wb=o.w/50*(fem?.9:1),ww=o.wb/50*(fem?.92:1);
+const M=c=>ghost?mat('#9a9a9a',.35):mat(c),g=new THREE.Group();g.scale.setScalar(sc);
+const sk=M(mix('#F9D7B0','#EE5A40',t)),sh=ghost?M('#9a9a9a'):shc?M(shc):shirtMat(),pa=M(U.p),fx=M(U.f),shoe=M('#F4F2EC'),hr=M(o.hair);
+const mesh=(gm,m,y,p)=>{const e=new THREE.Mesh(gm,m);e.position.y=y||0;p.add(e);return e};
+const legs=[],arms=[];
+[-1,1].forEach(sd=>{const hip=new THREE.Group();hip.position.set(sd*.058*ww,.46,0);g.add(hip);mesh(cyl(.05*ww,.043,.23),pa,-.115,hip);
+const kn=new THREE.Group();kn.position.y=-.23;hip.add(kn);mesh(cyl(.043,.037,.22),pa,-.11,kn);const f=mesh(boxg(.075,.045,.13),shoe,-.225,kn);f.position.z=.025;legs.push([hip,kn,sd])});
+const tp=new THREE.Group();tp.position.y=.46;g.add(tp);
+mesh(cyl(.108*ww,.108*ww,.075),fx,.03,tp);mesh(cyl(.122*wb,.1*ww,.3),sh,.2,tp);mesh(cyl(.035,.035,.06),sk,.37,tp);
+mesh(sph(.1),faceMat(t,ghost),.47,tp);
+const hc=mesh(cap(.106),hr,.475,tp);hc.rotation.x=-.42;
+if(who==1){const p=mesh(sph(.048),hr,.45,tp);p.position.z=-.11}
+if(who==3)[-1,1].forEach(sd=>{const p=mesh(sph(.045),hr,.45,tp);p.position.x=sd*.1;p.position.z=-.03});
+[-1,1].forEach(sd=>{const s=new THREE.Group();s.position.set(sd*.128*wb,.33,0);tp.add(s);mesh(cyl(.037,.033,.15),sh,-.075,s);
+const el=new THREE.Group();el.position.y=-.15;s.add(el);mesh(cyl(.03,.027,.13),sk,-.065,el);mesh(sph(.033),sk,-.14,el);arms.push([s,el,sd])});
+return{g,legs,arms,tp,sc}}
+function setPose3(q,P,pose){q.pose=pose;q.legs.forEach(([h,k,sd])=>{h.rotation.z=sd*.13;h.rotation.x=-P.k*RAD*.75;k.rotation.x=P.k*RAD*1.5});
+q.tp.rotation.z=-P.b*RAD;q.tp.position.y=.46-P.k*.0012;
+q.arms.forEach(([s,el,sd])=>{if(pose==2&&sd==1){s.rotation.z=2.7;el.rotation.z=0;return}
+s.rotation.z=sd*(.3+P.a/100*1.25);el.rotation.z=-sd*((100-P.a)/100*1.0)})}
+function pos3(n,c,r){const P=[];
+if(c==1)return[[0,0,0]];
+if(n==5&&c>=4){const A=[[-.14,0,.17,[0,120,240]],[.22,0,.12,[90,270]]];if(c==5){A.forEach(([cx,cz,rr,an])=>an.forEach(a=>P.push([cx+rr*Math.sin(a*RAD),cz+rr*Math.cos(a*RAD),a*RAD])));return P}
+return[[-.24,0,-Math.PI/2],[-.04,0,Math.PI/2],[.16,0,-Math.PI/2],[.3,0,Math.PI/2]]}
+if(c==2)return n==5?[[-.14,0,0],[.22,0,0]]:[[-.12,0,-Math.PI/2],[.12,0,Math.PI/2]];
+const rr=({3:.17,4:.2,5:.24}[c]||.2)+(AGR&&c>=3?.1:0),off=c==4?45:0;for(let j=0;j<c;j++){const a=(off+j*360/c)*RAD;P.push([rr*Math.sin(a),rr*Math.cos(a),a])}return P}
+function init3D(){if(T3)return T3;if(!window.THREE)return null;
+const cn=$('cn'),rd=new THREE.WebGLRenderer({canvas:cn,antialias:true});rd.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(36,1,.05,200);
+sc.add(new THREE.HemisphereLight(0xffffff,0x8a7a66,.95));const dl=new THREE.DirectionalLight(0xffffff,.65);dl.position.set(3,7,5);sc.add(dl);
+const gr=new THREE.Mesh(new THREE.CircleGeometry(12,56),new THREE.MeshLambertMaterial({color:0xd9cfc0}));gr.rotation.x=-Math.PI/2;sc.add(gr);
+const root=new THREE.Group();sc.add(root);
+T3={rd,sc,cam,root,gr,az:.6,el:.15,dist:0,ty:1.5,px:0,py:0,pz:0,persons:{},picks:[]};let pm=null;
+const pts=new Map();let moved=0,pd=0;
+cn.addEventListener('pointerdown',e=>{try{cn.setPointerCapture(e.pointerId)}catch(_){}pts.set(e.pointerId,[e.clientX,e.clientY]);moved=0;if(pts.size==2){const[a,b]=[...pts.values()];pd=Math.hypot(a[0]-b[0],a[1]-b[1]);pm=[(a[0]+b[0])/2,(a[1]+b[1])/2]}});
+cn.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId))return;const p=pts.get(e.pointerId),dx=e.clientX-p[0],dy=e.clientY-p[1];pts.set(e.pointerId,[e.clientX,e.clientY]);moved+=Math.abs(dx)+Math.abs(dy);
+if(pts.size==1){T3.az-=dx*.01;T3.el=Math.max(.02,Math.min(1.35,T3.el+dy*.006))}else if(pts.size==2){const[a,b]=[...pts.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(pd&&d)T3.dist=Math.max(.8,Math.min(40,T3.dist*pd/d));pd=d;const m=[(a[0]+b[0])/2,(a[1]+b[1])/2];if(pm){const k=T3.dist*.0016,mx=m[0]-pm[0],my=m[1]-pm[1];T3.px-=Math.cos(T3.az)*mx*k;T3.pz+=Math.sin(T3.az)*mx*k;T3.py+=my*k}pm=m}r3()});
+cn.addEventListener('pointerup',e=>{pm=null;if(pts.size==1&&moved<8&&pts.has(e.pointerId))pick(e);pts.delete(e.pointerId);pd=0});
+cn.addEventListener('pointercancel',e=>{pts.delete(e.pointerId);pd=0});
+cn.addEventListener('wheel',e=>{e.preventDefault();T3.dist=Math.max(1.2,Math.min(40,T3.dist*(1+e.deltaY*.001)));r3()},{passive:false});
+const ro3=new ResizeObserver(()=>size3());ro3.observe($('c3'));return T3}
+function size3(){if(!T3)return;const w=$('c3').clientWidth;if(!w)return;const h=Math.round(Math.min(560,Math.max(380,w*1.2)));T3.rd.setSize(w,h,false);$('cn').style.height=h+'px';T3.cam.aspect=w/h;T3.cam.updateProjectionMatrix();r3()}
+function r3(){if(!T3)return;const{cam,az,el,dist}=T3,tx=T3.px,ty=T3.ty+T3.py,tz=T3.pz;cam.position.set(tx+Math.sin(az)*Math.cos(el)*dist,ty+Math.sin(el)*dist,tz+Math.cos(az)*Math.cos(el)*dist);cam.lookAt(tx,ty,tz);T3.rd.render(T3.sc,cam)}
+function crowd(grp,count,r0,y0,step,s){if(count<=0)return;const N=Math.min(count,200),body=new THREE.InstancedMesh(cyl(.12,.1,.32),shirtMat(),N),leg=new THREE.InstancedMesh(cyl(.09,.08,.45),mat(U.p),N),
+hd=new THREE.InstancedMesh(sph(.1),mat('#F2C9A0'),N),hr=new THREE.InstancedMesh(cap(.106),mat('#3B2A1E'),N),am=new THREE.InstancedMesh(cyl(.034,.03,.28),shirtMat(),2*N),hm=new THREE.InstancedMesh(sph(.035),mat('#F2C9A0'),2*N),PO=new THREE.Object3D(),AO=new THREE.Object3D(),HO=new THREE.Object3D(),m=new THREE.Matrix4(),q=new THREE.Quaternion(),v=new THREE.Vector3(),S=new THREE.Vector3(s,s,s),HC=['#3B2A1E','#1E1E1E','#8A4B22','#E0A23A','#5F5E5A'];
+let i=0,r=r0;while(i<N){const per=Math.max(6,Math.floor(2*Math.PI*r/(.3*s)));for(let k=0;k<per&&i<N;k++,i++){const a=(k+(r*7%1))/per*Math.PI*2;q.setFromAxisAngle(new THREE.Vector3(0,1,0),a+Math.PI);
+const x=Math.sin(a)*r,z=Math.cos(a)*r,set=(im,y)=>{v.set(x,y0+y*s,z);m.compose(v,q,S);im.setMatrixAt(i,m)};set(leg,.23);set(body,.62);set(hd,.88);set(hr,.9);hr.setColorAt(i,new THREE.Color(HC[(i*7)%5]));
+PO.position.set(x,y0,z);PO.quaternion.copy(q);PO.scale.copy(S);[-1,1].forEach((sd,ai)=>{const ang=-1.9-((i+ai)%3)*.15,dy=-Math.cos(ang),dz=-Math.sin(ang);
+AO.position.set(sd*.13,.74+dy*.14,dz*.14);AO.rotation.set(ang,0,sd*.08);HO.position.set(sd*.13,.74+dy*.29,dz*.29);PO.add(AO);PO.add(HO);PO.updateMatrixWorld(true);
+am.setMatrixAt(2*i+ai,AO.matrixWorld);hm.setMatrixAt(2*i+ai,HO.matrixWorld);PO.remove(AO);PO.remove(HO)})}r+=step*s}
+hr.instanceColor.needsUpdate=true;am.count=2*N;hm.count=2*N;[leg,body,hd,hr,am,hm].forEach(o=>grp.add(o))}
+function linkLevel(keys){if(keys.length<2)return;const Q=keys.map(k=>T3.persons[k]);if(Q.some(q=>!q))return;T3.root.updateMatrixWorld(true);
+const shW=Q.map(q=>q.arms.map(([s])=>s.getWorldPosition(new THREE.Vector3())));const up=new THREE.Vector3(0,1,0),down=new THREE.Vector3(0,-1,0);
+Q.forEach((q,i)=>{const nb=Q.length==2?[1-i]:[(i+1)%Q.length,(i-1+Q.length)%Q.length],cand=[],used=[];nb.forEach(j=>shW[j].forEach(p=>cand.push(p)));
+q.arms.forEach(([s,el],ai)=>{const me=shW[i][ai];let best=null,bd=1e9;cand.forEach(p=>{if(used.includes(p))return;const d=p.distanceTo(me);if(d<bd){bd=d;best=p}});if(!best)return;used.push(best);
+const tg=best.clone();tg.y+=.025*q.sc;const loc=q.tp.worldToLocal(tg).sub(s.position),a=.15,b=.14,D=Math.max(.02,Math.min(loc.length(),a+b-.002)),d=loc.normalize();
+const q1=new THREE.Quaternion().setFromUnitVectors(down,d);let n=new THREE.Vector3().crossVectors(d,up);if(n.lengthSq()<1e-6)n.set(1,0,0);n.normalize();
+const t1=Math.acos(Math.max(-1,Math.min(1,(a*a+D*D-b*b)/(2*a*D)))),bend=Math.PI-Math.acos(Math.max(-1,Math.min(1,(a*a+b*b-D*D)/(2*a*b))));
+const qs=new THREE.Quaternion().setFromAxisAngle(n,t1).multiply(q1);s.quaternion.copy(qs);el.quaternion.setFromAxisAngle(n.clone().applyQuaternion(qs.clone().invert()),-bend)})})}
+function build3D(R){if(!init3D())return;AGR=!!R.AG;const{lv,n,ba}=R,root=T3.root;while(root.children.length)root.remove(root.children[0]);T3.persons={};T3.picks=[];
+const tr=new THREE.Group();root.add(tr);let y=0;T3.levels=[];const top=R.out=='d'||R.out=='c';
+lv.forEach((l,i)=>{if(i>R.fe)return;const pp=pos3(n,l.n,l.r);let s=1;if(l.n>1)T3.levels.push(pp.map((_,j)=>l.r+'#'+j));pp.forEach(([x,z,ry],j)=>{const key=l.r+'#'+j,o=PF[Math.max(0,l.c[0])],who=Math.max(0,l.c[1]);
+const q=mkPerson(o,l.empty?0:who,Math.min(1,Math.max(l.x||0,l.f*.8||0)),l.empty);s=q.sc;
+const pose=l.r=='Enxaneta'&&top?2:0;setPose3(q,l.Ps[j],pose);q.g.position.set(x,y,z);q.g.rotation.y=ry+(l.n>1?Math.PI:0);q.g.traverse(o=>o.userData.key=key);tr.add(q.g);T3.persons[key]=q;T3.picks.push(q.g);
+if(key==selK){const ring=new THREE.Mesh(new THREE.TorusGeometry(.09,.018,8,28),new THREE.MeshBasicMaterial({color:0xc0392b}));ring.rotation.x=Math.PI/2;ring.position.set(x,y+1.12*q.sc,z);tr.add(ring)}});
+y+=.79*s});
+if(R.AG&&R.fe>=R.L){let ya=0;R.al.forEach((l,i)=>{if(i>R.fa)return;const key=l.r+'#0',q=mkPerson(PF[Math.max(0,l.c[0])],l.empty?0:Math.max(0,l.c[1]),Math.min(1,l.x||0),l.empty);
+setPose3(q,l.Ps[0],l.r=='Ag. enxaneta'&&top?2:0);q.g.position.set(0,ya,0);q.g.traverse(o=>o.userData.key=key);tr.add(q.g);T3.persons[key]=q;T3.picks.push(q.g);ya+=.79*q.sc})}
+T3.levels.forEach(linkLevel);const fall=R.k=='bad'&&R.out!='x';if(fall)tr.rotation.z=-Math.min(16,Math.max(R.S-100,8)/6+5)*RAD;
+const br={1:0,2:.15,3:.2,4:.24,5:.3}[n],pa=R.pA||0;
+const cg=new THREE.Group();root.add(cg);crowd(cg,pa,br+.62,0,.3,1);
+const b0=lv[0];if(b0&&!b0.empty){const P0=pos3(n,b0.n,b0.r),face=(dx,dz)=>Math.atan2(dx,dz),sp=[];
+const role=(x,z,yaw,c,sc,ang,elb)=>{const q=mkPerson(PF[1],0,0,false,c);q.g.scale.setScalar(sc);q.legs.forEach(([h,k])=>{h.rotation.x=-.25;k.rotation.x=.5});q.tp.rotation.x=.18;
+q.arms.forEach(([s2,e2])=>{s2.rotation.set(ang,0,0);e2.rotation.set(elb,0,0)});q.g.position.set(x,0,z);q.g.rotation.y=yaw;cg.add(q.g)};
+const cC=mix(U.s,'#ffffff',.45),cK=mix(U.s,'#000000',.35),cA='#E0B030';
+P0.forEach(([x,z,ry],j)=>{const yaw=ry+(b0.n>1?Math.PI:0),fx=Math.sin(yaw),fz=Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw),sb=(T3.persons[b0.r+'#'+j]||{sc:1}).sc;
+role(x-fx*.27*sb,z-fz*.27*sb,yaw,cK,.95,-1.45,-.25);
+[-1,1].forEach(sd=>{const cx=x+rx*sd*.22*sb-fx*.02,cz=z+rz*sd*.22*sb-fz*.02;role(cx,cz,face(x-cx,z-cz),cC,.88,-2.1,-.2)});
+if(b0.n<=2)role(x+fx*.24*sb,z+fz*.24*sb,face(-fx,-fz),cA,.85,-1.5,-.3)});
+if(b0.n>=3&&!R.AG)role(0,0,0,cA,.8,-2.6,0)}
+if(ba>=1)crowd(cg,R.fo,br+.3,.8,.28,.95);if(ba>=2)crowd(cg,R.ma,br+.26,1.58,.26,.9);if(ba==3)crowd(cg,R.pu,br+.22,2.36,.24,.85);
+const dark=document.documentElement.dataset.theme=='dark'||(document.documentElement.dataset.theme!='light'&&matchMedia('(prefers-color-scheme: dark)').matches);
+T3.sc.background=new THREE.Color(dark?'#14283d':'#bfe1f5');T3.gr.material.color.set(dark?'#3a342d':'#d9cfc0');
+const Ht=y+.6;T3.ty=Ht*.55;if(!T3.dist||T3.lastH!=Math.round(Ht*10)){T3.dist=Ht*1.25+1.6;T3.lastH=Math.round(Ht*10);T3.px=T3.py=T3.pz=0}size3()}
+function pick(e){const cn=$('cn'),rc=cn.getBoundingClientRect(),v=new THREE.Vector2((e.clientX-rc.left)/rc.width*2-1,-(e.clientY-rc.top)/rc.height*2+1),ray=new THREE.Raycaster();
+ray.setFromCamera(v,T3.cam);const hit=ray.intersectObjects(T3.picks,true)[0];selK=hit?hit.object.userData.key:null;build3D(LR);if(selK&&T3.persons[selK]){const q=T3.persons[selK],p=new THREE.Vector3();T3.root.updateMatrixWorld(true);q.g.getWorldPosition(p);T3.px=p.x;T3.pz=p.z;T3.py=p.y+.6*q.sc-T3.ty;T3.dist=Math.min(T3.dist,3.2);r3()}drawSel()}
+function drawSel(){const el=$('sel3');if(!v3||!selK||!LR){el.classList.add('hid');return}const [r,j]=selK.split('#'),l=LR.lv.concat(LR.al||[]).find(x=>x.r==r);if(!l){selK=null;el.classList.add('hid');return}
+el.classList.remove('hid');el.innerHTML=`<div class="selh"><b>${r} · ${+j+1} de ${l.n}</b><button class="b" data-close="1" style="min-height:32px">Tancar</button></div>`+
+`<div class="l1" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)"><select data-r="${r}" data-k="0" aria-label="Perfil"><option value="-1"${l.c[0]<0?' selected':''}>Perfil…</option>${PF.map((p,i)=>`<option value="${i}"${i==l.c[0]?' selected':''}>${p.n}</option>`).join('')}</select><select data-r="${r}" data-k="1" aria-label="Persona"><option value="-1"${l.c[1]<0?' selected':''}>Persona…</option>${PS.map((p,i)=>`<option value="${i}"${i==l.c[1]?' selected':''}>${p.n}</option>`).join('')}</select></div>`+
+`<div class="lbl">El perfil s'aplica a tot el pis; la postura, només a aquest casteller.</div>`+edHTML(selK,'',1)}
+$('sel3').addEventListener('click',e=>{if(e.target.dataset.close){selK=null;build3D(LR);drawSel()}});
+function setView(b){v3=b;$('b2').classList.toggle('on',!b);$('b3').classList.toggle('on',b);$('cv').classList.toggle('hid',b);$('c3').classList.toggle('hid',!b);
+if(b&&!window.THREE){$('c3').innerHTML='<div style="padding:40px 16px">No s\'ha pogut carregar el motor 3D.</div>'}run()}
+$('b2').onclick=()=>setView(false);$('b3').onclick=()=>setView(true);
+
+const hdr=R=>{const ti=Math.max(1,R.L-5);if(R.AG&&R.fe>=R.L&&R.fa<R.al.length)return `<div class="lbl" style="padding:6px 0">Tronc complet. Ara l'agulla (pilar de ${R.La}) de baix a dalt: toca <b>${R.al[R.fa].r}</b>. L'oscil·lació de l'agulla surt al costat de la del castell.</div>`;return R.fe<R.L?`<div class="lbl" style="padding:6px 0">Tria de baix a dalt. Ara toca: <b>${R.lv[R.fe].r}</b> (pis ${R.fe+1} de ${R.L}). Les gralles sonaran quan pugin els ${R.lv[ti].r.toLowerCase()}.</div>`:`<div class="lbl" style="padding:6px 0">Castell complet, de baix a dalt.</div>`};
+let AC=null,MG=null,mOn=true,tocOn=false,tocT=null,nextT=0,stepI=0,schT=null;
+function ac(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();MG=AC.createGain();MG.gain.value=.0;MG.connect(AC.destination)}catch(e){AC=null}}if(AC&&AC.state=='suspended')AC.resume().catch(()=>{});return AC}
+document.addEventListener('pointerdown',()=>ac(),{once:true});
+const mf=m=>440*Math.pow(2,(m-69)/12);
+const MEL=[[74,2],[76,1],[78,1],[79,2],[81,2],[81,1],[79,1],[78,1],[76,1],[78,4],[79,1],[81,1],[83,2],[81,1],[79,1],[78,2],[76,1],[78,1],[79,1],[78,1],[76,4],
+[74,2],[76,1],[78,1],[79,2],[78,1],[76,1],[74,1],[73,1],[74,1],[76,1],[78,4],[81,2],[79,1],[78,1],[76,1],[74,1],[73,2],[74,6]];
+const SC=[1,4,6,7,9,11,13].map(x=>x%12),harm=m=>{for(const d of[3,4])if(SC.includes((m-d+12*10)%12))return m-d;return m-3};
+function gr(t,f,d,g){const o1=AC.createOscillator(),o2=AC.createOscillator(),bp=AC.createBiquadFilter(),ga=AC.createGain(),lf=AC.createOscillator(),lg=AC.createGain();
+o1.type='sawtooth';o2.type='square';o1.frequency.value=f;o2.frequency.value=f*1.004;lf.frequency.value=5.6;lg.gain.value=f*.005;lf.connect(lg);lg.connect(o1.frequency);lg.connect(o2.frequency);
+bp.type='bandpass';bp.frequency.value=1700;bp.Q.value=1.1;o1.connect(bp);o2.connect(bp);bp.connect(ga);ga.connect(MG);
+ga.gain.setValueAtTime(0,t);ga.gain.linearRampToValueAtTime(g,t+.025);ga.gain.setValueAtTime(g,t+d*.82);ga.gain.linearRampToValueAtTime(0,t+d*.97);[o1,o2,lf].forEach(o=>{o.start(t);o.stop(t+d)})}
+function drum(t,acc){const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(60,t+.15);
+g.gain.setValueAtTime(acc?.55:.3,t);g.gain.exponentialRampToValueAtTime(.001,t+.22);o.connect(g);g.connect(MG);o.start(t);o.stop(t+.25);
+const n=AC.createBufferSource(),b=AC.createBuffer(1,AC.sampleRate*.08,AC.sampleRate),dd=b.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=(Math.random()*2-1)*(1-i/dd.length);
+const ng=AC.createGain(),lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1800;ng.gain.value=acc?.25:.12;n.buffer=b;n.connect(lp);lp.connect(ng);ng.connect(MG);n.start(t)}
+const E8=.24;
+function sched(){if(!AC)return;while(nextT<AC.currentTime+.4){const[m,len]=MEL[stepI%MEL.length],d=len*E8;gr(nextT,mf(m),d,.16);gr(nextT,mf(harm(m)),d,.1);
+for(let k=0;k<len;k++)if(((Math.round((nextT-0)/E8)+k)%2)==0)drum(nextT+k*E8,k==0);nextT+=d;stepI++}}
+const AU=new Audio('toc.mp3');AU.preload='auto';let AUph='p1';const T_P1=[5.5,87.6],T_EXT=[88.0,90.5],T_ALETA=90.9;
+AU.addEventListener('timeupdate',()=>{if(AUph=='p1'&&AU.currentTime>T_P1[1])AU.currentTime=T_P1[0];else if(AUph=='ext'&&AU.currentTime>T_EXT[1])AU.currentTime=T_EXT[0]});let auOk=true,fadeI=null;AU.addEventListener('error',()=>auOk=false);
+function tocStart(){if(tocOn||!mOn)return;if(auOk){tocOn=true;AUph='p1';clearInterval(fadeI);AU.volume=1;try{AU.currentTime=0}catch(e){}const p=AU.play();if(p&&p.catch)p.catch(()=>{tocOn=false;auOk=false;synthStart()});return}synthStart()}
+function synthStart(){if(tocOn||!mOn||!ac())return;tocOn=true;stepI=0;nextT=AC.currentTime+.08;MG.gain.cancelScheduledValues(AC.currentTime);MG.gain.setValueAtTime(0,AC.currentTime);MG.gain.linearRampToValueAtTime(.9,AC.currentTime+.3);sched();schT=setInterval(sched,100)}
+function tocStop(fade){if(!tocOn)return;tocOn=false;if(!AU.paused){clearInterval(fadeI);const st=AU.volume/Math.max(1,(fade||.15)*20);fadeI=setInterval(()=>{AU.volume=Math.max(0,AU.volume-st);if(AU.volume<=0){clearInterval(fadeI);AU.pause()}},50)}clearInterval(schT);clearTimeout(tocT);if(AC){MG.gain.cancelScheduledValues(AC.currentTime);MG.gain.setValueAtTime(MG.gain.value,AC.currentTime);MG.gain.linearRampToValueAtTime(0,AC.currentTime+(fade||.15))}}
+let lastSig='';
+function toc(R){const ti=Math.max(1,R.L-5),ai=R.lv.findIndex(l=>l.r=='Acotxador'),xi=ai>=0?ai:R.L-1,sig=R.n+'|'+R.L+'|'+R.ba+'|'+R.fe+'|'+R.out;if(sig==lastSig)return;lastSig=sig;clearTimeout(tocT);
+if(R.fe<=ti){tocStop(.3);AUph='p1';return}tocStart();
+const ph=R.fe>=R.L?'post':R.fe>=xi?'ext':'p1';if(ph!=AUph&&!AU.paused){try{if(ph=='ext'&&(AU.currentTime<T_EXT[0]||AU.currentTime>T_EXT[1]+.2))AU.currentTime=T_EXT[0];else if(ph=='post')AU.currentTime=T_ALETA;else if(ph=='p1'&&AU.currentTime>T_P1[1])AU.currentTime=T_P1[0]}catch(e){}}AUph=ph;
+if(R.fe>=R.L){if(R.out=="d")tocT=setTimeout(()=>tocStop(2.5),Math.min(60000,Math.max(15000,(R.T-R.Tup)*1000)));else if(R.out=='c')tocT=setTimeout(()=>tocStop(.4),4000);else tocStop(.1)}}
+$('bM').onclick=()=>{mOn=!mOn;$('bM').classList.toggle('on',mOn);if(!mOn)tocStop(.2);else{lastSig='';ac();toc(LR)}};
+
+fillCl();setMode(location.hash=='#somni'?'som':'sim');
+}
+</script>
+</body>
+</html>
