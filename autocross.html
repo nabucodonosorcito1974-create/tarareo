@@ -65,19 +65,38 @@ button.ic.on{background:linear-gradient(#9ff59a,#3fae38)}
 #bz.show{display:block}
 #bz span{position:absolute;right:10px;top:10px;font:900 11px system-ui;color:#fff;background:rgba(200,0,0,.55);padding:3px 8px;border-radius:10px;opacity:.85;transition:opacity 1s}
 #bz.on{background:rgba(255,0,0,.18)}
+#ctr{display:none}
+/* ===== MODO MÓVIL (giroscopio): sin volante, pantalla completa y horizontal ===== */
+body.drive #wheelBox{display:none}
+body.drive #ctr{display:inline-block}
+body.drive #app{max-width:none;border-radius:0}
+@media (orientation:landscape){
+ body.drive #app{flex-direction:row;padding:6px;gap:8px}
+ body.drive #dash{order:-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:176px;height:100%;padding:8px 8px;overflow-y:auto}
+ body.drive #dash .col{display:contents}
+ body.drive .rSp{order:1;max-width:118px}body.drive .rOdo{order:2}body.drive .rGa{order:3}body.drive .rKey{order:4}body.drive .rGear{order:5}body.drive .rBtn{order:6;flex-wrap:wrap;justify-content:center}
+ body.drive #dash:before,body.drive #dash:after{display:none}
+ body.drive #rot{display:none!important}
+}
+@media (orientation:portrait){body.drive #dash{grid-template-columns:1fr 1fr}}
+#rot{display:none;position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.8);color:#fff;font:800 16px system-ui;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+#rot div{font-size:54px;animation:spin 1.6s ease-in-out infinite}
+@keyframes spin{0%,30%{transform:rotate(0)}70%,100%{transform:rotate(90deg)}}
+body.drive.port #rot{display:flex}
 #brake.on div{transform:translateY(3px);box-shadow:none;color:#ff4d4d}
 </style>
 </head>
 <body>
 <div id="bz"><span>🛑 FRENO</span></div>
+<div id="rot"><div>↻</div>Gira el móvil en horizontal</div>
 <div id="app">
   <div id="boardWrap"><canvas id="board" width="758" height="726"></canvas><div id="msg"></div></div>
   <div id="dash">
     <div class="col">
-      <svg id="speedo" viewBox="0 0 140 84"></svg>
-      <div class="row"><div id="odo"></div><span id="mult">x1</span></div>
-      <div class="row"><div class="gauge" id="gHp" title="Salud del coche"><div class="w"><div class="mk"></div><div class="v"></div></div></div><div class="gauge" id="gFu" title="Gasolina"><div class="w"><div class="mk"></div><div class="v"></div></div></div><div class="gauge" id="gTm" title="Tiempo"><div class="w"><div class="mk"></div><div class="v"></div></div></div></div>
-      <div class="row"><button class="ic" id="snd" title="Sonido">🔇</button><button class="ic" id="rst" title="Reiniciar">↺</button><button class="ic" id="gyro" title="Girar inclinando el móvil">📱</button><span id="rec">REC 0</span></div>
+      <svg id="speedo" class="rSp" viewBox="0 0 140 84"></svg>
+      <div class="row rOdo"><div id="odo"></div><span id="mult">x1</span></div>
+      <div class="row rGa"><div class="gauge" id="gHp" title="Salud del coche"><div class="w"><div class="mk"></div><div class="v"></div></div></div><div class="gauge" id="gFu" title="Gasolina"><div class="w"><div class="mk"></div><div class="v"></div></div></div><div class="gauge" id="gTm" title="Tiempo"><div class="w"><div class="mk"></div><div class="v"></div></div></div></div>
+      <div class="row rBtn"><button class="ic" id="snd" title="Sonido">🔇</button><button class="ic" id="rst" title="Reiniciar">↺</button><button class="ic" id="gyro" title="Modo móvil: girar inclinando el móvil">📱</button><button class="ic" id="ctr" title="Recentrar el volante">🎯</button><span id="rec">REC 0</span></div>
     </div>
     <div id="wheelBox"><svg id="wheel" viewBox="-100 -100 200 200">
       <circle r="88" fill="none" stroke="#111" stroke-width="18"/>
@@ -87,11 +106,11 @@ button.ic.on{background:linear-gradient(#9ff59a,#3fae38)}
       <rect x="-4" y="-97" width="8" height="12" rx="2" fill="#ffcc00"/>
     </svg></div>
     <div class="col">
-      <div id="keyBox">
+      <div id="keyBox" class="rKey">
         <div id="keyLbl"><span>MAX.BAT <i id="lMax"></i></span><span>STOP <i id="lStop" class="on"></i></span><span>MIN.BAT <i id="lMin"></i></span></div>
         <div id="key"><div class="blade"></div></div>
       </div>
-      <div class="row" style="gap:6px"><div id="gear"><div class="slot"></div><div id="knob"></div></div><div id="brake" title="Freno"><div>FRENO</div></div></div>
+      <div class="row rGear" style="gap:6px"><div id="gear"><div class="slot"></div><div id="knob"></div></div><div id="brake" title="Freno"><div>FRENO</div></div></div>
     </div>
   </div>
 </div>
@@ -149,13 +168,24 @@ const endDrag=()=>{dragging=false};wb.addEventListener('pointerup',endDrag);wb.a
    Usa deviceorientation; si no llega, usa devicemotion (gravedad) como alternativa. */
 let gyroOn=false,gyroLive=false,gyroWheel=0,gyroZero=null,gyroTimer=0,gyroSrc='';
 function scrAng(){return (screen.orientation&&screen.orientation.angle)||window.orientation||0}
-function applyTilt(t){if(gyroZero===null)gyroZero=t;let d=t-gyroZero;if(Math.abs(d)<2)d=0;else d-=Math.sign(d)*2;gyroWheel=Math.max(-150,Math.min(150,d*6))}
+function applyTilt(t){if(gyroZero===null)gyroZero=t;let d=t-gyroZero;if(Math.abs(d)<2)d=0;else d-=Math.sign(d)*2;gyroWheel=Math.max(-150,Math.min(150,d*6.5))}
+/* vector "arriba" en coordenadas del móvil -> inclinación lateral respecto a la pantalla (vale en vertical y en horizontal) */
+function tiltFromUp(ux,uy){const a=scrAng();const sx=a==90?-uy:(a==-90||a==270)?uy:a==180?-ux:ux;return Math.asin(Math.max(-1,Math.min(1,-sx)))*180/Math.PI}
 function onOri(e){if(!gyroOn||e.gamma==null||e.beta==null)return;if(gyroSrc==='mot')gyroZero=null;gyroSrc='ori';gyroLive=true;
-  const a=scrAng();applyTilt(a==90?e.beta:(a==-90||a==270)?-e.beta:e.gamma)}
+  const b=e.beta*Math.PI/180,g=e.gamma*Math.PI/180;applyTilt(tiltFromUp(-Math.sin(g)*Math.cos(b),Math.sin(b)))}
 function onMot(e){if(!gyroOn||gyroSrc==='ori')return;const g=e.accelerationIncludingGravity;if(!g||g.x==null)return;gyroSrc='mot';gyroLive=true;
-  const a=scrAng(),c=v=>Math.max(-1,Math.min(1,v/9.81));const x=a==90?g.y:(a==-90||a==270)?-g.y:-g.x;applyTilt(Math.asin(c(x))*180/Math.PI)}
+  const n=Math.hypot(g.x,g.y,g.z)||9.81;applyTilt(tiltFromUp(g.x/n,g.y/n))}
+function checkPort(){document.body.classList.toggle('port',innerHeight>innerWidth)}
+addEventListener('resize',()=>{checkPort();gyroZero=null});
+async function enterDrive(){document.body.classList.add('drive');checkPort();
+  try{const el=document.documentElement;if(!document.fullscreenElement){if(el.requestFullscreen)await el.requestFullscreen({navigationUI:'hide'});else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen()}}catch(e){}
+  try{if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape')}catch(e){}
+  checkPort()}
+function exitDrive(){document.body.classList.remove('drive','port');try{if(screen.orientation&&screen.orientation.unlock)screen.orientation.unlock()}catch(e){}
+  try{if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen()}catch(e){}}
+document.getElementById('rot').onclick=()=>document.body.classList.remove('port');
 const GY_EV=[['deviceorientation',onOri],['deviceorientationabsolute',onOri],['devicemotion',onMot]];
-function gyroStop(m){const b=document.getElementById('gyro');gyroOn=false;gyroLive=false;b.classList.remove('on');document.getElementById('bz').classList.remove('show');GY_EV.forEach(([n,f])=>removeEventListener(n,f));if(m)msg(m,m.length>40?4200:1000)}
+function gyroStop(m){const b=document.getElementById('gyro');exitDrive();gyroOn=false;gyroLive=false;b.classList.remove('on');document.getElementById('bz').classList.remove('show');GY_EV.forEach(([n,f])=>removeEventListener(n,f));if(m)msg(m,m.length>40?4200:1000)}
 function toggleGyro(){
   if(gyroOn){gyroStop('Volante táctil');return}
   if(!window.isSecureContext){msg('📱 El giroscopio necesita abrir el juego<br>desde la web (https://…)',3500);return}
@@ -163,10 +193,11 @@ function toggleGyro(){
   // iOS: hay que pedir permiso dentro del mismo toque (sin esperas antes)
   const asks=[];try{if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission)asks.push(DeviceOrientationEvent.requestPermission())}catch(e){}
   try{if(window.DeviceMotionEvent&&DeviceMotionEvent.requestPermission)asks.push(DeviceMotionEvent.requestPermission())}catch(e){}
+  enterDrive();
   Promise.allSettled(asks).then(r=>{
-    if(r.length&&r.every(x=>x.status==='fulfilled'&&x.value==='denied')){msg('Permiso de movimiento denegado.<br><small>iPhone: cierra Safari y vuelve a abrir la web para que lo pida otra vez</small>',4500);return}
+    if(r.length&&r.every(x=>x.status==='fulfilled'&&x.value==='denied')){exitDrive();msg('Permiso de movimiento denegado.<br><small>iPhone: cierra Safari y vuelve a abrir la web para que lo pida otra vez</small>',4500);return}
     gyroOn=true;gyroLive=false;gyroZero=null;gyroSrc='';document.getElementById('gyro').classList.add('on');document.getElementById('bz').classList.add('show');
-    GY_EV.forEach(([n,f])=>addEventListener(n,f));msg('📱 Inclina el móvil para girar',1500);
+    GY_EV.forEach(([n,f])=>addEventListener(n,f));msg('📱 Gira el móvil como un volante',1800);
     clearTimeout(gyroTimer);gyroTimer=setTimeout(()=>{if(gyroOn&&!gyroLive){
       const inClaude=window.top!==window.self;
       gyroStop(inClaude?'📱 Dentro de la app de Claude no hay giroscopio.<br><small>Ábrelo desde el enlace web</small>':'📱 El móvil no envía datos del sensor.<br><small>Android: Chrome ⋮ › Configuración › Configuración de sitios › Sensores de movimiento: Permitir</small>')}},2000)
@@ -174,6 +205,7 @@ function toggleGyro(){
 document.getElementById('gyro').onclick=toggleGyro;
 /* tocar el volante con el giroscopio activo recalibra el centro */
 wb.addEventListener('dblclick',()=>{gyroZero=null});
+document.getElementById('ctr').onclick=()=>{gyroZero=null;msg('🎯 Volante centrado',800)};
 /* freno: mantener pulsado */
 let braking=false;const brEl=document.getElementById('brake');
 const bz=document.getElementById('bz');
