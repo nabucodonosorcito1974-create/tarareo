@@ -22,6 +22,9 @@ h1{font:700 24px/1 'Barlow Condensed',sans-serif;margin:0;flex:1;letter-spacing:
 .tabs button{border:0;background:none;color:var(--mut);font:600 14px Barlow;padding:8px 12px;border-radius:8px;min-height:36px;cursor:pointer}
 .tabs button.on{background:var(--bg);color:var(--ink);box-shadow:0 1px 2px #0002}
 .scene{position:relative}
+.fcb{display:flex;gap:6px;padding:8px 12px 0}.fcb .b{flex:none;padding:6px 10px;min-height:34px;font-size:13.5px}.fcb #bF{flex:1}.fcb .b.on{background:var(--ink);color:var(--bg)}.fcb .b:disabled{opacity:.45}
+.pad{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:space-between;padding:0 10px;pointer-events:none}.pad button{pointer-events:auto;width:64px;height:64px;border-radius:50%;border:0;background:#ffffffcc;font-size:24px;box-shadow:0 2px 6px #0003;touch-action:none;user-select:none;-webkit-user-select:none}
+#fcLog{margin-bottom:8px;font-size:12.5px}#fcLog .lh{font-weight:700;margin:2px 0 4px}#fcLog details{background:var(--card);border-radius:9px;padding:5px 8px;margin-bottom:4px}#fcLog summary{cursor:pointer}#fcLog table{width:100%;border-collapse:collapse;margin-top:4px;font-size:12px}#fcLog td,#fcLog th{text-align:left;padding:2px 3px;border-top:1px solid var(--line)}#fcLog th{font-weight:600;color:var(--mut)}
 .scene svg{display:block;width:100%;height:auto}
 .wrap{padding:10px 12px}
 .res{border-radius:12px;padding:8px 12px;font:600 15px Barlow;margin-bottom:4px}
@@ -88,11 +91,11 @@ button:disabled{opacity:.45}
 <body>
 <div class="app">
 <header><h1>Castells</h1><div class="tabs"><button id="tSim" class="on">Simulador</button><button id="tSom">Mode somni</button></div></header>
-<div class="scene"><div id="cv"></div><div id="c3" class="hid" style="position:relative"><canvas id="cn" aria-label="Castell en 3D"></canvas><div class="hint">Mòbil: un dit gira · dos dits apropen i desplacen. PC: botó esquerre gira · dret (o Maj) desplaça · roda apropa. Toca un casteller per centrar-lo<br>Pinya: crosses (to clar) · contraforts (to fosc) · agulla (groc)</div></div><div class="vt"><button id="bM" class="on" aria-label="So de gralles">♪</button><button id="b2" class="on">2D</button><button id="b3">3D</button></div></div>
+<div class="scene"><div id="cv"></div><div id="c3" class="hid" style="position:relative"><canvas id="cn" aria-label="Castell en 3D"></canvas><div class="hint">Mòbil: un dit gira · dos dits apropen i desplacen. PC: botó esquerre gira · dret (o Maj) desplaça · roda apropa. Toca un casteller per centrar-lo<br>Pinya: crosses (to clar) · contraforts (to fosc) · agulla (groc)</div></div><div class="vt"><button id="bM" class="on" aria-label="So de gralles">♪</button><button id="b2" class="on">2D</button><button id="b3">3D</button></div><div id="pad" class="pad hid"><button id="pL" aria-label="Falcar cap a l'esquerra">◀</button><button id="pR" aria-label="Falcar cap a la dreta">▶</button></div></div><div class="fcb"><button class="b p" id="bF">▶ Fer el castell</button><button class="b" id="bRp" title="Repetició">⟲ Repetició</button><button class="b" id="bLat" title="Estructura interna">▦ Estructura</button><button class="b" id="bGy" title="Giroscopi">📱</button></div>
 <div id="sel3" class="wrap hid"></div>
 <div class="wrap">
 <div id="rs" class="res"></div>
-<div id="rf" class="ref"></div>
+<div id="rf" class="ref"></div><div id="fcLog"></div>
 <div id="som" class="somni hid">
 <h2 id="sh"></h2>
 <div class="st" id="sst"></div>
@@ -136,28 +139,29 @@ const hx=x=>[1,3,5].map(i=>parseInt(x.substr(i,2),16));
 const mix=(a,b,t)=>{const A=hx(a),B=hx(b);return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,'0')).join('')};
 const sh=(c,k)=>mix(c,'#000000',k);
 const $=id=>document.getElementById(id);
+function face2(r,t){const ey=51-r*.04,e=r*.15;let s='';const br=t*r*.12;
+s+=`<path d="M${50-r*.5} ${ey-r*.3+br} q${r*.16} ${-r*.12-br*.6} ${r*.32} ${-br*1.2}M${50+r*.5} ${ey-r*.3+br} q${-r*.16} ${-r*.12-br*.6} ${-r*.32} ${-br*1.2}" fill="none" stroke="#3a2a20" stroke-width="${r*.075}" stroke-linecap="round"/>`;
+if(t<.85)s+=`<ellipse cx="${50-r*.33}" cy="${ey}" rx="${e*.78}" ry="${e*(1-t*.45)}" fill="#1E1E1E"/><ellipse cx="${50+r*.33}" cy="${ey}" rx="${e*.78}" ry="${e*(1-t*.45)}" fill="#1E1E1E"/><circle cx="${50-r*.29}" cy="${ey-e*.4}" r="${e*.3}" fill="#fff"/><circle cx="${50+r*.37}" cy="${ey-e*.4}" r="${e*.3}" fill="#fff"/>`;
+else s+=`<path d="M${50-r*.45} ${ey} h${r*.24}M${50+r*.21} ${ey} h${r*.24}" stroke="#1E1E1E" stroke-width="${r*.09}" stroke-linecap="round"/>`;
+s+=`<circle cx="${50-r*.56}" cy="${51+r*.24}" r="${r*.14}" fill="#F49A88" opacity="${.6*(1-t)}"/><circle cx="${50+r*.56}" cy="${51+r*.24}" r="${r*.14}" fill="#F49A88" opacity="${.6*(1-t)}"/>`;
+if(t<.35)s+=`<path d="M${50-r*.28} ${51+r*.3} q${r*.28} ${r*.34} ${r*.56} 0Z" fill="#8a2a1a"/><path d="M${50-r*.15} ${51+r*.4} q${r*.15} ${r*.1} ${r*.3} 0" fill="#f08a8a"/>`;
+else{const cv=(.6-t)*r*.5;s+=`<path d="M${50-r*.24} ${51+r*.36} q${r*.24} ${cv} ${r*.48} 0" fill="none" stroke="#6b2a1a" stroke-width="${r*.08}" stroke-linecap="round"/>`}
+if(t>.45)s+=`<path d="M${50+r*.8} ${51-r*.55} q${r*.11} ${r*.22} 0 ${r*.32} q${-r*.11} ${-r*.1} 0 ${-r*.32}Z" fill="#7cc0f0"/>`;
+if(t>.75)s+=`<path d="M${50-r*.85} ${51-r*.4} q${r*.1} ${r*.2} 0 ${r*.28} q${-r*.1} ${-r*.09} 0 ${-r*.28}Z" fill="#7cc0f0"/>`;return s}
 function fig(o,t,who,pose){
-const kid=who>1,fem=who%2==1,w=o.w*(fem?.9:1),wb=o.wb*(fem?.92:1),aw=o.aw*(fem?.9:1),L=50-w/2,R=50+w/2,BL=50-wb/2,BR=50+wb/2;
-const b=o.h*(kid?.62:1),hs=o.h*(kid?.84:1),ny=148-104*b,sk=mix('#F9D7B0','#EE5A40',t),cv=4-7.5*t,ln=sh(U.s,.25);
-let s=`<g transform="translate(50,148) scale(${b}) translate(-50,-148)">`;
-s+=`<path d="M${BL+1} 96 L49 96 L42 136 L29 136 Z" fill="${U.p}" stroke="${sh(U.p,.3)}" stroke-width="0.7" stroke-linejoin="round"/><path d="M51 96 L${BR-1} 96 L71 136 L58 136 Z" fill="${U.p}" stroke="${sh(U.p,.3)}" stroke-width="0.7" stroke-linejoin="round"/>`;
-[[27,44],[56,73]].forEach(([a,c])=>s+=`<rect x="${a}" y="134" width="${c-a}" height="8" rx="4" fill="#F4F2EC" stroke="#888780" stroke-width="0.6"/><line x1="${a+3}" y1="137" x2="${c-3}" y2="137" stroke="#2C2C2A" stroke-width="0.8"/>`);
-s+=`<rect x="${BL-1}" y="88" width="${wb+2}" height="10" rx="3" fill="${U.p}"/>`;
-const ar=pose==1?[78,-78]:pose==2?[14,-165]:[14,-14];
-[[L+2,ar[0]],[R-2,ar[1]]].forEach(([x,a])=>s+=`<g transform="rotate(${a} ${x} 55)"><rect x="${x-aw/2}" y="52" width="${aw}" height="28" rx="${aw/2}" fill="${SF()}" stroke="${ln}" stroke-width="0.5"/><path d="M${x-3.2} 83 A4 4 0 1 0 ${x+3.2} 83" fill="none" stroke="${sk}" stroke-width="3.2" stroke-linecap="round"/></g>`);
-s+=`<rect x="45" y="44" width="10" height="8" rx="2" fill="${sk}"/><path d="M${L+6} 50 L${R-6} 50 Q${R} 50 ${R} 56 L${BR} 88 L${BL} 88 L${L} 56 Q${L} 50 ${L+6} 50 Z" fill="${SF()}" stroke="${ln}" stroke-width="0.5"/><path d="M45 50 L50 55 L55 50" fill="none" stroke="${ln}" stroke-width="1"/>`;
-s+=`<rect x="${BL-2}" y="80" width="${wb+4}" height="11" rx="2" fill="${U.f}"/><path d="M${BR-4} 85 l5 0 l1 12 l-5 0 Z" fill="${U.f}"/></g>`;
-s+=`<g transform="translate(50,${ny}) scale(${hs}) translate(-50,-44)">`;
-if(who==1)s+=`<ellipse cx="70" cy="34" rx="5" ry="11" fill="${o.hair}" transform="rotate(-15 70 34)"/>`;
-if(who==3)s+=`<circle cx="28" cy="33" r="5.5" fill="${o.hair}"/><circle cx="72" cy="33" r="5.5" fill="${o.hair}"/>`;
-s+=`<rect x="32" y="10" width="36" height="35" rx="15" fill="${sk}"/>`;
-s+=fem?`<path d="M30 36 Q28 6 50 6 Q72 6 70 36 L66 36 L66 19 Q50 15 34 19 L34 36 Z" fill="${o.hair}"/>`:`<path d="M30 30 Q29 6 50 6 Q71 6 70 30 L66 30 L66 19 Q50 15 34 19 L34 30 Z" fill="${o.hair}"/>`;
-s+=`<circle cx="40.5" cy="32" r="3" fill="#F28B78" opacity="${.55*(1-t)}"/><circle cx="59.5" cy="32" r="3" fill="#F28B78" opacity="${.55*(1-t)}"/>`;
-s+=`<path d="M40 ${23.5+2*t} Q43 ${22-t} 46 ${23-2.5*t}" fill="none" stroke="#2C2C2A" stroke-width="0.9"/><path d="M60 ${23.5+2*t} Q57 ${22-t} 54 ${23-2.5*t}" fill="none" stroke="#2C2C2A" stroke-width="0.9"/>`;
-s+=t<.85?`<circle cx="43" cy="28" r="1.8" fill="#1E1E1E"/><circle cx="57" cy="28" r="1.8" fill="#1E1E1E"/>`:`<line x1="41" y1="28" x2="45" y2="28" stroke="#1E1E1E" stroke-width="1.3"/><line x1="55" y1="28" x2="59" y2="28" stroke="#1E1E1E" stroke-width="1.3"/>`;
-s+=`<path d="M44.5 36 Q50 ${36+cv} 55.5 36" fill="none" stroke="#5A2A1A" stroke-width="1.2" stroke-linecap="round"/>`;
-if(t>.45)s+=`<path d="M69 22 q2.6 5 0 7 q-2.6 -2 0 -7Z" fill="#85B7EB"/>`;
-return s+'</g>'}
+const kid=who>1,fem=who%2==1,b=o.h*(kid?.78:1),bw=o.w*.82*(fem?.88:1),bb=o.wb*.82*(fem?.9:1),sk=mix('#F6D2AE','#EE6A50',t),hc=o.hair,SFc=SF(),sd=sh(U.s,.22);
+let s=`<g transform="translate(50,150) scale(${b}) translate(-50,-150)">`;
+[[32,'M45 108 L33 142'],[68,'M55 108 L67 142']].forEach(([x,d])=>s+=`<path d="${d}" stroke="#C9C5BB" stroke-width="13" stroke-linecap="round"/><path d="${d}" stroke="${U.p}" stroke-width="11" stroke-linecap="round"/><ellipse cx="${x}" cy="146" rx="8.5" ry="4.6" fill="#F4EFE4" stroke="#9a948a" stroke-width="1"/><path d="M${x-5} 144 l10 3 M${x+5} 144 l-10 3" stroke="#C8202F" stroke-width="1.4"/>`);
+const L0=50-bw/2+4,R0=50+bw/2-4,arm=(x1,y1,x2,y2)=>`<path d="M${x1} ${y1} L${x2} ${y2}" stroke="${sd}" stroke-width="11.5" stroke-linecap="round"/><path d="M${x1} ${y1} L${x2} ${y2}" stroke="${SFc}" stroke-width="10" stroke-linecap="round"/><circle cx="${x2}" cy="${y2}" r="6.2" fill="${sk}"/>`;
+if(pose==1)s+=arm(L0,82,L0-20,81)+arm(R0,82,R0+20,81);else if(pose==2)s+=arm(L0,82,L0-9,104)+arm(R0,82,R0+8,55);else s+=arm(L0,82,L0-9,104)+arm(R0,82,R0+9,104);
+s+=`<path d="M${50-bw/2} 85 Q${50-bw/2} 74 ${50-bw/2+10} 74 L${50+bw/2-10} 74 Q${50+bw/2} 74 ${50+bw/2} 85 L${50+bb/2} 107 Q${50+bb/2} 116 ${50+bb/2-8} 116 L${50-bb/2+8} 116 Q${50-bb/2} 116 ${50-bb/2} 107 Z" fill="${SFc}" stroke="${sd}" stroke-width=".8"/>`;
+s+=`<path d="M43 74.5 L50 83 L57 74.5" fill="#fff" opacity=".9"/><rect x="${50-bb/2-1.5}" y="103" width="${bb+3}" height="9" rx="3" fill="${U.f}"/><path d="M${50+bb/2-6} 107 l7 0 l3 13 l-6 1Z" fill="${U.f}"/>`;
+s+=`<g transform="translate(50,73) scale(${kid?1:.88}) translate(-50,-72)">`;
+if(who==1)s+=`<path d="M70 44 q20 4 13 30 q-6 -12 -12 -18Z" fill="${hc}"/>`;
+if(who==3)s+=`<circle cx="25" cy="50" r="7.5" fill="${hc}"/><circle cx="75" cy="50" r="7.5" fill="${hc}"/>`;
+s+=`<circle cx="27" cy="54" r="5" fill="${sk}"/><circle cx="73" cy="54" r="5" fill="${sk}"/><circle cx="50" cy="48" r="24" fill="${sk}"/>`;
+s+=fem?`<path d="M26 50 Q25 23 50 23.5 Q75 23 74 50 Q69 35 50 36 Q37 36 31 47Z" fill="${hc}"/>`:`<path d="M26.5 46 Q26 22 50 23 Q74 22 73.5 46 Q66 35 53 37 Q40 33 26.5 46Z" fill="${hc}"/>`;
+s+=face2(24,t)+'</g>';return s+'</g>'}
 const POM=['Dosos','Acotxador','Enxaneta'];
 const som=()=>mode=='som';
 function levels(){const n=+$('ty').value,L=+$('pi').value,a=[];
@@ -253,7 +257,7 @@ const fa0=al.findIndex(l=>l.empty),fa=fa0<0?al.length:fa0;
 return{T,Tup,AG,al,fa,Sag,La,CR,CP,cords,miss,fromOth,own,needOwn,pk,fe,emp,lv,n,ba,L,co,tr,fo,ma,pu,pN,pA,rP,need,helpT,socaL,socaC,soca,S,S0,mx,mf,pts,r,k,out,kids,lim0}}
 function draw(R,noTab){LR=R;
 const {lv,n,ba,L,S,soca,rP}=R;
-$('rs').textContent=R.r;$('rs').style.background=`var(--${R.k}b)`;$('rs').style.color=`var(--${R.k})`;
+$('rs').textContent=(R.out=='x'||R.emp?'':'Previsió: ')+R.r;$('rs').style.background=`var(--${R.k}b)`;$('rs').style.color=`var(--${R.k})`;
 $('rf').textContent=(L>=Math.floor(LIM[n][ba])-1?REF[n][ba]:'')+(R.kids?` Hi ha ${R.kids} nen${R.kids>1?'s':''} fent de tronc: no tenen alçada ni força per falcar.`:'')+(R.miss==1&&R.out!='x'?' Falta un cordó a la pinya: més oscil·lació.':'');
 const got=R.out=='d'?R.pts:R.out=='c'?Math.round(R.pts*.83):0;
 $('kp').innerHTML=R.emp?'':[['Punts',got+' / '+R.pts],['Gent pròpia',R.needOwn+' / '+R.co],[R.ba?'Soca':'Pinya',Math.round(soca*100)+'%'],['Oscil·lació',Math.round(S)+'%'+(R.AG?' / '+Math.round(R.Sag)+'%':'')],['Esforç màx',Math.round(R.mx*100)+'%'],['Fatiga màx',Math.round(R.mf*100)+'%']].map(([a,b])=>`<div><b>${b}</b>${a}</div>`).join('')+
@@ -267,22 +271,26 @@ return `<div class="pr"><div class="l1"><span>${l.r}${l.n>1?' ×'+l.n:''}</span>
 (l.help>0?`<div>Ajuda: ${l.hp.map(([a,d])=>`${a} −${d}`).join(', ')} → <b>${l.ld} kg</b> nets</div>`:'')+
 (l.kid?`<div class="wn">Nen al tronc: +25% d'oscil·lació</div>`:'')+
 (l.empty?'':`<div class="l4"><div class="bx"><i style="width:${pn}%;background:${bc(l.x)}"></i><i style="width:${ph}%;background:${bc(l.x)};opacity:.3"></i><s></s></div><span class="pc" style="color:${col(l.x)}">${Math.round(l.x*100)}% · fat ${Math.round(l.f*100)}%</span></div>`)+(openR==l.r?edHTML(l.r+'#0',l.r,l.n):'')+`</div>`}).join('');
-const sc=n==5?.4:L>=10?.42:.46,stp=98*sc,dx=(n==5?64:72)*sc,nw=n==5?5.4:n;
-const bOf=l=>PF[Math.max(0,l.c[0])].h*(l.c[1]>1?.62:1),ys=[0];lv.forEach((l,i)=>{if(i<L-1)ys.push(ys[i]+98*sc*bOf(l))});
+const sc=n==5?.46:L>=10?.5:.56,stp=72*sc,dx=(n==5?64:72)*sc,nw=n==5?5.4:n;
+const bOf=l=>PF[Math.max(0,l.c[0])].h*(l.c[1]>1?.78:1),ys=[0];lv.forEach((l,i)=>{if(i<L-1)ys.push(ys[i]+72*sc*bOf(l))});
 const H=Math.round(ys[L-1]+150*sc*bOf(lv[L-1])+70),by=H-24;
 let g=`<svg viewBox="0 0 380 ${H}" role="img" aria-label="${nameC(n,L,ba)}"><defs><pattern id="rat" width="7" height="10" patternUnits="userSpaceOnUse"><rect width="3.5" height="10" fill="#C8202F"/><rect x="3.5" width="3.5" height="10" fill="#FFFFFF"/></pattern></defs><rect width="380" height="${H}" style="fill:var(--sky)"/>`;
 g+=bgSVG(H,by,Math.min(185,nw*dx/2+110));
 const fall=R.k=='bad'&&R.out!='x',tilt=fall?Math.min(16,Math.max(S-100,(soca-1)*100,8)/6+5):0,top=R.out=='d'||R.out=='c';
 g+=`<g class="tw" transform="rotate(${tilt} 190 ${by-stp*(ba+1)})">`;
-if(R.AG&&R.fe>=R.L){let ya=0;const s2=sc*.95;R.al.forEach((l,i)=>{if(i>R.fa)return;const x=190+dx*.5,yf=by-ya;g+=`<g ${l.empty?'opacity=".28" style="filter:grayscale(1)"':''} transform="translate(${x-50*s2},${yf-148*s2}) scale(${s2})">${fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],l.r=='Ag. enxaneta'&&top?2:0)}</g>`;ya+=98*s2*bOf(l)})}
-lv.slice().reverse().forEach(l=>{const i=lv.indexOf(l);if(i>R.fe)return;const yf=by-ys[i],pose=l.r=='Enxaneta'?(top?2:0):(l.n>1&&l.r!='Acotxador'?1:0);
-xs(n,l.n).forEach((p,j)=>{const x=190+p*dx;g+=`<g ${l.empty?'opacity=".28" style="filter:grayscale(1)"':''} transform="translate(${x-50*sc},${yf-148*sc}) scale(${sc}) rotate(${l.Ps[j].b*.6} 50 140)">${fig(PF[Math.max(0,l.c[0])],Math.min(1,Math.max(l.x,(S-70)/60,l.f*.8)),l.c[1],pose)}</g>`})});
-g+='</g>';
+const GE={by,sc,L,n,lv:[],al:[],H:ys[L-1]+72*sc,x0:190};GEO=GE;
+if(R.AG&&R.fe>=R.L){let ya=0;const s2=sc*.95;R.al.forEach((l,i)=>{if(i>R.fa)return;const x=190+dx*.5,yf=by-ya,b=PF[Math.max(0,l.c[0])].h*(l.c[1]>1?.78:1);GE.al.push({yf,y0:ya,p:[{x,s:s2,b}],pose2:l.r=='Ag. enxaneta'?fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],2):''});g+=`<g id="gA${i}"><g ${l.empty?'opacity=".28" style="filter:grayscale(1)"':''} transform="translate(${x-50*s2},${yf-150*s2}) scale(${s2})">${fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],DYN.on?0:l.r=='Ag. enxaneta'&&top?2:0)}</g></g>`;ya+=72*s2*bOf(l)})}
+lv.forEach((l,i)=>{GE.lv[i]={yf:by-ys[i],y0:ys[i],p:xs(n,l.n).map(p=>({x:190+p*dx,s:sc,b:bOf(l)}))}});
+lv.slice().reverse().forEach(l=>{const i=lv.indexOf(l);if(i>R.fe)return;const yf=by-ys[i],pose=l.r=='Enxaneta'?(top&&!DYN.on?2:0):(l.n>1&&l.r!='Acotxador'?1:0);let q='';
+if(l.r=='Enxaneta')GE.lv[i].pose2=`<g transform="translate(${190-50*sc},${yf-150*sc}) scale(${sc})">${fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],2)}</g>`;
+xs(n,l.n).forEach((p,j)=>{const x=190+p*dx;q+=`<g ${l.empty?'opacity=".28" style="filter:grayscale(1)"':''} transform="translate(${x-50*sc},${yf-150*sc}) scale(${sc}) rotate(${l.Ps[j].b*.6} 50 142)">${fig(PF[Math.max(0,l.c[0])],Math.min(1,Math.max(l.x,(S-70)/60,l.f*.8)),l.c[1],pose)}</g>`});g+=`<g id="gL${i}">${q}</g>`});
+g+='</g>';const latT=`rotate(${tilt} 190 ${by-stp*(ba+1)})`;
 const pw=Math.max(.45,rP),nr=Math.min(4,Math.max(2,Math.ceil((R.cords||2)/2)));let yF=by-stp*.95+6*sc;const stands=[];
 if(ba>=1){stands.push([yF,44,.92]);if(ba>=2)stands.push([yF-stp*.9,28,.88]);if(ba==3)stands.push([yF-stp*1.8,16,.84])}
 stands.slice().reverse().forEach(([yy,ext,f],q)=>{const s2=sc*f,half=Math.min(186,nw*dx/2+ext);let k=q*11;for(let x=190-half;x<=190+half+.1;x+=32*s2)g+=standBack(x,yy+((k%3)-1)*2*s2,s2,k++,.08)});
 for(let r=0;r<nr;r++){const t=nr>1?r/(nr-1):1,s2=sc*(.82+.3*t),y=by-stp*(1.02-.5*t),half=Math.min(188,(nw*dx/2+34+72*t)*pw),off=(r%2)*14*s2;let k=r*13;
 for(let x=190-half+off;x<=190+half;x+=29*s2)g+=pinBack(x,y,s2,k++,.2*(1-t))}
+g+=`<g id="lat" transform="${latT}">${LAT&&!DYN.on&&R.fe>=1?latSVG(R,GE,staticLoad(R),null):''}</g><g id="hud"></g>`;
 $('cv').innerHTML=g+'</svg>'}
 
 const HC=['#3B2A1E','#1E1E1E','#8A4B22','#E0A23A','#5F5E5A','#6B3E26','#2C2C2A'];
@@ -304,6 +312,100 @@ const bun=['#F2C230',U.s,'#ffffff','#2E8B57'];o+=`<path d="M0 10 Q190 46 380 10"
 for(let k=0;k<19;k++){const x=10+k*20,u=(x-190)/190,y=10+18*(1-u*u);o+=`<path d="M${x-7} ${y} L${x+7} ${y} L${x} ${y+12} Z" fill="${bun[k%4]}" stroke="#00000022"/>`}
 o+=`<rect y="${by}" width="380" height="${H-by}" style="fill:var(--stone)"/>`;for(let yy=by+5,r=0;yy<H;yy+=6,r++)for(let xx=(r%2)*7;xx<380;xx+=14)o+=`<path d="M${xx} ${yy} q7 -3 13 0" fill="none" stroke="#00000016" stroke-width="1"/>`;
 if(shx)o+=`<ellipse cx="190" cy="${by+3}" rx="${shx}" ry="8" fill="#000" opacity=".14"/>`;return o}
+let GEO=null,LAT=false;const DYN={on:false,frames:[],log:[],u:0,ku:0,du:0,gu:0,gyro:false};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function effCol(e){return e>1?'#E24B4A':e>.8?mix('#EF9F27','#E24B4A',(e-.8)/.2):e>.5?mix('#1D9E75','#EF9F27',(e-.5)/.3):'#1D9E75'}
+function loadsAt(arr,kk){const W=arr.map(l=>l.empty?0:l.s.pes*l.n),L=arr.length;
+return arr.map((l,i)=>{if(i>=kk)return 0;let full=0,part=0;for(let m=i+1;m<L;m++){full+=W[m];part+=W[m]*clamp(kk-m,0,1)}const b=l.x||0;return full>0?b*part/full:b*.35})}
+function staticLoad(R){return{tr:R.lv.map((l,i)=>i<R.fe?(l.x||0):0),ag:R.AG?R.al.map((l,i)=>i<R.fa?(l.x||0):0):[]}}
+function latSVG(R,GE,ld,dy){let o='';const th=dy?dy.th:0,N=[];
+const one=(g,i,e,tr)=>{let q='';const P=g.p.map(p=>{const k=p.s*p.b,f=(px,py)=>[p.x+k*(px-50),g.yf+k*(py-150)];return{fl:f(33,146),fr:f(67,146),hp:f(50,108),sm:f(50,80),sl:f(32,82),sr:f(68,82),hd:f(50,50)}});
+const ln=(a,b,ee,w,da)=>q+=`<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${effCol(ee)}" stroke-width="${(w*(1+1.6*Math.min(ee,1.3))).toFixed(2)}" stroke-linecap="round"${da?' stroke-dasharray="2 2"':''}/>`;
+P.forEach((p,j)=>{ln(p.fl,p.hp,e*(1-.6*th),1.1);ln(p.fr,p.hp,e*(1+.6*th),1.1);ln(p.hp,p.sm,e,1.2);ln(p.sl,p.sr,e*.75,.9);ln(p.sm,p.hd,e*.3,.6)});
+for(let j=0;j+1<P.length;j++)ln(P[j].sr,P[j+1].sl,.25+.9*Math.abs(th)+e*.2,.7,1);
+P.forEach(p=>[p.fl,p.fr,p.sl,p.sr,p.hp].forEach(c=>q+=`<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="1.5" fill="#fff" stroke="#1c1d20" stroke-width=".6"/>`));
+o+=tr?`<g transform="${tr}">${q}</g>`:q;return P};
+const by=GE.by;
+if(R.ba>=0&&GE.lv[0]&&(!dy||dy.vis(0))){const p0=GE.lv[0].p;p0.forEach(p=>{const k=p.s*p.b;[-1,1].forEach(d=>o+=`<line x1="${(p.x+d*34*k).toFixed(1)}" y1="${by+4}" x2="${(p.x+d*8*k).toFixed(1)}" y2="${(GE.lv[0].yf+k*(100-150)).toFixed(1)}" stroke="#7F77DD" stroke-width="1.4" stroke-dasharray="3 2" opacity=".85"/>`)})}
+const aid=[[1,R.ba>=1||true],[2,R.ba>=1],[3,R.ba>=2],[4,R.ba==3]];
+aid.forEach(([i,on])=>{if(!on||!GE.lv[i]||(dy&&!dy.vis(i)))return;const g=GE.lv[i],dx=dy?dy.off(i).dx:0;g.p.forEach(p=>{const k=p.s*p.b,y=g.yf+k*(100-150);[-1,1].forEach(d=>o+=`<line x1="${(p.x+d*30*k+dx*.5).toFixed(1)}" y1="${(y+30*k).toFixed(1)}" x2="${(p.x+dx+d*10*k).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#7F77DD" stroke-width="1.2" stroke-dasharray="3 2" opacity=".8"/>`)})});
+GE.lv.forEach((g,i)=>{if(dy&&!dy.vis(i))return;if(!dy&&i>=R.fe)return;one(g,i,ld.tr[i]||0,dy?dy.tf(i):'')});
+GE.al.forEach((g,i)=>{if(dy&&!dy.avis(i))return;one(g,i,ld.ag[i]||0,dy?dy.atf(i):'')});
+o+=`<g font-family="Barlow,sans-serif" font-size="9" fill="#1c1d20"><rect x="6" y="${by+8}" width="226" height="14" rx="7" fill="#ffffffcc"/><circle cx="16" cy="${by+15}" r="3.5" fill="#1D9E75"/><text x="22" y="${by+18}">&lt;50%</text><circle cx="52" cy="${by+15}" r="3.5" fill="#EF9F27"/><text x="58" y="${by+18}">80%</text><circle cx="84" cy="${by+15}" r="3.5" fill="#E24B4A"/><text x="90" y="${by+18}">&gt;100%</text><line x1="118" y1="${by+15}" x2="132" y2="${by+15}" stroke="#7F77DD" stroke-width="1.6" stroke-dasharray="3 2"/><text x="136" y="${by+18}">ajudes</text><line x1="168" y1="${by+15}" x2="180" y2="${by+15}" stroke="#1D9E75" stroke-width="1.2" stroke-dasharray="2 2"/><text x="184" y="${by+18}">braços</text></g>`;
+return o}
+// ---------- dinàmica ----------
+function rngD(seed){let s=seed>>>0||1;return()=>{s^=s<<13;s>>>=0;s^=s>>17;s^=s<<5;s>>>=0;return s/4294967296}}
+const gaussD=r=>Math.sqrt(-2*Math.log(r()+1e-12))*Math.cos(6.2832*r());
+function dynSeq(R){const q=[],sp=t=>Math.max(1.2,t/2.2);
+for(let i=1;i<R.L;i++){const l=R.lv[i];q.push({t:'up',i,d:sp(l.ct||6),r:l.r,gt:l.ct||6,l})}
+q.push({t:'al',d:1.8,r:'Aleta',gt:3});
+if(R.AG){for(let i=1;i<R.al.length;i++){const l=R.al[i];q.push({t:'aup',i,d:sp(l.ct||5),r:l.r,gt:l.ct||5,l})}q.push({t:'al2',d:1.5,r:'Aleta de l\'agulla',gt:3})}
+for(let i=R.L-1;i>=2;i--){const l=R.lv[i];q.push({t:'dn',i,d:sp((l.ct||6)*.6),r:l.r,gt:(l.ct||6)*.6,l})}
+if(R.AG)for(let i=R.al.length-1;i>=1;i--){const l=R.al[i];q.push({t:'adn',i,d:sp((l.ct||5)*.6),r:l.r,gt:(l.ct||5)*.6,l})}
+return q}
+const ease=p=>p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+function dynView(f){const GE=GEO;if(!GE)return null;const H=GE.H,A=.2*H;
+const off=i=>{const g=GE.lv[i],p=clamp(f.kk-i,0,1),y=g.y0*ease(p),hf=Math.pow(y/H,1.5),dx=f.th*A*hf+(f.fp?f.fs*f.fp*f.fp*90*(y/H):0),dy=(1-ease(p))*g.y0+(f.fp?f.fp*f.fp*50*(y/H):0),rot=f.th*9*(y/H)+(f.fp?f.fs*f.fp*55*(.3+y/H):0);return{dx,dy,rot,yb:g.yf+dy}};
+const aoff=i=>{const g=GE.al[i],p=clamp(f.ak-i,0,1),y=g.y0*ease(p),dx=f.th*A*Math.pow(y/H,1.5)*.9+(f.fp?f.fs*f.fp*f.fp*80*(y/H):0),dy=(1-ease(p))*g.y0+(f.fp?f.fp*f.fp*50*(y/H):0),rot=f.th*8*(y/H)+(f.fp?f.fs*f.fp*50*(.3+y/H):0);return{dx,dy,rot,yb:g.yf+dy}};
+const tf=o=>`translate(${o.dx.toFixed(2)},${o.dy.toFixed(2)}) rotate(${o.rot.toFixed(2)} 190 ${(o.yb-o.dy).toFixed(1)})`;
+return{th:f.th,off,vis:i=>i==0||f.kk>i+.001,avis:i=>GE.al.length&&(i==0?f.kk>=GE.L-.001||f.ak>0:f.ak>i+.001),tf:i=>tf(off(i)),atf:i=>tf(aoff(i))}}
+function dynRender(f){const R=DYN.R,GE=GEO,V=dynView(f);if(!V)return;
+GE.lv.forEach((g,i)=>{const el=$('gL'+i);if(!el)return;const v=V.vis(i);el.style.display=v?'':'none';if(v)el.setAttribute('transform',V.tf(i));el.style.opacity=f.fp>.6?(1-(f.fp-.6)*1.2):''});
+GE.al.forEach((g,i)=>{const el=$('gA'+i);if(!el)return;const v=V.avis(i);el.style.display=v?'':'none';if(v)el.setAttribute('transform',V.atf(i))});
+const top=$('gL'+(R.L-1));if(top&&GE.lv[R.L-1].pose2){if(f.al&&!top.dataset.p2){top.dataset.p0=top.innerHTML;top.innerHTML=GE.lv[R.L-1].pose2;top.dataset.p2=1}else if(!f.al&&top.dataset.p2){top.innerHTML=top.dataset.p0;delete top.dataset.p2}}
+const ta=$('gA'+(R.al?R.al.length-1:0));if(R.AG&&ta&&GE.al.length){const g=GE.al[GE.al.length-1];if(f.al2&&!ta.dataset.p2){ta.dataset.p0=ta.innerHTML;ta.innerHTML=`<g transform="translate(${g.p[0].x-50*g.p[0].s},${g.yf-150*g.p[0].s}) scale(${g.p[0].s})">${g.pose2}</g>`;ta.dataset.p2=1}else if(!f.al2&&ta.dataset.p2){ta.innerHTML=ta.dataset.p0;delete ta.dataset.p2}}
+const ld={tr:f.ld||[],ag:f.lda||[]};$('lat').setAttribute('transform','');$('lat').innerHTML=LAT?latSVG(R,GE,ld,V):'';
+const by=GE.by,osc=Math.round(Math.abs(f.th)*100),c=osc>75?'#E24B4A':osc>45?'#EF9F27':'#1D9E75';
+$('hud').innerHTML=`<g font-family="Barlow,sans-serif"><rect x="8" y="30" width="150" height="40" rx="9" fill="#ffffffd9"/><text x="16" y="45" font-size="11" font-weight="700" fill="#1c1d20">${f.lab||''}</text><rect x="16" y="52" width="120" height="8" rx="4" fill="#e3e0da"/><line x1="76" y1="49" x2="76" y2="63" stroke="#1c1d20" stroke-width="1"/><circle cx="${(76+clamp(f.th,-1,1)*60).toFixed(1)}" cy="56" r="5" fill="${c}" stroke="#fff"/><text x="140" y="60" font-size="10" fill="#1c1d20">${osc}%</text>${f.u?`<path d="M${76+f.u*18} 67 l${f.u>0?6:-6} -3 l0 6Z" fill="#1c1d20"/>`:''}</g>`}
+function dynMsg(t,k){$('rs').textContent=t;$('rs').style.background=`var(--${k}b)`;$('rs').style.color=`var(--${k})`}
+function dynUI(R){const ok=R&&R.out!='x'&&!R.emp&&R.fe>=R.L&&(!R.AG||R.fa>=R.al.length);$('bF').disabled=!ok||DYN.run;$('bRp').disabled=!DYN.last||DYN.run;$('bLat').classList.toggle('on',LAT);$('bGy').classList.toggle('on',DYN.gyro);$('bGy').classList.toggle('hid',!('DeviceOrientationEvent' in window))}
+function dynLog(){$('fcLog').innerHTML=DYN.log.length?`<div class="lh">Registre d'intents (aquesta sessió)</div>`+DYN.log.slice().reverse().map((a,k)=>`<details><summary><b style="color:var(--${a.k})">${a.res}</b> ${a.nom} · manya <b>${a.man}</b> · ${a.pts} punts · ${a.hora}</summary><table><tr><th>Moment</th><th>Temps</th><th>Balanceig màx</th><th>Esforç màx</th><th>Manya</th></tr>${a.it.map(x=>`<tr><td>${x.r}</td><td>${x.gt.toFixed(0)} s</td><td>${x.mx}%</td><td>${x.em}%</td><td>${x.man}</td></tr>`).join('')}</table></details>`).join(''):''}
+function dynStart(){const R=LR;if(!R||DYN.run)return;if(v3)setView(false);DYN.on=true;DYN.R=R;draw(R,true);
+const q=dynSeq(R),rng=rngD((Date.now()&0xffffff)+7);DYN.run=true;DYN.frames=[];$('pad').classList.remove('hid');$('cv').style.touchAction='none';
+const S0b=R.S/(R.AG?1+R.Sag/400:1),Lal=R.AG?R.al.length:0;
+const st={th:0,v:0,n:0,u:0,tg:0,vg:0,kk:1,ak:R.AG?0:0,al:0,al2:0,idx:0,tin:0,t:0,fp:0,fs:1,done:0};let it=q.map(x=>({r:x.r,gt:x.gt,mx:0,em:0,s2:0,g2:0,c:0})),fail=null,lastT=performance.now(),acc=0,stage=0;
+lastSig='';dynMsg('Fer el castell: corregeix el balanceig amb ◀ ▶, les fletxes, arrossegant o inclinant el mòbil','warn');
+const step=dt=>{if(st.fp){st.fp=Math.min(1,st.fp+dt/1.4);return}
+const x=q[st.idx];st.tin+=dt;const p=clamp(st.tin/x.d,0,1);
+if(x.t=='up')st.kk=x.i+p;else if(x.t=='dn')st.kk=x.i+1-p;else if(x.t=='aup')st.ak=x.i+p;else if(x.t=='adn')st.ak=x.i+1-p;
+if(x.t=='al')st.al=p<.85?1:0;if(x.t=='al2')st.al2=p<.85?1:0;
+if(R.AG&&st.kk>=R.L-.001&&!st.ak)st.ak=1;
+const climb=x.t!='al'&&x.t!='al2',cl=x.l?x.l.s:{pes:40,ag:90},clW=climb?(cl.pes/80)*(1.3-cl.ag/100)*(Math.sin(st.tin*7)*.5+.8):0,desc=x.t=='dn'||x.t=='adn';
+const Sk=S0b*Math.pow(2,st.kk-R.L)*(R.AG?1+R.Sag*Math.pow(2,(st.ak||0)-Lal)/400:1),s=Sk/100*(desc&&R.mf>1?1+(R.mf-1):1),h=st.kk/R.L,w=2.6/Math.sqrt(.6+h);
+const sig=w*w*(.05+.2*s*s)*(1+1.2*clW),tau=.45;st.n+=(-st.n/tau)*dt+sig*Math.sqrt(2*dt/tau)*gaussD(rng);
+const ut=clamp(DYN.ku||DYN.du||DYN.gu,-1,1);st.u+=(ut-st.u)*Math.min(1,dt/.18);const u=st.u;DYN.u=Math.abs(u)>.05?u:0;const a=-w*w*(1-Math.pow(Math.max(0,s),1.3))*st.th-2*.2*w*st.v+.9*w*w*u+st.n;st.v+=a*dt;st.th+=st.v*dt;const ag=-w*w*(1-Math.pow(Math.max(0,s),1.3))*st.tg-2*.2*w*st.vg+st.n;st.vg+=ag*dt;st.tg=clamp(st.tg+st.vg*dt,-1.5,1.5);if(Math.abs(st.tg)>=1.5)st.vg=0;
+const ld=loadsAt(R.lv,st.kk),lda=R.AG?loadsAt(R.al,st.ak):[];st.ld=ld;st.lda=lda;const em=Math.max(...ld,...(lda.length?lda:[0]))*(1+.6*Math.abs(st.th));
+const I=it[st.idx];I.mx=Math.max(I.mx,Math.abs(st.th));I.em=Math.max(I.em,em);I.s2+=st.th*st.th*dt;I.g2+=st.tg*st.tg*dt;I.c+=dt;
+if(Math.abs(st.th)>=1)fail='s';else if(em>1.2){const wi=ld.findIndex(e=>e*(1+.6*Math.abs(st.th))>1.2);fail=wi>=0?'e'+wi:'ea'}else if(R.soca>1&&R.soca*clamp(st.kk/R.L,0,1)**1.5>1)fail='p';
+if(fail){st.fp=.001;st.fs=st.th>=0?1:-1;tocStop(.4);return}
+if(p>=1){st.idx++;st.tin=0;if(st.idx>=q.length)st.done=1}};
+const lab=()=>{const x=q[Math.min(st.idx,q.length-1)];return st.fp?'Cau!':x.t=='up'||x.t=='aup'?'Puja '+x.r.toLowerCase():x.t=='dn'||x.t=='adn'?'Baixa '+x.r.toLowerCase():x.r};
+const fin=()=>{if(!fail){st.kk=1.999;const f={t:st.t,kk:st.kk,ak:R.AG?.999:0,th:0,al:0,al2:0,fp:0,fs:1,ld:loadsAt(R.lv,st.kk),lda:[],u:0,lab:'Descarregat!'};DYN.frames.push(f);dynRender(f)}DYN.run=false;$('pad').classList.add('hid');$('cv').style.touchAction='';const aleta=q.findIndex(x=>x.t=='al'),car=st.idx>aleta||(st.idx==aleta&&st.tin>.3);
+const res=!fail?'Descarregat':car?'Carregat':'Intent',k=!fail?'ok':car?'warn':'bad',pts=!fail?R.pts:car?Math.round(R.pts*.83):0;
+const its=it.filter(x=>x.c>0).map(x=>{const rms=Math.sqrt(x.s2/x.c);return{r:x.r,gt:x.gt,mx:Math.round(x.mx*100),em:Math.round(x.em*100),man:Math.round(clamp(50+50*(1-rms/Math.max(.02,Math.sqrt(x.g2/x.c))),0,100)),c:x.c}});
+const tc=its.reduce((a,x)=>a+x.c,0)||1,man=Math.round(its.reduce((a,x)=>a+x.man*x.c,0)/tc);
+const why=fail=='s'?'el balanceig l\'obre':fail=='p'?'la pinya cedeix':fail&&fail[0]=='e'?(fail=='ea'?'cedeix l\'agulla':'cedeixen els '+R.lv[+fail.slice(1)].r.toLowerCase()):'';
+DYN.lr=[`${res}${why?' — '+why:''} · manya ${man} · ${pts} punts`,k];dynMsg(...DYN.lr);if(!fail)setTimeout(()=>tocStop(2.5),1200);
+const d=new Date();DYN.log.push({nom:nameC(R.n,R.L,R.ba)+(R.AG?' amb agulla':''),res,k,pts,man,hora:d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'),it:its});DYN.last=DYN.frames;dynLog();dynUI(R);DYN.on=false};
+const tick=now=>{if(!DYN.run)return;let dt=Math.min(.1,(now-lastT)/1000);lastT=now;acc+=dt;while(acc>=1/60){step(1/60);acc-=1/60;st.t+=1/60}
+const f={t:st.t,kk:st.kk,ak:st.ak,th:st.th,al:st.al,al2:st.al2,fp:st.fp,fs:st.fs,ld:st.ld,lda:st.lda,u:DYN.u,lab:lab()};DYN.frames.push(f);dynRender(f);
+if(!st.fp&&mOn)toc(Object.assign({},R,{fe:Math.floor(st.kk+1e-6),fa:Math.floor((st.ak||0)+1e-6),out:'d'}));
+if(st.done||(st.fp>=1))return fin();requestAnimationFrame(tick)};
+requestAnimationFrame(t=>{lastT=t;requestAnimationFrame(tick)});dynUI(R)}
+function dynReplay(){const F=DYN.last;if(!F||DYN.run||!DYN.R)return;if(v3)setView(false);DYN.on=true;draw(DYN.R,true);DYN.run=true;dynUI(LR);if(DYN.lr)dynMsg('Repetició · '+DYN.lr[0],DYN.lr[1]);let t0=null;const R=DYN.R;lastSig='';
+const tk=now=>{if(!DYN.run)return;if(t0==null)t0=now;const t=(now-t0)/1000;let i=0;while(i<F.length-1&&F[i+1].t<=t)i++;const f=Object.assign({},F[i],{lab:'Repetició · '+F[i].lab});dynRender(f);if(!f.fp&&mOn)toc(Object.assign({},R,{fe:Math.floor(f.kk+1e-6),fa:Math.floor((f.ak||0)+1e-6),out:'d'}));else if(f.fp)tocStop(.4);
+if(i>=F.length-1){DYN.run=false;DYN.on=false;setTimeout(()=>tocStop(2),800);dynUI(LR);return}requestAnimationFrame(tk)};requestAnimationFrame(tk)}
+function dynAbort(){if(DYN.run){DYN.run=false;$('pad').classList.add('hid');$('cv').style.touchAction=''}DYN.on=false}
+function dynInit(){window.DYN=DYN;
+$('bF').onclick=dynStart;$('bRp').onclick=dynReplay;$('bLat').onclick=()=>{LAT=!LAT;dynUI(LR);if(!DYN.run&&LR&&ready())run()};
+$('bGy').onclick=async()=>{if(!DYN.gyro&&window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission){try{if(await DeviceOrientationEvent.requestPermission()!='granted')return}catch(e){return}}DYN.gyro=!DYN.gyro;DYN.gu=0;dynUI(LR)};
+addEventListener('deviceorientation',e=>{if(DYN.gyro&&e.gamma!=null)DYN.gu=clamp(e.gamma/22,-1,1)});
+const hold=(id,v)=>{const b=$(id);b.addEventListener('pointerdown',e=>{e.preventDefault();DYN.ku=v});['pointerup','pointerleave','pointercancel'].forEach(t=>b.addEventListener(t,()=>{if(DYN.ku==v)DYN.ku=0}))};hold('pL',-1);hold('pR',1);
+addEventListener('keydown',e=>{if(!DYN.run)return;if(e.key=='ArrowLeft'){DYN.ku=-1;e.preventDefault()}if(e.key=='ArrowRight'){DYN.ku=1;e.preventDefault()}});
+addEventListener('keyup',e=>{if((e.key=='ArrowLeft'&&DYN.ku<0)||(e.key=='ArrowRight'&&DYN.ku>0))DYN.ku=0});
+let x0=null;const cv=$('cv');cv.addEventListener('pointerdown',e=>{if(DYN.run&&!e.target.closest('button')){x0=e.clientX;cv.setPointerCapture(e.pointerId)}});cv.addEventListener('pointermove',e=>{if(x0!=null)DYN.du=clamp((e.clientX-x0)/45,-1,1)});['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,()=>{x0=null;DYN.du=0}));
+dynUI(null)}
+
 let OPT=null;const optSig=()=>[$('ty').value,$('pi').value,$('ba').value,$('co').value,$('ag').checked,$('ot').checked,mode,G.tech,G.forca,G.res,G.pinya].join('|');
 function optimize(){const sC=JSON.stringify(C),sP=JSON.stringify(POS),R0=calc(),lv=R0.lv.concat(R0.al||[]).map(l=>({r:l.r,n:l.n}));
 const setP=(l,P)=>{for(let j=0;j<l.n;j++)POS[l.r+'#'+j]=Object.assign({},P)};
@@ -314,10 +416,10 @@ for(let pass=0;pass<3;pass++){let imp=false;lv.forEach(l=>{let keep=C[l.r].slice
 lv.forEach(l=>{let keep=Object.assign({},POS[l.r+'#0']);[40,55,70,85].forEach(t=>[80,100].forEach(a=>[12,18].forEach(k=>{setP(l,{b:0,k,a,t});const e=ev();if(e.v<best.v-1e-9){best=e;keep={b:0,k,a,t}}})));setP(l,keep)});
 best=ev();const res={sig:optSig(),C:{},P:{},R:best.R,lv};lv.forEach(l=>{res.C[l.r]=C[l.r].slice();for(let j=0;j<l.n;j++)res.P[l.r+'#'+j]=Object.assign({},POS[l.r+'#'+j])});
 for(const k in C)delete C[k];Object.assign(C,JSON.parse(sC));for(const k in POS)delete POS[k];Object.assign(POS,JSON.parse(sP));return res}
-function miniSVG(res){const R=res.R,n=R.n,sc=.17,dx=(n==5?64:72)*sc,lv=R.lv;let y=0;const ys=[];lv.forEach(l=>{ys.push(y);y+=98*sc*PF[l.c[0]].h*(l.c[1]>1?.62:1)});
+function miniSVG(res){const R=res.R,n=R.n,sc=.2,dx=(n==5?64:72)*sc,lv=R.lv;let y=0;const ys=[];lv.forEach(l=>{ys.push(y);y+=72*sc*PF[l.c[0]].h*(l.c[1]>1?.78:1)});
 const H=Math.round(y+60*sc+16),by=H-6;let g=`<svg viewBox="0 0 110 ${H}" role="img" aria-label="Proposta en miniatura"><rect y="${by}" width="110" height="6" style="fill:var(--stone)"/>`;
-if(R.AG){let ya=0;R.al.forEach(l=>{const s2=sc*.95;g+=`<g transform="translate(${55+dx*.5-50*s2},${by-ya-148*s2}) scale(${s2})">${fig(PF[l.c[0]],0,l.c[1],0)}</g>`;ya+=98*s2*PF[l.c[0]].h*(l.c[1]>1?.62:1)})}
-lv.slice().reverse().forEach(l=>{const i=lv.indexOf(l);xs(n,l.n).forEach(p=>{g+=`<g transform="translate(${55+p*dx-50*sc},${by-ys[i]-148*sc}) scale(${sc})">${fig(PF[l.c[0]],Math.min(1,l.x),l.c[1],l.n>1&&l.r!='Acotxador'?1:0)}</g>`})});return g+'</svg>'}
+if(R.AG){let ya=0;R.al.forEach(l=>{const s2=sc*.95;g+=`<g transform="translate(${55+dx*.5-50*s2},${by-ya-150*s2}) scale(${s2})">${fig(PF[l.c[0]],0,l.c[1],0)}</g>`;ya+=72*s2*PF[l.c[0]].h*(l.c[1]>1?.78:1)})}
+lv.slice().reverse().forEach(l=>{const i=lv.indexOf(l);xs(n,l.n).forEach(p=>{g+=`<g transform="translate(${55+p*dx-50*sc},${by-ys[i]-150*sc}) scale(${sc})">${fig(PF[l.c[0]],Math.min(1,l.x),l.c[1],l.n>1&&l.r!='Acotxador'?1:0)}</g>`})});return g+'</svg>'}
 function drawOpt(){const el=$('opt');if(OPT&&OPT.sig!=optSig())OPT=null;
 if(!OPT){el.innerHTML=`<div class="op" style="display:flex;align-items:center;gap:8px"><h3>Proposta òptima</h3><button class="b" id="bOpt" style="min-height:34px">Calcula-la</button></div>`;$('bOpt').onclick=()=>{$('bOpt').textContent='Calculant…';setTimeout(()=>{OPT=optimize();drawOpt()},30)};return}
 const R=OPT.R,tm=`${Math.floor(R.T/60)}:${String(Math.round(R.T%60)).padStart(2,'0')}`,res=R.out=='d'?'Descarregat':R.out=='c'?'Carregat':'Intent';
@@ -333,15 +435,15 @@ let OPT_hide=false;
 function ready(){return !!($('ty').value&&$('pi').value&&$('ba').value!==''&&$('cl').value!==''&&(som()||$('co').value))}
 function gate(){const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;$('pi').disabled=!t;$('ba').disabled=!p;$('cl').disabled=b==='';$('co').disabled=c==='';
 $('coL').classList.toggle('hid',som());$('agL').classList.toggle('hid',!(t=='3'||t=='4')||!p)}
-function drawEmpty(msg,bad){$('opt').innerHTML='';const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;
+function drawEmpty(msg,bad){dynUI(null);$('opt').innerHTML='';const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;
 const m=msg?msg:!t?'Tria el tipus de castell':!p?'Tria quants pisos':b===''?'Tria la base: pinya, folre, manilles…':c===''?'Tria la colla':'Escriu quantes persones té la colla (mida de la pinya)';
 $('rs').textContent=m;$('rs').style.background=bad?'var(--badb)':'var(--warnb)';$('rs').style.color=bad?'var(--bad)':'var(--warn)';$('rf').textContent='';$('kp').innerHTML='';$('tb').innerHTML='';
 const H=420,by=H-24;$('cv').innerHTML=`<svg viewBox="0 0 380 ${H}" role="img" aria-label="Plaça buida"><rect width="380" height="${H}" style="fill:var(--sky)"/>`+bgSVG(H,by,0)+'</svg>';
 if(T3){while(T3.root.children.length)T3.root.remove(T3.root.children[0]);r3()}selK=null;$('sel3').classList.add('hid');if(typeof tocStop=='function'){tocStop(.2);lastSig=''}}
-function run(){gate();if(!ready()){drawEmpty();return}last=null;const R=calc();
+function run(){dynAbort();gate();if(!ready()){drawEmpty();return}last=null;const R=calc();
 if(R.co<R.needOwn||R.miss>=2){const parts=`tronc ${R.tr}${R.fo?', folre '+R.fo:''}${R.ma?', manilles '+R.ma:''}${R.pu?', puntals '+R.pu:''} i ${R.CP} cordons propis de pinya (${R.own})`;
 drawEmpty(R.co<R.needOwn?`No hi ha prou gent: aquest castell en necessita ${R.needOwn} de la colla (${parts}) i en tens ${R.co}. Escriu més persones o tria un castell més petit.`:`Sense altres colles, a la pinya hi faltarien ${R.miss} cordons: el cap de colla no el deixa tirar. Escriu més persones o marca "altres colles".`,true);
-if(som())drawSom();$('opt').innerHTML='';return}draw(R);if(som())drawSom();if(v3)build3D(R);drawSel();toc(R);drawOpt()}
+if(som())drawSom();$('opt').innerHTML='';return}draw(R);if(som())drawSom();if(v3)build3D(R);drawSel();toc(R);drawOpt();dynUI(R)}
 function drawSom(){
 $('sh').textContent=`Temporada ${G.temp}`+(G.phase=='diada'?` · diada ${G.diada} de 6 · ronda ${G.ronda} de 3`:' · pretemporada');
 $('sst').innerHTML=`<span>Colla <b>${G.memb}</b></span><span>Punts totals <b>${G.total}</b></span><span>Aquesta temporada <b>${G.tempPts}</b></span><span>Tècnica <b>${(G.tech>=0?'+':'')+G.tech.toFixed(2)}</b></span><span>Força <b>×${G.forca.toFixed(2)}</b></span><span>Resistència <b>×${G.res.toFixed(2)}</b></span><span>Pinya <b>×${G.pinya.toFixed(2)}</b></span><span>Millor <b>${G.best}</b></span>`+(G.u11?'<span><b>Castells d\'11 desbloquejats</b></span>':'');
@@ -416,10 +518,10 @@ const legs=[],arms=[];
 const kn=new THREE.Group();kn.position.y=-.23;hip.add(kn);mesh(cyl(.043,.037,.22),pa,-.11,kn);const f=mesh(boxg(.075,.045,.13),shoe,-.225,kn);f.position.z=.025;legs.push([hip,kn,sd])});
 const tp=new THREE.Group();tp.position.y=.46;g.add(tp);
 mesh(cyl(.108*ww,.108*ww,.075),fx,.03,tp);mesh(cyl(.122*wb,.1*ww,.3),sh,.2,tp);mesh(cyl(.035,.035,.06),sk,.37,tp);
-mesh(sph(.1),faceMat(t,ghost),.47,tp);
-const hc=mesh(cap(.106),hr,.475,tp);hc.rotation.x=-.42;
-if(who==1){const p=mesh(sph(.048),hr,.45,tp);p.position.z=-.11}
-if(who==3)[-1,1].forEach(sd=>{const p=mesh(sph(.045),hr,.45,tp);p.position.x=sd*.1;p.position.z=-.03});
+mesh(sph(.135),faceMat(t,ghost),.5,tp);
+const hc=mesh(cap(.141),hr,.505,tp);hc.rotation.x=-.42;
+if(who==1){const p=mesh(sph(.06),hr,.48,tp);p.position.z=-.15}
+if(who==3)[-1,1].forEach(sd=>{const p=mesh(sph(.055),hr,.5,tp);p.position.x=sd*.14;p.position.z=-.03});
 [-1,1].forEach(sd=>{const s=new THREE.Group();s.position.set(sd*.128*wb,.33,0);tp.add(s);mesh(cyl(.037,.033,.15),sh,-.075,s);
 const el=new THREE.Group();el.position.y=-.15;s.add(el);mesh(cyl(.03,.027,.13),sk,-.065,el);mesh(sph(.033),sk,-.14,el);arms.push([s,el,sd])});
 return{g,legs,arms,tp,sc}}
@@ -533,7 +635,7 @@ const ph=full?'post':R.AG?(R.fe>=R.L&&R.fa>=R.al.length-1?'ext':'p1'):(R.fe>=xi?
 if(full){if(R.out=="d")tocT=setTimeout(()=>tocStop(2.5),Math.min(60000,Math.max(15000,(R.T-R.Tup)*1000)));else if(R.out=='c')tocT=setTimeout(()=>tocStop(.4),4000);else tocStop(.1)}}
 $('bM').onclick=()=>{mOn=!mOn;$('bM').classList.toggle('on',mOn);if(!mOn)tocStop(.2);else{lastSig='';ac();toc(LR)}};
 
-fillCl();setMode(location.hash=='#somni'?'som':'sim');
+dynInit();fillCl();setMode(location.hash=='#somni'?'som':'sim');
 }
 </script>
 </body>
