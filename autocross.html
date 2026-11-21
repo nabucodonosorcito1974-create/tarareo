@@ -21,6 +21,9 @@ canvas#board{max-width:100%;max-height:100%;aspect-ratio:758/726;border-radius:8
 #mult{font:800 12px system-ui;color:#c01;min-width:28px}
 #rec{font-size:9px;font-weight:800;color:#333}
 .small{font-size:10px;color:#333;font-weight:700}
+#brake{width:40px;height:112px;border-radius:8px;background:repeating-linear-gradient(0deg,#333 0 6px,#222 6px 12px);border:2px solid #111;color:#ddd;font:800 9px system-ui;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center;justify-content:center;letter-spacing:1px;touch-action:none;box-shadow:0 3px 0 #000}
+#brake.on{transform:translateY(3px);box-shadow:none;color:#ff4d4d;border-color:#a00}
+button.ic.on{background:#1a7f1a}
 button.ic{border:0;background:#333;color:#fff;border-radius:6px;font-size:13px;width:30px;height:24px;padding:0}
 #wheelBox{width:min(38vw,175px);aspect-ratio:1;touch-action:none}
 #wheel{width:100%;height:100%;display:block;transform-origin:50% 50%}
@@ -48,7 +51,7 @@ button.ic{border:0;background:#333;color:#fff;border-radius:6px;font-size:13px;w
       <svg id="speedo" viewBox="0 0 120 70"></svg>
       <div class="row"><span class="lcd" id="odo">000000</span><span id="mult">x1</span></div><div class="row"><span class="lcd" id="tm">2:00</span><span id="rec">Récord 0</span></div>
       <div class="row"><div class="bar" title="Salud del coche"><div id="hpBar"></div><span id="hpTxt">❤100</span></div><div class="bar" title="Gasolina"><div id="fuBar"></div><span id="fuTxt">⛽100</span></div></div>
-      <div class="row"><button class="ic" id="snd" title="Sonido">🔇</button><button class="ic" id="rst" title="Reiniciar">↺</button></div>
+      <div class="row"><button class="ic" id="snd" title="Sonido">🔇</button><button class="ic" id="rst" title="Reiniciar">↺</button><button class="ic" id="gyro" title="Girar inclinando el móvil">📱</button></div>
     </div>
     <div id="wheelBox"><svg id="wheel" viewBox="-100 -100 200 200">
       <circle r="88" fill="none" stroke="#111" stroke-width="18"/>
@@ -62,7 +65,7 @@ button.ic{border:0;background:#333;color:#fff;border-radius:6px;font-size:13px;w
         <div id="keyLbl"><span>MAX <i id="lMax"></i></span><span>STOP <i id="lStop" class="on"></i></span><span>MIN <i id="lMin"></i></span></div>
         <div id="key"><div class="blade"></div></div>
       </div>
-      <div id="gear"><div class="slot"></div><div id="knob"></div></div>
+      <div class="row" style="gap:6px"><div id="gear"><div class="slot"></div><div id="knob"></div></div><div id="brake" title="Freno">FRENO</div></div>
     </div>
   </div>
 </div>
@@ -112,6 +115,26 @@ wb.addEventListener('pointerdown',e=>{dragging=true;wb.setPointerCapture(e.point
 wb.addEventListener('pointermove',e=>{if(!dragging)return;const a=ptrAng(e);let d=a-lastPtrAng;if(d>180)d-=360;if(d<-180)d+=360;lastPtrAng=a;st.wheel=Math.max(-150,Math.min(150,st.wheel+d))});
 const endDrag=()=>{dragging=false};wb.addEventListener('pointerup',endDrag);wb.addEventListener('pointercancel',endDrag);
 
+/* giroscopio: inclinar el móvil a izquierda/derecha gira el volante */
+let gyroOn=false,gyroLive=false,gyroWheel=0,gyroZero=null,gyroTimer=0;
+function tiltOf(e){const ang=(screen.orientation&&screen.orientation.angle)||window.orientation||0;
+  if(ang==90)return e.beta;if(ang==-90||ang==270)return -e.beta;return e.gamma}
+function onOri(e){if(!gyroOn||e.gamma==null)return;gyroLive=true;const t=tiltOf(e);
+  if(gyroZero===null)gyroZero=t;let d=t-gyroZero;if(Math.abs(d)<2)d=0;else d-=Math.sign(d)*2;
+  gyroWheel=Math.max(-150,Math.min(150,d*6))}
+async function toggleGyro(){const b=document.getElementById('gyro');
+  if(gyroOn){gyroOn=false;gyroLive=false;b.classList.remove('on');removeEventListener('deviceorientation',onOri);msg('Volante táctil',900);return}
+  try{if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission){await DeviceOrientationEvent.requestPermission()}}catch(e){}
+  gyroOn=true;gyroLive=false;gyroZero=null;b.classList.add('on');addEventListener('deviceorientation',onOri);
+  msg('📱 Inclina el móvil para girar',1500);
+  clearTimeout(gyroTimer);gyroTimer=setTimeout(()=>{if(gyroOn&&!gyroLive){gyroOn=false;b.classList.remove('on');removeEventListener('deviceorientation',onOri);msg('Giroscopio no disponible aquí<br><small>Úsalo en la versión web</small>',2600)}},1500)}
+document.getElementById('gyro').onclick=toggleGyro;
+/* tocar el volante con el giroscopio activo recalibra el centro */
+wb.addEventListener('dblclick',()=>{gyroZero=null});
+/* freno: mantener pulsado */
+let braking=false;const brEl=document.getElementById('brake');
+const brOn=e=>{braking=true;brEl.classList.add('on');try{brEl.setPointerCapture(e.pointerId)}catch(_){};click()},brOff=()=>{braking=false;brEl.classList.remove('on')};
+brEl.addEventListener('pointerdown',brOn);brEl.addEventListener('pointerup',brOff);brEl.addEventListener('pointercancel',brOff);
 /* teclado (para probar en ordenador) */
 const keys={};addEventListener('keydown',e=>{keys[e.key]=1;if('1234'.includes(e.key))setGear(+e.key);if(e.key=='m')setKey(-1);if(e.key=='x')setKey(1);if(e.key=='s')setKey(0)});addEventListener('keyup',e=>keys[e.key]=0);
 
@@ -147,12 +170,14 @@ function step(dt){
   // teclado
   if(keys.ArrowLeft)st.wheel=Math.max(-150,st.wheel-260*dt);
   if(keys.ArrowRight)st.wheel=Math.min(150,st.wheel+260*dt);
-  if(!dragging&&!keys.ArrowLeft&&!keys.ArrowRight){st.wheel*=Math.pow(0.02,dt);if(Math.abs(st.wheel)<0.5)st.wheel=0}
+  if(gyroOn&&gyroLive&&!dragging&&!keys.ArrowLeft&&!keys.ArrowRight){st.wheel+=(gyroWheel-st.wheel)*Math.min(1,dt*12)}
+  else if(!dragging&&!keys.ArrowLeft&&!keys.ArrowRight){st.wheel*=Math.pow(0.02,dt);if(Math.abs(st.wheel)<0.5)st.wheel=0}
   wheel.style.transform=`rotate(${st.wheel}deg)`;
   let target=(st.key==0||st.over)?0:GEAR_SPEED[st.gear]*(st.key==1?BAT:1);
   if(st.crash>0){st.crash-=dt;target=0;st.v=0;
     if(st.crash<=0){const s=st.safe.length?st.safe[0]:START;st.x=s.x;st.y=s.y;st.a=s.a;st.safe=[]}}
-  st.v+=(target-st.v)*Math.min(1,dt*3);
+  const brk=braking||keys[' '];
+  if(brk){target=0;st.v=Math.max(0,st.v-220*dt)}else st.v+=(target-st.v)*Math.min(1,dt*3);
   if(st.v>0.05&&st.crash<=0&&!st.over){
     const d=st.v*dt;const curv=(st.wheel/150)/MIN_R;
     st.a+=curv*d;st.x+=Math.cos(st.a)*d;st.y+=Math.sin(st.a)*d;const zm=zoneMult(st.x,st.y);st.odo+=d*0.5*zm;multEl.textContent='x'+zm;
@@ -170,7 +195,7 @@ function step(dt){
   if(st.started&&!st.over){st.time-=dt;if(st.time<=0){st.time=0;gameOver('⏱ ¡Tiempo!')}}
   {const s=Math.ceil(st.time);tmEl.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');tmEl.style.color=s<=15?'#ff5050':''}
   // repostar: parado (llave en STOP) junto a la gasolinera 5 s
-  if(!st.over&&st.key==0&&st.v<1&&atStation()&&st.fuel<100){st.refuel+=dt;const left=Math.ceil(5-st.refuel);
+  if(!st.over&&(st.key==0||braking||keys[' '])&&st.v<1&&atStation()&&st.fuel<100){st.refuel+=dt;const left=Math.ceil(5-st.refuel);
     if(st.refuel>=5){st.fuel=100;st.refuel=0;st.lowWarn=false;msg('⛽ Depósito lleno',1300);updLcd()}else msg('⛽ Repostando… '+left,600)}
   else st.refuel=0;
   // velocímetro: 0-180
@@ -191,6 +216,7 @@ function drawCar(){
   ctx.fillStyle='#fafafa';ctx.strokeStyle='#999';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(-9,-9,18,18,3);ctx.fill();ctx.stroke();
   // faros
   ctx.fillStyle='#ffe66b';ctx.fillRect(17,-10,3,5);ctx.fillRect(17,5,3,5);
+  if(braking||keys[' ']){ctx.fillStyle='#ff1a1a';ctx.shadowColor='#f00';ctx.shadowBlur=8;ctx.fillRect(-21,-10,3,5);ctx.fillRect(-21,5,3,5);ctx.shadowBlur=0}
   ctx.restore()}
 function frame(t){const dt=Math.min(0.05,(t-last)/1000);last=t;if(mask)step(dt);
   ctx.drawImage(img,0,0);drawCar();requestAnimationFrame(frame)}
