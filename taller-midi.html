@@ -486,7 +486,7 @@ select, input[type=number]{ box-sizing:border-box; font:600 14px var(--mono); co
     </div>
   </section>
 
-  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 08-11-2026 00:40</p>
+  <p class="msg" style="text-align:center;font-size:11.5px;margin:4px 0 0">Versión 20-11-2026 00:35</p>
 </div>
 <script>
 function lamejs(){function X(c){return new Int32Array(c)}function K(c){return new Float32Array(c)}function ca(c){if(1==c.length)return K(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(ca(c));return n}function Ia(c){if(1==c.length)return X(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(Ia(c));return n}function dc(c){if(1==c.length)return new Int16Array(c[0]);var k=c[0];c=c.slice(1);for(var n=[],u=0;u<k;u++)n.push(dc(c));return n}function Ob(c){if(1==c.length)return Array(c[0]);
@@ -2617,14 +2617,75 @@ async function sesion(tipo, nombre, aviso){
   aviso('Preparando el separador de '+nombre+'…');
   return S2.ses[tipo]=await ort.InferenceSession.create(m,{executionProviders:['wasm']});
 }
+// ---- Tarjeta gráfica (WebGPU): la separación va muchas veces más rápida que con el procesador ----
+// Todo corre en un «worker» propio (no se congela la pantalla); si la tarjeta falla, se sigue con el procesador.
+const GPU={estado:null, w:null, sig:1, pend:new Map(), listo:null};
+async function hayGPU(){
+  if(GPU.estado!==null) return GPU.estado;
+  try{ let forzar=false; try{ forzar=localStorage.getItem('taller-gpu')==='forzar'; if(localStorage.getItem('taller-gpu')==='no') return GPU.estado=false; }catch(e){}
+    if(!navigator.gpu) return GPU.estado=false;
+    const a=await navigator.gpu.requestAdapter({powerPreference:'high-performance'}); if(!a || (a.isFallbackAdapter && !forzar)) return GPU.estado=false;
+    const movil=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+    return GPU.estado={lim:Math.min(a.limits.maxStorageBufferBindingSize, a.limits.maxBufferSize), movil};
+  }catch(e){ return GPU.estado=false; }
+}
+const CODIGO_GPU=`
+let ses={}; const T16=new Float32Array(65536);
+for(let h=0;h<65536;h++){ const s=h&0x8000?-1:1, e=(h>>10)&31, f=h&1023; T16[h]= e===0 ? s*f*5.960464477539063e-8 : e===31 ? (f?NaN:s*Infinity) : s*Math.pow(2,e-15)*(1+f/1024); }
+onmessage=async e=>{ const m=e.data;
+  try{
+    if(m.t==='ini'){ importScripts(m.ort); ort.env.wasm.wasmBinary=m.bin; ort.env.wasm.wasmPaths=m.rutas; ort.env.wasm.numThreads=1; ort.env.wasm.proxy=false; ort.env.logLevel='error'; postMessage({id:m.id, ok:true}); return; }
+    if(m.t==='crear'){ const op={executionProviders:['webgpu'], graphOptimizationLevel:'all'};
+      if(m.pesos16){ const h=new Uint16Array(m.pesos16), f=new Float32Array(h.length); for(let i=0;i<h.length;i++) f[i]=T16[h[i]]; op.externalData=[{path:m.ruta, data:new Uint8Array(f.buffer)}]; }
+      ses[m.tipo]=await ort.InferenceSession.create(m.modelo, op); postMessage({id:m.id, ok:true}); return; }
+    if(m.t==='run'){ const s=ses[m.tipo]; const r=await s.run({[s.inputNames[0]]:new ort.Tensor('float32',m.x,m.dims)}); const y=new Float32Array(r[s.outputNames[0]].data); postMessage({id:m.id, ok:true, y},[y.buffer]); return; }
+    if(m.t==='soltar'){ if(ses[m.tipo]){ try{ await ses[m.tipo].release(); }catch(_){} delete ses[m.tipo]; } postMessage({id:m.id, ok:true}); return; }
+  }catch(err){ postMessage({id:m.id, ok:false, err:String(err&&err.message||err)}); }
+};`;
+function gpuPedir(msg, transfer){ return new Promise((ok,ko)=>{ const id=GPU.sig++; GPU.pend.set(id,{ok,ko}); GPU.w.postMessage({...msg,id}, transfer||[]); }); }
+async function gpuIniciar(aviso){
+  if(GPU.listo) return GPU.listo;
+  return GPU.listo=(async()=>{
+    aviso('Preparando la tarjeta gráfica…');
+    const r=await fetch(ORT_DIR+'ort-jsep.wasm.gz.txt'); if(!r.ok) throw new Error('falta el motor de la tarjeta gráfica');
+    const s=atob(await r.text()), gz=new Uint8Array(s.length); for(let k=0;k<s.length;k++) gz[k]=s.charCodeAt(k);
+    const bin=await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    GPU.w=new Worker(URL.createObjectURL(new Blob([CODIGO_GPU],{type:'text/javascript'})));
+    GPU.w.onmessage=e=>{ const m=e.data, p=GPU.pend.get(m.id); if(!p) return; GPU.pend.delete(m.id); m.ok?p.ok(m):p.ko(new Error(m.err)); };
+    GPU.w.onerror=e=>{ for(const p of GPU.pend.values()) p.ko(new Error(e.message||'fallo en la tarjeta gráfica')); GPU.pend.clear(); };
+    const base=new URL(ORT_DIR, location.href).href;
+    await gpuPedir({t:'ini', ort:base+'ort.webgpu.min.js', rutas:base, bin},[bin]);
+  })().catch(e=>{ GPU.listo=null; throw e; });
+}
+// una pista con la tarjeta gráfica; la voz usa trozos más cortos para no pasarse de la memoria de la tarjeta
+async function pasoGPU(tipo, nombre, xL, xR, aviso){
+  const g=await hayGPU(); await gpuIniciar(aviso);
+  let cfg;
+  if(tipo==='cpu'){ const T= GPU.Tforzado || (!g.movil && g.lim>=170e6 ? 256 : g.lim>=90e6 && !g.movil ? 128 : 64); cfg=cfgMDX(7680,3072,T,1.021); }
+  else cfg= tipo==='bateria' ? MDX_BAT : MDX_BAJO;
+  const msg={t:'crear', tipo}, tr=[];
+  if(tipo==='cpu'){ msg.modelo=await bajarPartes('gpu', f=>aviso('Descargando el separador de '+nombre+' (tarjeta gráfica) · '+Math.round(f*5)+' %'));
+    const p=await bajarPartes('gpuPesos', f=>aviso('Descargando el separador de '+nombre+' (tarjeta gráfica) · '+Math.round(5+f*95)+' %'));
+    msg.pesos16=p.buffer; msg.ruta=MANIF.gpuPesos.ruta; tr.push(p.buffer); }
+  else msg.modelo=await bajarPartes(tipo, f=>aviso('Descargando el separador de '+nombre+' · '+Math.round(f*100)+' %'));
+  tr.push(msg.modelo.buffer);
+  aviso('Preparando el separador de '+nombre+' en la tarjeta gráfica…');
+  await gpuPedir(msg, tr);
+  try{
+    const t0=performance.now();
+    return await separarPista(cfg, xL, xR, async inp=>{ const x=inp.slice(); const r=await gpuPedir({t:'run', tipo, x, dims:[1,4,cfg.DIMF,cfg.DIMT]},[x.buffer]); return r.y; },
+      (k,n)=>{ const q=(performance.now()-t0)/k*(n-k)/1000; aviso('Separando '+nombre+' (tarjeta gráfica) · '+Math.round(k/n*100)+' % · quedan unos '+fmt(q)); }, ()=>S2.cancel);
+  } finally { gpuPedir({t:'soltar', tipo}).catch(()=>{}); }
+}
 function ejecutor(ses, cfg){ return async inp=>{ const r=await ses.run({[ses.inputNames[0]]:new ort.Tensor('float32',inp.slice(),[1,4,cfg.DIMF,cfg.DIMT])}); return r[ses.outputNames[0]].data; }; }
 
 function pintarSep(){
   const hay=E.canales&&E.canales.length;
   $('sepBoton').textContent= hay ? 'Separar de nuevo' : 'Separar en pistas';
-  if(!S2.ocupado) $('sepTxt').textContent= hay ? '' : 'Voz, batería'+($('sepBajo').checked?', bajo':'')+' y resto, con IA en tu propio equipo · tardará unos '+Math.max(1,Math.round(E.audio.dur*($('sepBajo').checked?9:7)/60))+' min (la primera vez descarga '+($('sepBajo').checked?70:41)+' MB, que se quedan guardados)';
+  if(!S2.ocupado) $('sepTxt').textContent= hay ? '' : 'Voz, batería'+($('sepBajo').checked?', bajo':'')+' y resto, con IA en tu propio equipo · '+(S2.gpu!==false&&GPU.estado ? 'con la tarjeta gráfica: unos pocos minutos (la primera vez descarga '+($('sepBajo').checked?85:56)+' MB, que se quedan guardados)' : 'tardará unos '+Math.max(1,Math.round(E.audio.dur*($('sepBajo').checked?9:7)/60))+' min (la primera vez descarga '+($('sepBajo').checked?70:41)+' MB, que se quedan guardados)');
 }
 $('sepBajo').onchange=()=>{ if(E.audio) pintarSep(); };
+hayGPU().then(()=>{ if(E.audio&&!S2.ocupado) pintarSep(); });
 $('sepCancelar').onclick=()=>{ S2.cancel=true; $('sepTxt').textContent='Cancelando al acabar el bloque…'; };
 $('sepBoton').onclick=async()=>{
   if(!E.audio||S2.ocupado) return;
@@ -2636,7 +2697,12 @@ $('sepBoton').onclick=async()=>{
     // los modelos trabajan a 44,1 kHz
     let L=a.L, R=a.R;
     if(a.sr!==44100){ aviso('Preparando el audio…'); const n=Math.ceil(a.dur*44100), off=new OfflineAudioContext(2,n,44100), b=off.createBuffer(2,a.L.length,a.sr); b.getChannelData(0).set(a.L); b.getChannelData(1).set(a.R); const s=off.createBufferSource(); s.buffer=b; s.connect(off.destination); s.start(); const r=await off.startRendering(); L=r.getChannelData(0); R=r.getChannelData(1); }
-    const paso=async(cfg, tipo, nombre, xL, xR)=>{ const ses=await sesion(tipo, nombre, aviso), t0=performance.now();
+    const paso=async(cfg, tipo, nombre, xL, xR)=>{
+      if(S2.gpu!==false && await hayGPU()){
+        try{ return await pasoGPU(tipo, nombre, xL, xR, aviso); }
+        catch(e){ if(String(e&&e.message)==='cancelado') throw e; console.warn('tarjeta gráfica:', e); S2.gpu=false; aviso('La tarjeta gráfica no ha podido; sigo con el procesador (más lento)…'); }
+      }
+      const ses=await sesion(tipo, nombre, aviso), t0=performance.now();
       return separarPista(cfg, xL, xR, ejecutor(ses,cfg), (k,n)=>{ const q=(performance.now()-t0)/k*(n-k)/1000; aviso('Separando '+nombre+' · '+Math.round(k/n*100)+' % · quedan unos '+fmt(q)); }, ()=>S2.cancel); };
     const [VL,VR]=await paso(MDX,'cpu','la voz',L,R);
     const n=L.length, KL=new Float32Array(n), KR=new Float32Array(n); for(let i=0;i<n;i++){ KL[i]=L[i]-VL[i]; KR[i]=R[i]-VR[i]; }
