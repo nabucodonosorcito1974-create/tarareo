@@ -75,6 +75,11 @@ button:disabled{opacity:.45}
 #cn{display:block;width:100%;touch-action:none}
 .hint{position:absolute;left:8px;bottom:6px;font-size:12px;color:#333;background:#ffffffb0;border-radius:6px;padding:2px 6px}
 .selh{display:flex;align-items:center;gap:6px;margin-bottom:4px}.selh b{font:700 18px 'Barlow Condensed';flex:1}
+.op{background:var(--card);border-radius:12px;padding:8px 10px;margin-bottom:8px}
+.op h3{font:700 17px 'Barlow Condensed';margin:0;flex:1}
+.opg{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px;align-items:start;margin-top:6px}
+.opg svg{width:110px;height:auto;background:var(--bg);border-radius:8px}
+.opl{font-size:12.5px;line-height:1.5;color:var(--mut)}.opl b{color:var(--ink);font-weight:600}
 .foot{font-size:12px;color:var(--mut);padding:8px 0 16px}
 @media (prefers-reduced-motion:no-preference){.scene svg g.tw{transition:transform .5s ease}}
 </style>
@@ -95,7 +100,7 @@ button:disabled{opacity:.45}
 <div id="sPre" class="hid"></div>
 <div class="log" id="slog"></div>
 </div>
-<div class="kp" id="kp"></div>
+<div class="kp" id="kp"></div><div id="opt"></div>
 <div class="row"><select id="ty"><option value="" selected>Castell…</option><option value="1">Pilar</option><option value="2">Dos (torre)</option><option value="3">Tres</option><option value="4">Quatre</option><option value="5">Cinc (3+2)</option></select><select id="pi"></select><select id="ba"></select><label class="lbl hid" id="agL" style="display:flex;align-items:center;gap:3px;flex:0 0 auto"><input type="checkbox" id="ag" style="width:18px;height:18px">agulla</label></div>
 <div class="row"><select id="cl" aria-label="Colla" style="flex:1"></select><span class="lbl hid" id="coL">Gent</span><input id="co" type="number" inputmode="numeric" min="20" max="3000" step="1" placeholder="Persones" aria-label="Nombre de persones de la colla" style="flex:0 0 108px;font:500 15px Barlow;min-height:38px;padding:4px 8px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"><label class="lbl" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="ot" checked style="width:18px;height:18px">altres colles</label><input type="color" id="cc" value="#c0392b" aria-label="Color propi" class="hid" style="width:40px;height:36px;border:0;padding:0;background:none"></div>
 <div id="tb"></div>
@@ -299,10 +304,36 @@ const bun=['#F2C230',U.s,'#ffffff','#2E8B57'];o+=`<path d="M0 10 Q190 46 380 10"
 for(let k=0;k<19;k++){const x=10+k*20,u=(x-190)/190,y=10+18*(1-u*u);o+=`<path d="M${x-7} ${y} L${x+7} ${y} L${x} ${y+12} Z" fill="${bun[k%4]}" stroke="#00000022"/>`}
 o+=`<rect y="${by}" width="380" height="${H-by}" style="fill:var(--stone)"/>`;for(let yy=by+5,r=0;yy<H;yy+=6,r++)for(let xx=(r%2)*7;xx<380;xx+=14)o+=`<path d="M${xx} ${yy} q7 -3 13 0" fill="none" stroke="#00000016" stroke-width="1"/>`;
 if(shx)o+=`<ellipse cx="190" cy="${by+3}" rx="${shx}" ry="8" fill="#000" opacity=".14"/>`;return o}
+let OPT=null;const optSig=()=>[$('ty').value,$('pi').value,$('ba').value,$('co').value,$('ag').checked,$('ot').checked,mode,G.tech,G.forca,G.res,G.pinya].join('|');
+function optimize(){const sC=JSON.stringify(C),sP=JSON.stringify(POS),R0=calc(),lv=R0.lv.concat(R0.al||[]).map(l=>({r:l.r,n:l.n}));
+const setP=(l,P)=>{for(let j=0;j<l.n;j++)POS[l.r+'#'+j]=Object.assign({},P)};
+lv.forEach(l=>{C[l.r]=defOf(l.r).slice();setP(l,{b:0,k:18,a:100,t:55})});
+const ev=()=>{const R=calc(),o=R.out=='d'?0:R.out=='c'?1:R.out=='x'?3:2;return{v:o*1000+Math.max(R.S/85,R.AG?R.Sag/85:0,R.mx,R.mf)*100+R.T/1000,R}};
+let best=ev();
+for(let pass=0;pass<3;pass++){let imp=false;lv.forEach(l=>{let keep=C[l.r].slice();for(let p=0;p<4;p++)for(let q=0;q<4;q++){C[l.r]=[p,q];const e=ev();if(e.v<best.v-1e-9){best=e;keep=[p,q];imp=true}}C[l.r]=keep});if(!imp)break}
+lv.forEach(l=>{let keep=Object.assign({},POS[l.r+'#0']);[40,55,70,85].forEach(t=>[80,100].forEach(a=>[12,18].forEach(k=>{setP(l,{b:0,k,a,t});const e=ev();if(e.v<best.v-1e-9){best=e;keep={b:0,k,a,t}}})));setP(l,keep)});
+best=ev();const res={sig:optSig(),C:{},P:{},R:best.R,lv};lv.forEach(l=>{res.C[l.r]=C[l.r].slice();for(let j=0;j<l.n;j++)res.P[l.r+'#'+j]=Object.assign({},POS[l.r+'#'+j])});
+for(const k in C)delete C[k];Object.assign(C,JSON.parse(sC));for(const k in POS)delete POS[k];Object.assign(POS,JSON.parse(sP));return res}
+function miniSVG(res){const R=res.R,n=R.n,sc=.17,dx=(n==5?64:72)*sc,lv=R.lv;let y=0;const ys=[];lv.forEach(l=>{ys.push(y);y+=98*sc*PF[l.c[0]].h*(l.c[1]>1?.62:1)});
+const H=Math.round(y+60*sc+16),by=H-6;let g=`<svg viewBox="0 0 110 ${H}" role="img" aria-label="Proposta en miniatura"><rect y="${by}" width="110" height="6" style="fill:var(--stone)"/>`;
+if(R.AG){let ya=0;R.al.forEach(l=>{const s2=sc*.95;g+=`<g transform="translate(${55+dx*.5-50*s2},${by-ya-148*s2}) scale(${s2})">${fig(PF[l.c[0]],0,l.c[1],0)}</g>`;ya+=98*s2*PF[l.c[0]].h*(l.c[1]>1?.62:1)})}
+lv.slice().reverse().forEach(l=>{const i=lv.indexOf(l);xs(n,l.n).forEach(p=>{g+=`<g transform="translate(${55+p*dx-50*sc},${by-ys[i]-148*sc}) scale(${sc})">${fig(PF[l.c[0]],Math.min(1,l.x),l.c[1],l.n>1&&l.r!='Acotxador'?1:0)}</g>`})});return g+'</svg>'}
+function drawOpt(){const el=$('opt');if(OPT&&OPT.sig!=optSig())OPT=null;
+if(!OPT){el.innerHTML=`<div class="op" style="display:flex;align-items:center;gap:8px"><h3>Proposta òptima</h3><button class="b" id="bOpt" style="min-height:34px">Calcula-la</button></div>`;$('bOpt').onclick=()=>{$('bOpt').textContent='Calculant…';setTimeout(()=>{OPT=optimize();drawOpt()},30)};return}
+const R=OPT.R,tm=`${Math.floor(R.T/60)}:${String(Math.round(R.T%60)).padStart(2,'0')}`,res=R.out=='d'?'Descarregat':R.out=='c'?'Carregat':'Intent';
+const pn=['Corp.','Fort','Àgil','Resist.'],ps=['home','dona','nen','nena'];
+const LL=R.lv.concat(R.al||[]),pk=l=>{const P=OPT.P[l.r+'#0'];return P.a+'|'+P.k+'|'+P.t},same=LL.every(l=>pk(l)==pk(LL[0])),P0=OPT.P[LL[0].r+'#0'];
+const rows=LL.slice().reverse().map(l=>{const P=OPT.P[l.r+'#0'];return `<div><b>${l.r}</b> ${pn[l.c[0]]} ${ps[l.c[1]]}${same?'':` · ${P.a}% · ${P.k}° · t${P.t}%`}</div>`}).join('')+(same?`<div style="margin-top:4px">Postura a tots: braços ${P0.a}%, genolls ${P0.k}°, tensió ${P0.t}%.</div>`:'<div style="margin-top:4px">Postura: braços · genolls · tensió.</div>');
+el.innerHTML=`<div class="op"><div style="display:flex;align-items:center;gap:8px"><h3>Proposta òptima</h3><button class="b p" id="bApl" style="min-height:34px">Aplica-la</button><button class="b" id="bOx" style="min-height:34px" aria-label="Tancar proposta">✕</button></div>
+<div class="opl" style="margin-top:4px"><b>${res}</b> · oscil·lació ${Math.round(R.S)}%${R.AG?' / agulla '+Math.round(R.Sag)+'%':''} · esforç màx ${Math.round(R.mx*100)}% · fatiga màx ${Math.round(R.mf*100)}% · temps ${tm}</div>
+<div class="opg">${miniSVG(OPT)}<div class="opl">${rows}<div>Inclinació 0° a tots els pisos.</div></div></div></div>`;
+$('bApl').onclick=()=>{Object.assign(C,JSON.parse(JSON.stringify(OPT.C)));Object.assign(POS,JSON.parse(JSON.stringify(OPT.P)));run()};$('bOx').onclick=()=>{OPT=null;OPT_hide=true;$('opt').innerHTML=''}}
+let OPT_hide=false;
+
 function ready(){return !!($('ty').value&&$('pi').value&&$('ba').value!==''&&$('cl').value!==''&&(som()||$('co').value))}
 function gate(){const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;$('pi').disabled=!t;$('ba').disabled=!p;$('cl').disabled=b==='';$('co').disabled=c==='';
 $('coL').classList.toggle('hid',som());$('agL').classList.toggle('hid',!(t=='3'||t=='4')||!p)}
-function drawEmpty(msg,bad){const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;
+function drawEmpty(msg,bad){$('opt').innerHTML='';const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;
 const m=msg?msg:!t?'Tria el tipus de castell':!p?'Tria quants pisos':b===''?'Tria la base: pinya, folre, manilles…':c===''?'Tria la colla':'Escriu quantes persones té la colla (mida de la pinya)';
 $('rs').textContent=m;$('rs').style.background=bad?'var(--badb)':'var(--warnb)';$('rs').style.color=bad?'var(--bad)':'var(--warn)';$('rf').textContent='';$('kp').innerHTML='';$('tb').innerHTML='';
 const H=420,by=H-24;$('cv').innerHTML=`<svg viewBox="0 0 380 ${H}" role="img" aria-label="Plaça buida"><rect width="380" height="${H}" style="fill:var(--sky)"/>`+bgSVG(H,by,0)+'</svg>';
@@ -310,7 +341,7 @@ if(T3){while(T3.root.children.length)T3.root.remove(T3.root.children[0]);r3()}se
 function run(){gate();if(!ready()){drawEmpty();return}last=null;const R=calc();
 if(R.co<R.needOwn||R.miss>=2){const parts=`tronc ${R.tr}${R.fo?', folre '+R.fo:''}${R.ma?', manilles '+R.ma:''}${R.pu?', puntals '+R.pu:''} i ${R.CP} cordons propis de pinya (${R.own})`;
 drawEmpty(R.co<R.needOwn?`No hi ha prou gent: aquest castell en necessita ${R.needOwn} de la colla (${parts}) i en tens ${R.co}. Escriu més persones o tria un castell més petit.`:`Sense altres colles, a la pinya hi faltarien ${R.miss} cordons: el cap de colla no el deixa tirar. Escriu més persones o marca "altres colles".`,true);
-if(som())drawSom();return}draw(R);if(som())drawSom();if(v3)build3D(R);drawSel();toc(R)}
+if(som())drawSom();$('opt').innerHTML='';return}draw(R);if(som())drawSom();if(v3)build3D(R);drawSel();toc(R);drawOpt()}
 function drawSom(){
 $('sh').textContent=`Temporada ${G.temp}`+(G.phase=='diada'?` · diada ${G.diada} de 6 · ronda ${G.ronda} de 3`:' · pretemporada');
 $('sst').innerHTML=`<span>Colla <b>${G.memb}</b></span><span>Punts totals <b>${G.total}</b></span><span>Aquesta temporada <b>${G.tempPts}</b></span><span>Tècnica <b>${(G.tech>=0?'+':'')+G.tech.toFixed(2)}</b></span><span>Força <b>×${G.forca.toFixed(2)}</b></span><span>Resistència <b>×${G.res.toFixed(2)}</b></span><span>Pinya <b>×${G.pinya.toFixed(2)}</b></span><span>Millor <b>${G.best}</b></span>`+(G.u11?'<span><b>Castells d\'11 desbloquejats</b></span>':'');
