@@ -211,7 +211,6 @@ const GY_EV=[['deviceorientation',onOri],['deviceorientationabsolute',onOri],['d
 function gyroStop(m){const b=document.getElementById('gyro');exitDrive();gyroOn=false;gyroLive=false;b.classList.remove('on');document.getElementById('bz').classList.remove('show');GY_EV.forEach(([n,f])=>removeEventListener(n,f));if(m)msg(m,m.length>40?4200:1000)}
 function toggleGyro(){
   if(gyroOn){gyroStop('Volante táctil');return}
-  if(!window.isSecureContext){msg('📱 El giroscopio necesita abrir el juego<br>desde la web (https://…)',3500);return}
   if(typeof DeviceOrientationEvent==='undefined'&&typeof DeviceMotionEvent==='undefined'){msg('Este navegador no tiene sensores de movimiento',2500);return}
   // iOS: hay que pedir permiso dentro del mismo toque (sin esperas antes)
   const asks=[];try{if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission)asks.push(DeviceOrientationEvent.requestPermission())}catch(e){}
@@ -223,7 +222,7 @@ function toggleGyro(){
     GY_EV.forEach(([n,f])=>addEventListener(n,f));msg('📱 Gira el móvil como un volante',1800);
     clearTimeout(gyroTimer);gyroTimer=setTimeout(()=>{if(gyroOn&&!gyroLive){
       const inClaude=window.top!==window.self;
-      gyroStop(inClaude?'📱 Dentro de la app de Claude no hay giroscopio.<br><small>Ábrelo desde el enlace web</small>':'📱 El móvil no envía datos del sensor.<br><small>Android: Chrome ⋮ › Configuración › Configuración de sitios › Sensores de movimiento: Permitir</small>')}},2000)
+      gyroStop(inClaude?'📱 Dentro de la app de Claude no hay giroscopio.<br><small>Usa el volante táctil</small>':'📱 El móvil no envía datos del sensor.<br><small>Ábrelo con Chrome (Android) o Safari (iPhone).<br>Mientras, usa el volante táctil</small>')}},2000)
   })}
 document.getElementById('gyro').onclick=toggleGyro;
 /* tocar el volante con el giroscopio activo recalibra el centro */
