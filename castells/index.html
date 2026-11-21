@@ -83,7 +83,7 @@ button:disabled{opacity:.45}
 <body>
 <div class="app">
 <header><h1>Castells</h1><div class="tabs"><button id="tSim" class="on">Simulador</button><button id="tSom">Mode somni</button></div></header>
-<div class="scene"><div id="cv"></div><div id="c3" class="hid" style="position:relative"><canvas id="cn" aria-label="Castell en 3D"></canvas><div class="hint">Un dit: girar · dos dits: apropar i desplaçar · toca un casteller per centrar-lo<br>Pinya: crosses (to clar) · contraforts (to fosc) · agulla (groc)</div></div><div class="vt"><button id="bM" class="on" aria-label="So de gralles">♪</button><button id="b2" class="on">2D</button><button id="b3">3D</button></div></div>
+<div class="scene"><div id="cv"></div><div id="c3" class="hid" style="position:relative"><canvas id="cn" aria-label="Castell en 3D"></canvas><div class="hint">Mòbil: un dit gira · dos dits apropen i desplacen. PC: botó esquerre gira · dret (o Maj) desplaça · roda apropa. Toca un casteller per centrar-lo<br>Pinya: crosses (to clar) · contraforts (to fosc) · agulla (groc)</div></div><div class="vt"><button id="bM" class="on" aria-label="So de gralles">♪</button><button id="b2" class="on">2D</button><button id="b3">3D</button></div></div>
 <div id="sel3" class="wrap hid"></div>
 <div class="wrap">
 <div id="rs" class="res"></div>
@@ -407,10 +407,10 @@ const gr=new THREE.Mesh(new THREE.CircleGeometry(12,56),new THREE.MeshLambertMat
 const root=new THREE.Group();sc.add(root);
 T3={rd,sc,cam,root,gr,az:.6,el:.15,dist:0,ty:1.5,px:0,py:0,pz:0,persons:{},picks:[]};let pm=null;
 const pts=new Map();let moved=0,pd=0;
-cn.addEventListener('pointerdown',e=>{try{cn.setPointerCapture(e.pointerId)}catch(_){}pts.set(e.pointerId,[e.clientX,e.clientY]);moved=0;if(pts.size==2){const[a,b]=[...pts.values()];pd=Math.hypot(a[0]-b[0],a[1]-b[1]);pm=[(a[0]+b[0])/2,(a[1]+b[1])/2]}});
+cn.addEventListener('pointerdown',e=>{try{cn.setPointerCapture(e.pointerId)}catch(_){}T3.btn=e.button;T3.shf=e.shiftKey||e.ctrlKey;pts.set(e.pointerId,[e.clientX,e.clientY]);moved=0;if(pts.size==2){const[a,b]=[...pts.values()];pd=Math.hypot(a[0]-b[0],a[1]-b[1]);pm=[(a[0]+b[0])/2,(a[1]+b[1])/2]}});
 cn.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId))return;const p=pts.get(e.pointerId),dx=e.clientX-p[0],dy=e.clientY-p[1];pts.set(e.pointerId,[e.clientX,e.clientY]);moved+=Math.abs(dx)+Math.abs(dy);
-if(pts.size==1){T3.az-=dx*.01;T3.el=Math.max(.02,Math.min(1.35,T3.el+dy*.006))}else if(pts.size==2){const[a,b]=[...pts.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(pd&&d)T3.dist=Math.max(.8,Math.min(40,T3.dist*pd/d));pd=d;const m=[(a[0]+b[0])/2,(a[1]+b[1])/2];if(pm){const k=T3.dist*.0016,mx=m[0]-pm[0],my=m[1]-pm[1];T3.px-=Math.cos(T3.az)*mx*k;T3.pz+=Math.sin(T3.az)*mx*k;T3.py+=my*k}pm=m}r3()});
-cn.addEventListener('pointerup',e=>{pm=null;if(pts.size==1&&moved<8&&pts.has(e.pointerId))pick(e);pts.delete(e.pointerId);pd=0});
+if(pts.size==1&&(e.pointerType=='mouse')&&(T3.btn==2||T3.btn==1||T3.shf||e.shiftKey)){const k=T3.dist*.0016;T3.px-=Math.cos(T3.az)*dx*k;T3.pz+=Math.sin(T3.az)*dx*k;T3.py+=dy*k}else if(pts.size==1){T3.az-=dx*.01;T3.el=Math.max(.02,Math.min(1.35,T3.el+dy*.006))}else if(pts.size==2){const[a,b]=[...pts.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(pd&&d)T3.dist=Math.max(.8,Math.min(40,T3.dist*pd/d));pd=d;const m=[(a[0]+b[0])/2,(a[1]+b[1])/2];if(pm){const k=T3.dist*.0016,mx=m[0]-pm[0],my=m[1]-pm[1];T3.px-=Math.cos(T3.az)*mx*k;T3.pz+=Math.sin(T3.az)*mx*k;T3.py+=my*k}pm=m}r3()});
+cn.addEventListener('contextmenu',e=>e.preventDefault());cn.addEventListener('pointerup',e=>{pm=null;if(pts.size==1&&moved<8&&pts.has(e.pointerId)&&e.button==0)pick(e);pts.delete(e.pointerId);pd=0});
 cn.addEventListener('pointercancel',e=>{pts.delete(e.pointerId);pd=0});
 cn.addEventListener('wheel',e=>{e.preventDefault();T3.dist=Math.max(1.2,Math.min(40,T3.dist*(1+e.deltaY*.001)));r3()},{passive:false});
 const ro3=new ResizeObserver(()=>size3());ro3.observe($('c3'));return T3}
@@ -493,10 +493,10 @@ function tocStart(){if(tocOn||!mOn)return;if(auOk){tocOn=true;AUph='p1';clearInt
 function synthStart(){if(tocOn||!mOn||!ac())return;tocOn=true;stepI=0;nextT=AC.currentTime+.08;MG.gain.cancelScheduledValues(AC.currentTime);MG.gain.setValueAtTime(0,AC.currentTime);MG.gain.linearRampToValueAtTime(.9,AC.currentTime+.3);sched();schT=setInterval(sched,100)}
 function tocStop(fade){if(!tocOn)return;tocOn=false;if(!AU.paused){clearInterval(fadeI);const st=AU.volume/Math.max(1,(fade||.15)*20);fadeI=setInterval(()=>{AU.volume=Math.max(0,AU.volume-st);if(AU.volume<=0){clearInterval(fadeI);AU.pause()}},50)}clearInterval(schT);clearTimeout(tocT);if(AC){MG.gain.cancelScheduledValues(AC.currentTime);MG.gain.setValueAtTime(MG.gain.value,AC.currentTime);MG.gain.linearRampToValueAtTime(0,AC.currentTime+(fade||.15))}}
 let lastSig='';
-function toc(R){const ti=Math.max(1,R.L-5),ai=R.lv.findIndex(l=>l.r=='Acotxador'),xi=ai>=0?ai:R.L-1,sig=R.n+'|'+R.L+'|'+R.ba+'|'+R.fe+'|'+R.out;if(sig==lastSig)return;lastSig=sig;clearTimeout(tocT);
+function toc(R){const ti=Math.max(1,R.L-5),ai=R.lv.findIndex(l=>l.r=='Acotxador'),xi=ai>=0?ai:R.L-1,full=R.fe>=R.L&&(!R.AG||R.fa>=R.al.length),sig=R.n+'|'+R.L+'|'+R.ba+'|'+R.fe+'|'+R.fa+'|'+R.AG+'|'+R.out;if(sig==lastSig)return;lastSig=sig;clearTimeout(tocT);
 if(R.fe<=ti){tocStop(.3);AUph='p1';return}tocStart();
-const ph=R.fe>=R.L?'post':R.fe>=xi?'ext':'p1';if(ph!=AUph&&!AU.paused){try{if(ph=='ext'&&(AU.currentTime<T_EXT[0]||AU.currentTime>T_EXT[1]+.2))AU.currentTime=T_EXT[0];else if(ph=='post')AU.currentTime=T_ALETA;else if(ph=='p1'&&AU.currentTime>T_P1[1])AU.currentTime=T_P1[0]}catch(e){}}AUph=ph;
-if(R.fe>=R.L){if(R.out=="d")tocT=setTimeout(()=>tocStop(2.5),Math.min(60000,Math.max(15000,(R.T-R.Tup)*1000)));else if(R.out=='c')tocT=setTimeout(()=>tocStop(.4),4000);else tocStop(.1)}}
+const ph=full?'post':R.AG?(R.fe>=R.L&&R.fa>=R.al.length-1?'ext':'p1'):(R.fe>=xi?'ext':'p1');if(ph!=AUph&&!AU.paused){try{if(ph=='ext'&&(AU.currentTime<T_EXT[0]||AU.currentTime>T_EXT[1]+.2))AU.currentTime=T_EXT[0];else if(ph=='post')AU.currentTime=T_ALETA;else if(ph=='p1'&&AU.currentTime>T_P1[1])AU.currentTime=T_P1[0]}catch(e){}}AUph=ph;
+if(full){if(R.out=="d")tocT=setTimeout(()=>tocStop(2.5),Math.min(60000,Math.max(15000,(R.T-R.Tup)*1000)));else if(R.out=='c')tocT=setTimeout(()=>tocStop(.4),4000);else tocStop(.1)}}
 $('bM').onclick=()=>{mOn=!mOn;$('bM').classList.toggle('on',mOn);if(!mOn)tocStop(.2);else{lastSig='';ac();toc(LR)}};
 
 fillCl();setMode(location.hash=='#somni'?'som':'sim');
