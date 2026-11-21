@@ -76,6 +76,11 @@ button.ic.on{background:linear-gradient(#9ff59a,#3fae38)}
 #bz span{position:absolute;right:10px;top:10px;font:900 11px system-ui;color:#fff;background:rgba(200,0,0,.55);padding:3px 8px;border-radius:10px;opacity:.85;transition:opacity 1s}
 #bz.on{background:rgba(255,0,0,.18)}
 #ctr{display:none}
+#view3d{display:none}
+body.v3d #view3d{display:block;position:absolute;inset:0;width:100%;height:100%;border-radius:10px;box-shadow:0 0 0 3px #f0662c,0 0 0 5px #b8390b,0 8px 18px rgba(60,10,0,.5)}
+body.v3d #boardWrap{padding-bottom:0}
+body.v3d canvas#board{position:absolute;left:8px;top:8px;width:28%;max-width:28%;max-height:none;height:auto;transform:none;z-index:3;opacity:.93;border-radius:8px;box-shadow:0 0 0 2px #fff,0 3px 8px rgba(0,0,0,.5)}
+#cam3d.on{background:linear-gradient(#9ff59a,#3fae38)}
 #start{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,rgba(255,140,60,.92),rgba(150,35,5,.96));cursor:pointer}
 #start.hide{opacity:0;pointer-events:none;transition:opacity .5s}
 .st-in{text-align:center;animation:pop .6s ease-out}
@@ -127,18 +132,18 @@ body.land #rot{display:none!important}
 </head>
 <body>
 <div id="start"><div class="st-in"><div id="title2"><span class="t1">Super</span><span class="t2">Autocross</span><span class="by">by JMTorres</span></div><div class="flags"><button class="flag" data-l="ca" aria-label="Català"><i class="f-ca"></i><b>Català</b></button><button class="flag" data-l="es" aria-label="Castellano"><i class="f-es"></i><b>Castellano</b></button><button class="flag" data-l="fr" aria-label="Français"><i class="f-fr"></i><b>Français</b></button></div><div class="hint">▶ Tria · Elige · Choisis &nbsp;🎵</div></div></div>
-<div id="ver">v15</div>
+<div id="ver">v16</div>
 <div id="bz"><span>🛑 FRENO</span></div>
 <div id="rot"><div>↻</div><span id="rotTxt">Gira el móvil en horizontal</span></div>
 <div id="app">
   <div id="side"><div id="title"><span class="t1">Super</span><span class="t2">Autocross</span><span class="by">by JMTorres</span></div></div>
-  <div id="boardWrap"><canvas id="board" width="758" height="726"></canvas><div id="msg"></div></div>
+  <div id="boardWrap"><canvas id="board" width="758" height="726"></canvas><canvas id="view3d"></canvas><div id="msg"></div></div>
   <div id="dash">
     <div class="col">
       <svg id="speedo" class="rSp" viewBox="0 0 140 84"></svg>
       <div class="row rOdo"><div id="odo"></div><span id="mult">x1</span></div>
       <div class="row rGa"><div class="gauge" id="gHp" title="Salud del coche"><div class="w"><div class="mk"></div><div class="v"></div></div></div><div class="gauge" id="gFu" title="Gasolina"><div class="w"><div class="mk"></div><div class="v"></div></div></div><div class="gauge" id="gTm" title="Tiempo"><div class="w"><div class="mk"></div><div class="v"></div></div></div></div>
-      <div class="row rBtn"><button class="ic" id="snd" title="Sonido">🔇</button><button class="ic" id="rst" title="Reiniciar">↺</button><button class="ic" id="gyro" title="Modo móvil: girar inclinando el móvil">📱</button><button class="ic" id="ctr" title="Recentrar el volante">🎯</button><span id="rec">REC 0</span></div>
+      <div class="row rBtn"><button class="ic" id="snd" title="Sonido">🔇</button><button class="ic" id="rst" title="Reiniciar">↺</button><button class="ic" id="gyro" title="Modo móvil: girar inclinando el móvil">📱</button><button class="ic" id="cam3d" title="Vista desde el coche">🎥</button><button class="ic" id="ctr" title="Recentrar el volante">🎯</button><span id="rec">REC 0</span></div>
     </div>
     <div id="wheelBox"><svg id="wheel" viewBox="-100 -100 200 200">
       <circle r="88" fill="none" stroke="#111" stroke-width="18"/>
@@ -172,16 +177,19 @@ const TX={
   fileBlock:'📱 Abierto como archivo, el móvil bloquea el giroscopio.<br><small>Juega con el volante táctil de la derecha</small>',tiltGo:'📱 Gira el móvil como un volante',centered:'🎯 Volante centrado',
   touch:'Volante táctil',inClaude:'📱 Dentro de la app de Claude no hay giroscopio.<br><small>Usa el volante táctil</small>',noData:'📱 El móvil no envía datos del sensor.<br><small>Ábrelo con Chrome (Android) o Safari (iPhone).<br>Mientras, usa el volante táctil</small>',
   pts:'puntos',rec:'Récord',again:'Pulsa ↺ para volver a jugar',reserve:'⛽ ¡Reserva! Para junto a los surtidores',out:'¡Fuera de pista!',full:'⛽ Depósito lleno',refuel:'⛽ Repostando… ',
+  v3d:'🎥 Vista desde el coche',v2d:'🗺 Vista desde arriba',no3d:'No se ha podido cargar el 3D (¿sin internet?)',
   start:'Gira la llave y mueve el volante',noFuel:'⛽ Sin gasolina',wreck:'💥 Coche destrozado',time:'⏱ ¡Tiempo!',brake:'FRENO',rotate:'Gira el móvil en horizontal',choose:'Elige idioma'},
  ca:{noSensor:'Aquest navegador no té sensors de moviment',permIOS:'Permís de moviment denegat.<br><small>Tanca el Safari, torna a obrir el joc i accepta el permís</small>',
   fileBlock:'📱 Obert com a arxiu, el mòbil bloqueja el giroscopi.<br><small>Juga amb el volant tàctil de la dreta</small>',tiltGo:'📱 Gira el mòbil com un volant',centered:'🎯 Volant centrat',
   touch:'Volant tàctil',inClaude:'📱 Dins l\'app de Claude no hi ha giroscopi.<br><small>Fes servir el volant tàctil</small>',noData:'📱 El mòbil no envia dades del sensor.<br><small>Obre\'l amb Chrome (Android) o Safari (iPhone).<br>Mentrestant, fes servir el volant tàctil</small>',
   pts:'punts',rec:'Rècord',again:'Prem ↺ per tornar a jugar',reserve:'⛽ Reserva! Para al costat dels sortidors',out:'Fora de pista!',full:'⛽ Dipòsit ple',refuel:'⛽ Omplint el dipòsit… ',
+  v3d:'🎥 Vista des del cotxe',v2d:'🗺 Vista des de dalt',no3d:'No s\'ha pogut carregar el 3D (sense internet?)',
   start:'Gira la clau i mou el volant',noFuel:'⛽ Sense benzina',wreck:'💥 Cotxe destrossat',time:'⏱ Temps!',brake:'FRE',rotate:'Gira el mòbil en horitzontal',choose:'Tria l\'idioma'},
  fr:{noSensor:'Ce navigateur n\'a pas de capteurs de mouvement',permIOS:'Autorisation de mouvement refusée.<br><small>Ferme Safari, rouvre le jeu et accepte l\'autorisation</small>',
   fileBlock:'📱 Ouvert comme fichier, le téléphone bloque le gyroscope.<br><small>Joue avec le volant tactile à droite</small>',tiltGo:'📱 Tourne le téléphone comme un volant',centered:'🎯 Volant centré',
   touch:'Volant tactile',inClaude:'📱 Pas de gyroscope dans l\'app Claude.<br><small>Utilise le volant tactile</small>',noData:'📱 Le téléphone n\'envoie pas de données du capteur.<br><small>Ouvre-le avec Chrome (Android) ou Safari (iPhone).<br>En attendant, utilise le volant tactile</small>',
   pts:'points',rec:'Record',again:'Appuie sur ↺ pour rejouer',reserve:'⛽ Réserve ! Arrête-toi aux pompes',out:'Sortie de piste !',full:'⛽ Plein fait',refuel:'⛽ Plein en cours… ',
+  v3d:'🎥 Vue depuis la voiture',v2d:'🗺 Vue du dessus',no3d:'Impossible de charger la 3D (pas d\'internet ?)',
   start:'Tourne la clé et bouge le volant',noFuel:'⛽ Panne d\'essence',wreck:'💥 Voiture détruite',time:'⏱ Temps écoulé !',brake:'FREIN',rotate:'Tourne le téléphone à l\'horizontale',choose:'Choisis la langue'}};
 let LANG='es';try{LANG=localStorage.getItem('autocrossLang')||'es'}catch(e){}
 const T=k=>(TX[LANG]||TX.es)[k];
@@ -403,8 +411,65 @@ function drawCar(){
   ctx.fillStyle='#fff6b0';ctx.shadowColor='#ffe680';ctx.shadowBlur=st.key?6:0;ctx.fillRect(17.5,-10,2.5,5);ctx.fillRect(17.5,5,2.5,5);ctx.shadowBlur=0;
   if(braking||keys[' ']){ctx.fillStyle='#ff1a1a';ctx.shadowColor='#f00';ctx.shadowBlur=10;ctx.fillRect(-21,-10,3,5);ctx.fillRect(-21,5,3,5);ctx.shadowBlur=0}
   ctx.restore()}
+/* ================= VISTA 3D DESDE DENTRO DEL COCHE ================= */
+let v3d=false,R3=null,S3=null,C3=null,G3=null;
+const TREES=[[401,89],[328,177],[447,355],[91,422],[618,527],[648,72],[657,100]];
+function loadThree(cb){if(window.THREE)return cb();const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';s.onload=cb;
+  s.onerror=()=>{v3d=false;document.body.classList.remove('v3d');document.getElementById('cam3d').classList.remove('on');msg(T('no3d'),2500)};document.head.appendChild(s)}
+function roadAt(x,y){x=Math.round(x);y=Math.round(y);if(x<0||y<0||x>=W||y>=H)return 0;return mask[(y*W+x)*4]>127?1:0}
+function terrain(x,y){if(x<1||y<1||x>W-2||y>H-2)return 0;let s=0,n=0;for(let dy=-8;dy<=8;dy+=4)for(let dx=-8;dx<=8;dx+=4){s+=roadAt(x+dx,y+dy);n++}
+  const g=1-s/n;return g*(6+3*Math.sin(x*.05)*Math.cos(y*.043))}
+function build3D(){const T3=THREE,cvs=document.getElementById('view3d');
+  R3=new T3.WebGLRenderer({canvas:cvs,antialias:true});R3.setPixelRatio(Math.min(devicePixelRatio||1,1.6));
+  S3=new T3.Scene();
+  const sk=document.createElement('canvas');sk.width=4;sk.height=256;const sg=sk.getContext('2d'),gr=sg.createLinearGradient(0,0,0,256);
+  gr.addColorStop(0,'#3d8fe0');gr.addColorStop(.55,'#a9d6ff');gr.addColorStop(1,'#ffe2c4');sg.fillStyle=gr;sg.fillRect(0,0,4,256);
+  S3.background=new T3.CanvasTexture(sk);S3.fog=new T3.Fog(0xe9dccb,300,1100);
+  C3=new T3.PerspectiveCamera(70,1,0.4,3000);S3.add(C3);
+  S3.add(new T3.HemisphereLight(0xffffff,0x8a6a4a,0.85));const dl=new T3.DirectionalLight(0xfff2dd,0.55);dl.position.set(-300,500,-250);S3.add(dl);
+  // tablero con relieve: carretera plana, terreno elevado
+  const tex=new T3.Texture(img);tex.needsUpdate=true;tex.anisotropy=R3.capabilities.getMaxAnisotropy();
+  const geo=new T3.PlaneGeometry(W,H,190,182);geo.rotateX(-Math.PI/2);geo.translate(W/2,0,H/2);
+  const p=geo.attributes.position;for(let i=0;i<p.count;i++){p.setY(i,terrain(p.getX(i),p.getZ(i)))}geo.computeVertexNormals();
+  S3.add(new T3.Mesh(geo,new T3.MeshLambertMaterial({map:tex})));
+  // marco naranja del juguete y mesa de madera
+  const fr=new T3.Mesh(new T3.BoxGeometry(W+50,26,H+50),new T3.MeshLambertMaterial({color:0xf2541c}));fr.position.set(W/2,-13.2,H/2);S3.add(fr);
+  const lip=new T3.MeshLambertMaterial({color:0xff6a2b});
+  for(const [x,z,w,d] of [[W/2,-12,W+50,24],[W/2,H+12,W+50,24],[-12,H/2,24,H+50],[W+12,H/2,24,H+50]]){const m=new T3.Mesh(new T3.BoxGeometry(w,8,d),lip);m.position.set(x,3,z);S3.add(m)}
+  const tb=new T3.Mesh(new T3.PlaneGeometry(6000,6000),new T3.MeshLambertMaterial({color:0x8a5a33}));tb.rotation.x=-Math.PI/2;tb.position.y=-27;S3.add(tb);
+  // árboles
+  const trunkM=new T3.MeshLambertMaterial({color:0x5b3a1e}),leafM=new T3.MeshLambertMaterial({color:0x1f6b2a}),leafM2=new T3.MeshLambertMaterial({color:0x2e8a35});
+  for(const [x,y] of TREES){const h=terrain(x,y);const tr=new T3.Mesh(new T3.CylinderGeometry(1.8,2.4,9,8),trunkM);tr.position.set(x,h+4.5,y);S3.add(tr);
+    const c1=new T3.Mesh(new T3.ConeGeometry(10,20,10),leafM);c1.position.set(x,h+17,y);S3.add(c1);
+    const c2=new T3.Mesh(new T3.ConeGeometry(7,14,10),leafM2);c2.position.set(x,h+27,y);S3.add(c2)}
+  // gasolinera
+  const st0=new T3.Mesh(new T3.BoxGeometry(108,16,53),new T3.MeshLambertMaterial({color:0xffd21a}));st0.position.set(362,terrain(362,436)+8,436);S3.add(st0);
+  const roof=new T3.Mesh(new T3.BoxGeometry(116,3,61),new T3.MeshLambertMaterial({color:0xd8261a}));roof.position.set(362,st0.position.y+9.5,436);S3.add(roof);
+  const pumpM=new T3.MeshLambertMaterial({color:0xe0301c}),nozM=new T3.MeshLambertMaterial({color:0xffd21a});
+  for(const x of [339,393]){const pm=new T3.Mesh(new T3.BoxGeometry(20,10,11),pumpM);pm.position.set(x,5,542);S3.add(pm);
+    const nz=new T3.Mesh(new T3.BoxGeometry(8,3,4),nozM);nz.position.set(x+3,11.5,542);S3.add(nz)}
+  // puente amarillo (se pasa por debajo)
+  const a0=[45,105],a1=[168,197],dx=a1[0]-a0[0],dz=a1[1]-a0[1],L=Math.hypot(dx,dz),ang=Math.atan2(dz,dx);
+  const brM=new T3.MeshLambertMaterial({color:0xffd21a});
+  const plank=new T3.Mesh(new T3.BoxGeometry(L,2.5,13),brM);plank.position.set(a0[0]+dx/2,17,a0[1]+dz/2);plank.rotation.y=-ang;S3.add(plank);
+  for(const [x,z] of [a0,a1]){const po=new T3.Mesh(new T3.BoxGeometry(6,18,13),brM);po.position.set(x,terrain(x,z)+8,z);po.rotation.y=-ang;S3.add(po)}
+  // capó del coche (visto desde dentro)
+  G3=new T3.Group();const hoodM=new T3.MeshLambertMaterial({color:0xe8361c});
+  const hood=new T3.Mesh(new T3.BoxGeometry(10,1,6),hoodM);hood.position.set(0,-5.3,-9.5);hood.rotation.x=0.10;G3.add(hood);
+  const stripe=new T3.Mesh(new T3.BoxGeometry(2,1.05,6.05),new T3.MeshLambertMaterial({color:0xffffff}));stripe.position.copy(hood.position);stripe.rotation.x=0.10;G3.add(stripe);
+  C3.add(G3);resize3D()}
+function resize3D(){if(!R3)return;const c=document.getElementById('view3d');const w=c.clientWidth||300,h=c.clientHeight||200;R3.setSize(w,h,false);C3.aspect=w/h;C3.fov=w>=h?60:78;C3.updateProjectionMatrix()}
+addEventListener('resize',()=>setTimeout(resize3D,60));
+function render3D(){const sh=st.crash>0?Math.sin(st.crash*50)*1.2:0;
+  C3.position.set(st.x-Math.cos(st.a)*3,6.2+Math.abs(sh)*.4,st.y-Math.sin(st.a)*3);
+  C3.lookAt(st.x+Math.cos(st.a+sh*.03)*60,4.6,st.y+Math.sin(st.a+sh*.03)*60);
+  C3.rotateZ(-st.wheel/150*0.05);
+  R3.render(S3,C3)}
+document.getElementById('cam3d').onclick=e=>{v3d=!v3d;document.body.classList.toggle('v3d',v3d);e.currentTarget.classList.toggle('on',v3d);
+  msg(T(v3d?'v3d':'v2d'),1100);if(v3d)loadThree(()=>{if(!S3&&mask)build3D();resize3D()})};
 function frame(t){const dt=Math.min(0.05,(t-last)/1000);last=t;if(mask)step(dt);
-  ctx.drawImage(img,0,0);drawCar();if(light)ctx.drawImage(light,0,0);requestAnimationFrame(frame)}
+  ctx.drawImage(img,0,0);drawCar();if(light)ctx.drawImage(light,0,0);if(v3d&&S3)render3D();requestAnimationFrame(frame)}
 
 drawGearLabels();setGear(1);setKey(0);updLcd();
 let loaded=0;const ok=()=>{if(++loaded==2){loadMask();makeLight();requestAnimationFrame(frame);}};
