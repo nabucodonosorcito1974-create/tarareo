@@ -118,7 +118,8 @@ const PF=[{n:'Corpulent',w:48,wb:52,aw:12,h:1,hair:'#3B2A1E',pes:105,cap:320,ag:
 {n:'Fort',w:50,wb:38,aw:12,h:1,hair:'#1E1E1E',pes:85,cap:330,ag:50,res:70},
 {n:'Àgil',w:36,wb:32,aw:9,h:0.84,hair:'#E0A23A',pes:60,cap:160,ag:95,res:60},
 {n:'Resistent',w:42,wb:38,aw:10,h:0.94,hair:'#8A4B22',pes:72,cap:240,ag:55,res:95}];
-const PS=[{n:'Home',p:1,c:1,a:0,r:1},{n:'Dona',p:.82,c:.8,a:5,r:1.05},{n:'Nen',p:.36,c:.3,a:5,r:.8},{n:'Nena',p:.34,c:.3,a:5,r:.8}];
+const PS=[{n:'Home',p:1,c:1,a:0,r:1},{n:'Dona',p:.82,c:.68,a:5,r:.97},{n:'Nen',p:.36,c:.3,a:5,r:.8},{n:'Nena',p:.34,c:.3,a:5,r:.8},{n:'Mixt H/D',p:.91,c:.84,a:2.5,r:.985}];
+const isKid=c=>c==2||c==3,wj=(c,j)=>c==4?j%2:c;
 const NM=['Baixos','Segons','Terços','Quarts','Quints','Sisens','Setens','Vuitens','Novens','Desens'];
 const DEF={Baixos:[0,0],Segons:[1,0],'Terços':[1,0],Quarts:[3,0],Quints:[3,1],Sisens:[2,1],Setens:[2,1],Vuitens:[2,1],Novens:[2,1],Desens:[2,1],Dosos:[2,2],Acotxador:[2,3],Enxaneta:[2,3]};
 const BN=['Només pinya','Folre','Folre i manilles','Folre, manilles i puntals'];
@@ -149,7 +150,7 @@ else{const cv=(.6-t)*r*.5;s+=`<path d="M${50-r*.24} ${51+r*.36} q${r*.24} ${cv} 
 if(t>.45)s+=`<path d="M${50+r*.8} ${51-r*.55} q${r*.11} ${r*.22} 0 ${r*.32} q${-r*.11} ${-r*.1} 0 ${-r*.32}Z" fill="#7cc0f0"/>`;
 if(t>.75)s+=`<path d="M${50-r*.85} ${51-r*.4} q${r*.1} ${r*.2} 0 ${r*.28} q${-r*.1} ${-r*.09} 0 ${-r*.28}Z" fill="#7cc0f0"/>`;return s}
 function fig(o,t,who,pose,kn){kn=kn||0;const D=16*kn;
-const kid=who>1,fem=who%2==1,b=o.h*(kid?.78:1),bw=o.w*.82*(fem?.88:1),bb=o.wb*.82*(fem?.9:1),sk=mix('#F6D2AE','#EE6A50',t),hc=o.hair,SFc=SF(),sd=sh(U.s,.22);
+who=who==4?0:who;const kid=who>1,fem=who%2==1,b=o.h*(kid?.78:1),bw=o.w*.82*(fem?.88:1),bb=o.wb*.82*(fem?.9:1),sk=mix('#F6D2AE','#EE6A50',t),hc=o.hair,SFc=SF(),sd=sh(U.s,.22);
 let s=`<g transform="translate(50,150) scale(${b}) translate(-50,-150)">`;
 [[32,`M45 ${108+D} L${39-12*kn} ${125+D/2} L33 142`],[68,`M55 ${108+D} L${61+12*kn} ${125+D/2} L67 142`]].forEach(([x,d])=>s+=`<path d="${d}" stroke="#C9C5BB" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="${d}" stroke="${U.p}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/><ellipse cx="${x}" cy="146" rx="8.5" ry="4.6" fill="#F4EFE4" stroke="#9a948a" stroke-width="1"/><path d="M${x-5} 144 l10 3 M${x+5} 144 l-10 3" stroke="#C8202F" stroke-width="1.4"/>`);
 const L0=50-bw/2+4,R0=50+bw/2-4,arm=(x1,y1,x2,y2)=>`<path d="M${x1} ${y1} L${x2} ${y2}" stroke="${sd}" stroke-width="11.5" stroke-linecap="round"/><path d="M${x1} ${y1} L${x2} ${y2}" stroke="${SFc}" stroke-width="10" stroke-linecap="round"/><circle cx="${x2}" cy="${y2}" r="6.2" fill="${sk}"/>`;
@@ -210,12 +211,12 @@ let sc0=0,sc1=0,kids=0,tr=0,emp=0;
 lv.forEach((l,i)=>{if(!C[l.r])C[l.r]=[-1,-1];l.c=C[l.r];l.empty=l.c[0]<0||l.c[1]<0;if(l.empty)emp++;l.s=st(l.empty?defOf(l.r):l.c);
 l.Ps=Array.from({length:l.n},(_,j)=>post(l.r+'#'+j));const es=l.Ps.map(pf),av=f=>es.reduce((a,e)=>a+f(e),0)/l.n,ap=k=>l.Ps.reduce((a,P)=>a+P[k],0)/l.n;
 l.pe={cap:av(e=>e.cap),fat:av(e=>e.fat),rig:av(e=>e.rig)};l.P={b:ap('b'),k:ap('k'),a:ap('a'),t:ap('t')};l.Pab=l.Ps.reduce((a,P)=>a+Math.abs(P.b),0)/l.n;l.s.cap=Math.round(l.s.cap*l.pe.cap);l.W=l.empty?0:l.n*l.s.pes;tr+=l.n;
-l.kid=!l.empty&&l.c[1]>1&&!POM.includes(l.r);if(l.kid)kids++;sc1+=swy(l.s,i);sc0+=swy(st(defOf(l.r)),i)});
+l.kid=!l.empty&&isKid(l.c[1])&&!POM.includes(l.r);if(l.kid)kids++;sc1+=swy(l.s,i);sc0+=swy(st(defOf(l.r)),i)});
 const AG=$('ag').checked&&(n==3||n==4),La=L-2,al=[];
 if(AG){for(let i=0;i<La-1;i++)al.push({r:'Ag. '+AGN[i],n:1});al.push({r:'Ag. enxaneta',n:1})}
 let akids=0,aS1=0,aS0=0;al.forEach((l,i)=>{if(!C[l.r])C[l.r]=[-1,-1];l.c=C[l.r];l.empty=l.c[0]<0||l.c[1]<0;if(l.empty)emp++;l.s=st(l.empty?defOf(l.r):l.c);
 l.Ps=[post(l.r+'#0')];l.pe=pf(l.Ps[0]);l.P=l.Ps[0];l.Pab=Math.abs(l.P.b);l.s.cap=Math.round(l.s.cap*l.pe.cap);l.W=l.empty?0:l.s.pes;tr++;
-l.kid=!l.empty&&l.c[1]>1&&l.r!='Ag. enxaneta';if(l.kid)akids++;aS1+=swy(l.s,i);aS0+=swy(st(defOf(l.r)),i)});if(AG)tr+=6;
+l.kid=!l.empty&&isKid(l.c[1])&&l.r!='Ag. enxaneta';if(l.kid)akids++;aS1+=swy(l.s,i);aS0+=swy(st(defOf(l.r)),i)});if(AG)tr+=6;
 const fo=ba>=1?n*12:0,ma=ba>=2?n*6:0,pu=ba==3?(n==1?4:n*3):0,fix=tr+fo+ma+pu;
 const CR=Math.max(2,n==1?L-1:ba==0?L-2:ba==1?L:L+1),CP=Math.max(1,CR-2),pk=k=>Math.round(3*n+4.5*k),cum=c=>{let t=0;for(let k=1;k<=c;k++)t+=pk(k);return t};
 const pN=cum(CR),own=cum(CP),need=fix+pN,needOwn=fix+own,oth=$('ot')?$('ot').checked:true,left=Math.max(0,co-fix),pA=Math.min(pN,oth?pN:left),fromOth=Math.max(0,pA-left);
@@ -272,19 +273,19 @@ return `<div class="pr"><div class="l1"><span>${l.r}${l.n>1?' ×'+l.n:''}</span>
 (l.kid?`<div class="wn">Nen al tronc: +25% d'oscil·lació</div>`:'')+
 (l.empty?'':`<div class="l4"><div class="bx"><i style="width:${pn}%;background:${bc(l.x)}"></i><i style="width:${ph}%;background:${bc(l.x)};opacity:.3"></i><s></s></div><span class="pc" style="color:${col(l.x)}">${Math.round(l.x*100)}% · fat ${Math.round(l.f*100)}%</span></div>`)+(openR==l.r?edHTML(l.r+'#0',l.r,l.n):'')+`</div>`}).join('');
 const sc=n==5?.46:L>=10?.5:.56,stp=72*sc,dx=(n==5?64:72)*sc,nw=n==5?5.4:n;
-const bOf=l=>PF[Math.max(0,l.c[0])].h*(l.c[1]>1?.78:1),ys=[0];lv.forEach((l,i)=>{if(i<L-1)ys.push(ys[i]+72*sc*bOf(l))});
+const bOf=l=>PF[Math.max(0,l.c[0])].h*(isKid(l.c[1])?.78:1),ys=[0];lv.forEach((l,i)=>{if(i<L-1)ys.push(ys[i]+72*sc*bOf(l))});
 const H=Math.round(ys[L-1]+150*sc*bOf(lv[L-1])+70),by=H-24;
 let g=`<svg viewBox="0 0 380 ${H}" role="img" aria-label="${nameC(n,L,ba)}"><defs><pattern id="rat" width="7" height="10" patternUnits="userSpaceOnUse"><rect width="3.5" height="10" fill="#C8202F"/><rect x="3.5" width="3.5" height="10" fill="#FFFFFF"/></pattern></defs><rect width="380" height="${H}" style="fill:var(--sky)"/>`;
 g+=bgSVG(H,by,Math.min(185,nw*dx/2+110));
 const fall=R.k=='bad'&&R.out!='x',tilt=fall?Math.min(16,Math.max(S-100,(soca-1)*100,8)/6+5):0,top=R.out=='d'||R.out=='c';
 g+=`<g class="tw" transform="rotate(${tilt} 190 ${by-stp*(ba+1)})">`;
 const GE={by,sc,L,n,lv:[],al:[],H:ys[L-1]+72*sc,x0:190};GEO=GE;
-if(R.AG&&R.fe>=R.L){let ya=0;const s2=sc*.95;R.al.forEach((l,i)=>{if(i>R.fa)return;const x=190+dx*.5,yf=by-ya,b=PF[Math.max(0,l.c[0])].h*(l.c[1]>1?.78:1);GE.al.push({yf,y0:ya,p:[{x,s:s2,b}],pb:0,mk:(jj,kn,ps)=>`<g transform="translate(${x-50*s2},${yf-150*s2}) scale(${s2})">${fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],ps,kn)}</g>`,pose2:l.r=='Ag. enxaneta'?fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],2):''});g+=`<g id="gA${i}"><g id="gQ${i}_0"><g ${l.empty?'opacity=".28" style="filter:grayscale(1)"':''} transform="translate(${x-50*s2},${yf-150*s2}) scale(${s2})">${fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],DYN.on?0:l.r=='Ag. enxaneta'&&top?2:0)}</g></g></g>`;ya+=72*s2*bOf(l)})}
+if(R.AG&&R.fe>=R.L){let ya=0;const s2=sc*.95;R.al.forEach((l,i)=>{if(i>R.fa)return;const x=190+dx*.5,yf=by-ya,b=PF[Math.max(0,l.c[0])].h*(isKid(l.c[1])?.78:1);GE.al.push({yf,y0:ya,p:[{x,s:s2,b}],pb:0,mk:(jj,kn,ps)=>`<g transform="translate(${x-50*s2},${yf-150*s2}) scale(${s2})">${fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],ps,kn)}</g>`,pose2:l.r=='Ag. enxaneta'?fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],2):''});g+=`<g id="gA${i}"><g id="gQ${i}_0"><g ${l.empty?'opacity=".28" style="filter:grayscale(1)"':''} transform="translate(${x-50*s2},${yf-150*s2}) scale(${s2})">${fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],DYN.on?0:l.r=='Ag. enxaneta'&&top?2:0)}</g></g></g>`;ya+=72*s2*bOf(l)})}
 lv.forEach((l,i)=>{GE.lv[i]={yf:by-ys[i],y0:ys[i],p:xs(n,l.n).map(p=>({x:190+p*dx,s:sc,b:bOf(l)}))}});
 lv.slice().reverse().forEach(l=>{const i=lv.indexOf(l);if(i>R.fe)return;const yf=by-ys[i],pose=l.r=='Enxaneta'?(top&&!DYN.on?2:0):(l.n>1&&l.r!='Acotxador'?1:0);let q='';
-GE.lv[i].pb=pose;GE.lv[i].mk=(jj,kn,ps)=>xs(n,l.n).filter((p,j)=>j==jj).map((p,j)=>`<g transform="translate(${190+p*dx-50*sc},${yf-150*sc}) scale(${sc}) rotate(${l.Ps[j].b*.6} 50 142)">${fig(PF[Math.max(0,l.c[0])],Math.min(1,Math.max(l.x,(S-70)/60,l.f*.8)),l.c[1],ps,kn)}</g>`).join('');
+GE.lv[i].pb=pose;GE.lv[i].mk=(jj,kn,ps)=>xs(n,l.n).filter((p,j)=>j==jj).map((p,j)=>`<g transform="translate(${190+p*dx-50*sc},${yf-150*sc}) scale(${sc}) rotate(${l.Ps[j].b*.6} 50 142)">${fig(PF[Math.max(0,l.c[0])],Math.min(1,Math.max(l.x,(S-70)/60,l.f*.8)),wj(l.c[1],jj),ps,kn)}</g>`).join('');
 if(l.r=='Enxaneta')GE.lv[i].pose2=`<g transform="translate(${190-50*sc},${yf-150*sc}) scale(${sc})">${fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],2)}</g>`;
-xs(n,l.n).forEach((p,j)=>{const x=190+p*dx;q+=`<g id="gP${i}_${j}"><g ${l.empty?'opacity=".28" style="filter:grayscale(1)"':''} transform="translate(${x-50*sc},${yf-150*sc}) scale(${sc}) rotate(${l.Ps[j].b*.6} 50 142)">${fig(PF[Math.max(0,l.c[0])],Math.min(1,Math.max(l.x,(S-70)/60,l.f*.8)),l.c[1],pose)}</g></g>`});g+=`<g id="gL${i}">${q}</g>`});
+xs(n,l.n).forEach((p,j)=>{const x=190+p*dx;q+=`<g id="gP${i}_${j}"><g ${l.empty?'opacity=".28" style="filter:grayscale(1)"':''} transform="translate(${x-50*sc},${yf-150*sc}) scale(${sc}) rotate(${l.Ps[j].b*.6} 50 142)">${fig(PF[Math.max(0,l.c[0])],Math.min(1,Math.max(l.x,(S-70)/60,l.f*.8)),wj(l.c[1],j),pose)}</g></g>`});g+=`<g id="gL${i}">${q}</g>`});
 g+='</g>';const latT=`rotate(${tilt} 190 ${by-stp*(ba+1)})`;
 const pw=Math.max(.45,rP),nr=Math.min(4,Math.max(2,Math.ceil((R.cords||2)/2)));let yF=by-stp*.95+6*sc;const stands=[];
 if(ba>=1){stands.push([yF,44,.92]);if(ba>=2)stands.push([yF-stp*.9,28,.88]);if(ba==3)stands.push([yF-stp*1.8,16,.84])}
@@ -432,7 +433,7 @@ function dynReplay(){const F=DYN.last;if(!F||DYN.run||!DYN.R)return;DYN.on=true;
 const tk=now=>{if(!DYN.run)return;if(t0==null)t0=now;const t=(now-t0)/1000;let i=0;while(i<F.length-1&&F[i+1].t<=t)i++;const f=Object.assign({},F[i],{lab:'Repetició · '+F[i].lab});dynRender(f);if(!f.fp&&mOn)toc(Object.assign({},R,{fe:Math.floor(f.kk+1e-6),fa:Math.floor((f.ak||0)+1e-6),out:'d'}));else if(f.fp)tocStop(.4);
 if(i>=F.length-1){DYN.run=false;DYN.on=false;setTimeout(()=>tocStop(2),800);dynUI(LR);return}requestAnimationFrame(tk)};requestAnimationFrame(tk)}
 function dynAbort(){const h=$('hud3');if(h)h.style.display='none';const hn=document.querySelector('#c3 .hint');if(hn)hn.style.display='';if(T3&&T3.latM){T3.root.remove(T3.latM);T3.latM=null}if(DYN.run){DYN.run=false;$('pad').classList.add('hid');$('cv').style.touchAction=''}DYN.on=false}
-function dynInit(){window.DYN=DYN;
+function dynInit(){window.DYN=DYN;window.__T={PF,PS,optimize};
 $('bF').onclick=dynStart;$('bRp').onclick=dynReplay;$('bLat').onclick=()=>{LAT=!LAT;dynUI(LR);if(!DYN.run&&LR&&ready())run()};
 $('bGy').onclick=async()=>{if(!DYN.gyro&&window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission){try{if(await DeviceOrientationEvent.requestPermission()!='granted')return}catch(e){return}}DYN.gyro=!DYN.gyro;DYN.gu=0;dynUI(LR)};
 addEventListener('deviceorientation',e=>{if(DYN.gyro&&e.gamma!=null)DYN.gu=clamp(e.gamma/22,-1,1)});
@@ -448,14 +449,14 @@ const setP=(l,P)=>{for(let j=0;j<l.n;j++)POS[l.r+'#'+j]=Object.assign({},P)};
 lv.forEach(l=>{C[l.r]=defOf(l.r).slice();setP(l,{b:0,k:18,a:100,t:55})});
 const ev=()=>{const R=calc(),o=R.out=='d'?0:R.out=='c'?1:R.out=='x'?3:2;return{v:o*1000+Math.max(R.S/85,R.AG?R.Sag/85:0,R.mx,R.mf)*100+R.T/1000,R}};
 let best=ev();
-for(let pass=0;pass<3;pass++){let imp=false;lv.forEach(l=>{let keep=C[l.r].slice();for(let p=0;p<4;p++)for(let q=0;q<4;q++){C[l.r]=[p,q];const e=ev();if(e.v<best.v-1e-9){best=e;keep=[p,q];imp=true}}C[l.r]=keep});if(!imp)break}
+for(let pass=0;pass<3;pass++){let imp=false;const NN=+$('ty').value,LL=R0.L;lv.forEach(l=>{let keep=C[l.r].slice();const li=NM.indexOf(l.r.replace('Ag. ','')=='baix'?'Baixos':l.r),ok=q=>!((q==2||q==3)&&!POM.includes(l.r)&&l.r!='Ag. enxaneta')&&!(q==4&&l.n<2)&&!((q==1||q==4)&&(li==0||li==1||l.r=='Ag. baix'||l.r=='Ag. segon'))&&!(q==1&&li==2&&l.n>1&&(NN>=4||LL>=9));for(let p=0;p<4;p++)for(let q=0;q<5;q++){if(!ok(q))continue;C[l.r]=[p,q];const e=ev();if(e.v<best.v-1e-9){best=e;keep=[p,q];imp=true}}C[l.r]=keep});if(!imp)break}
 lv.forEach(l=>{let keep=Object.assign({},POS[l.r+'#0']);[40,55,70,85].forEach(t=>[80,100].forEach(a=>[12,18].forEach(k=>{setP(l,{b:0,k,a,t});const e=ev();if(e.v<best.v-1e-9){best=e;keep={b:0,k,a,t}}})));setP(l,keep)});
 best=ev();const res={sig:optSig(),C:{},P:{},R:best.R,lv};lv.forEach(l=>{res.C[l.r]=C[l.r].slice();for(let j=0;j<l.n;j++)res.P[l.r+'#'+j]=Object.assign({},POS[l.r+'#'+j])});
 for(const k in C)delete C[k];Object.assign(C,JSON.parse(sC));for(const k in POS)delete POS[k];Object.assign(POS,JSON.parse(sP));return res}
-function miniSVG(res){const R=res.R,n=R.n,sc=.2,dx=(n==5?64:72)*sc,lv=R.lv;let y=0;const ys=[];lv.forEach(l=>{ys.push(y);y+=72*sc*PF[l.c[0]].h*(l.c[1]>1?.78:1)});
+function miniSVG(res){const R=res.R,n=R.n,sc=.2,dx=(n==5?64:72)*sc,lv=R.lv;let y=0;const ys=[];lv.forEach(l=>{ys.push(y);y+=72*sc*PF[l.c[0]].h*(isKid(l.c[1])?.78:1)});
 const H=Math.round(y+60*sc+16),by=H-6;let g=`<svg viewBox="0 0 110 ${H}" role="img" aria-label="Proposta en miniatura"><rect y="${by}" width="110" height="6" style="fill:var(--stone)"/>`;
-if(R.AG){let ya=0;R.al.forEach(l=>{const s2=sc*.95;g+=`<g transform="translate(${55+dx*.5-50*s2},${by-ya-150*s2}) scale(${s2})">${fig(PF[l.c[0]],0,l.c[1],0)}</g>`;ya+=72*s2*PF[l.c[0]].h*(l.c[1]>1?.78:1)})}
-lv.slice().reverse().forEach(l=>{const i=lv.indexOf(l);xs(n,l.n).forEach(p=>{g+=`<g transform="translate(${55+p*dx-50*sc},${by-ys[i]-150*sc}) scale(${sc})">${fig(PF[l.c[0]],Math.min(1,l.x),l.c[1],l.n>1&&l.r!='Acotxador'?1:0)}</g>`})});return g+'</svg>'}
+if(R.AG){let ya=0;R.al.forEach(l=>{const s2=sc*.95;g+=`<g transform="translate(${55+dx*.5-50*s2},${by-ya-150*s2}) scale(${s2})">${fig(PF[l.c[0]],0,l.c[1],0)}</g>`;ya+=72*s2*PF[l.c[0]].h*(isKid(l.c[1])?.78:1)})}
+lv.slice().reverse().forEach(l=>{const i=lv.indexOf(l);xs(n,l.n).forEach((p,j)=>{g+=`<g transform="translate(${55+p*dx-50*sc},${by-ys[i]-150*sc}) scale(${sc})">${fig(PF[l.c[0]],Math.min(1,l.x),wj(l.c[1],j),l.n>1&&l.r!='Acotxador'?1:0)}</g>`})});return g+'</svg>'}
 function drawOpt(){const el=$('opt');if(OPT&&OPT.sig!=optSig())OPT=null;
 if(!OPT){el.innerHTML=`<div class="op" style="display:flex;align-items:center;gap:8px"><h3>Proposta òptima</h3><button class="b" id="bOpt" style="min-height:34px">Calcula-la</button></div>`;$('bOpt').onclick=()=>{$('bOpt').textContent='Calculant…';setTimeout(()=>{OPT=optimize();drawOpt()},30)};return}
 const R=OPT.R,tm=`${Math.floor(R.T/60)}:${String(Math.round(R.T%60)).padStart(2,'0')}`,res=R.out=='d'?'Descarregat':R.out=='c'?'Carregat':'Intent';
@@ -545,7 +546,7 @@ x.lineWidth=2.5;x.beginPath();x.moveTo(cx-17,46+4*tt);x.quadraticCurveTo(cx-11,4
 x.strokeStyle='#5A2A1A';x.lineWidth=3;x.beginPath();x.moveTo(cx-11,78);x.quadraticCurveTo(cx,78+cv*2.6,cx+11,78);x.stroke();
 const tx=new THREE.CanvasTexture(c);return FT[key]=new THREE.MeshLambertMaterial({map:tx})}
 function mkPerson(o,who,t,ghost,shc){
-const kid=who>1,fem=who%2==1,sc=o.h*(kid?.62:1),wb=o.w/50*(fem?.9:1),ww=o.wb/50*(fem?.92:1);
+who=who==4?0:who;const kid=who>1,fem=who%2==1,sc=o.h*(kid?.62:1),wb=o.w/50*(fem?.9:1),ww=o.wb/50*(fem?.92:1);
 const M=c=>ghost?mat('#9a9a9a',.35):mat(c),g=new THREE.Group();g.scale.setScalar(sc);
 const sk=M(mix('#F9D7B0','#EE5A40',t)),sh=ghost?M('#9a9a9a'):shc?M(shc):shirtMat(),pa=M(U.p),fx=M(U.f),shoe=M('#F4F2EC'),hr=M(o.hair);
 const mesh=(gm,m,y,p)=>{const e=new THREE.Mesh(gm,m);e.position.y=y||0;p.add(e);return e};
@@ -606,7 +607,7 @@ const t1=Math.acos(Math.max(-1,Math.min(1,(a*a+D*D-b*b)/(2*a*D)))),bend=Math.PI-
 const qs=new THREE.Quaternion().setFromAxisAngle(n,t1).multiply(q1);s.quaternion.copy(qs);el.quaternion.setFromAxisAngle(n.clone().applyQuaternion(qs.clone().invert()),-bend)})})}
 function build3D(R){if(!init3D())return;AGR=!!R.AG;const{lv,n,ba}=R,root=T3.root;while(root.children.length)root.remove(root.children[0]);T3.persons={};T3.picks=[];
 const tr=new THREE.Group();root.add(tr);let y=0;T3.levels=[];T3.tr=tr;T3.lg=[];T3.ag=[];T3.enx=null;T3.aenx=null;const top=(R.out=='d'||R.out=='c')&&!DYN.on;
-lv.forEach((l,i)=>{if(i>R.fe)return;const pp=pos3(n,l.n,l.r);let s=1;const lg=new THREE.Group();lg.position.y=y;tr.add(lg);T3.lg[i]={g:lg,y0:y,q:[]};if(l.n>1)T3.levels.push(pp.map((_,j)=>l.r+'#'+j));pp.forEach(([x,z,ry],j)=>{const key=l.r+'#'+j,o=PF[Math.max(0,l.c[0])],who=Math.max(0,l.c[1]);
+lv.forEach((l,i)=>{if(i>R.fe)return;const pp=pos3(n,l.n,l.r);let s=1;const lg=new THREE.Group();lg.position.y=y;tr.add(lg);T3.lg[i]={g:lg,y0:y,q:[]};if(l.n>1)T3.levels.push(pp.map((_,j)=>l.r+'#'+j));pp.forEach(([x,z,ry],j)=>{const key=l.r+'#'+j,o=PF[Math.max(0,l.c[0])],who=wj(Math.max(0,l.c[1]),j);
 const q=mkPerson(o,l.empty?0:who,Math.min(1,Math.max(l.x||0,l.f*.8||0)),l.empty);s=q.sc;
 const pose=l.r=='Enxaneta'&&top?2:0;setPose3(q,l.Ps[j],pose);if(l.r=='Enxaneta')T3.enx={q,P:l.Ps[j]};q.g.position.set(x,0,z);q.g.rotation.y=ry+(l.n>1?Math.PI:0);q.g.traverse(o=>o.userData.key=key);lg.add(q.g);T3.lg[i].q.push(q);T3.persons[key]=q;T3.picks.push(q.g);
 if(key==selK){const ring=new THREE.Mesh(new THREE.TorusGeometry(.09,.018,8,28),new THREE.MeshBasicMaterial({color:0xc0392b}));ring.rotation.x=Math.PI/2;ring.position.set(x,1.12*q.sc,z);lg.add(ring)}});
