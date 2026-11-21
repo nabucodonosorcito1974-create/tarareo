@@ -106,7 +106,7 @@ body.land #rot{display:none!important}
 </style>
 </head>
 <body>
-<div id="ver">v11</div>
+<div id="ver">v12</div>
 <div id="bz"><span>🛑 FRENO</span></div>
 <div id="rot"><div>↻</div>Gira el móvil en horizontal</div>
 <div id="app">
@@ -217,7 +217,7 @@ function toggleGyro(){
   try{if(window.DeviceMotionEvent&&DeviceMotionEvent.requestPermission)asks.push(DeviceMotionEvent.requestPermission())}catch(e){}
   enterDrive();
   Promise.allSettled(asks).then(r=>{
-    if(r.length&&r.every(x=>x.status==='fulfilled'&&x.value==='denied')){exitDrive();msg('Permiso de movimiento denegado.<br><small>iPhone: cierra Safari y vuelve a abrir la web para que lo pida otra vez</small>',4500);return}
+    if(r.length&&r.every(x=>x.status==='fulfilled'&&x.value==='denied')){exitDrive();const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);msg(ios?'Permiso de movimiento denegado.<br><small>Cierra Safari, vuelve a abrir el juego y acepta el permiso</small>':'📱 Abierto como archivo, el móvil bloquea el giroscopio.<br><small>Juega con el volante táctil de la derecha</small>',4500);return}
     gyroOn=true;gyroLive=false;gyroZero=null;gyroSrc='';document.getElementById('gyro').classList.add('on');document.getElementById('bz').classList.add('show');
     GY_EV.forEach(([n,f])=>addEventListener(n,f));msg('📱 Gira el móvil como un volante',1800);
     clearTimeout(gyroTimer);gyroTimer=setTimeout(()=>{if(gyroOn&&!gyroLive){
