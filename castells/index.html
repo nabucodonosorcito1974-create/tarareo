@@ -277,7 +277,7 @@ const bOf=l=>PF[Math.max(0,l.c[0])].h*(isKid(l.c[1])?.78:1),ys=[0];lv.forEach((l
 const H=Math.round(ys[L-1]+150*sc*bOf(lv[L-1])+70),by=H-24;
 let g=`<svg viewBox="0 0 380 ${H}" role="img" aria-label="${nameC(n,L,ba)}"><defs><pattern id="rat" width="7" height="10" patternUnits="userSpaceOnUse"><rect width="3.5" height="10" fill="#C8202F"/><rect x="3.5" width="3.5" height="10" fill="#FFFFFF"/></pattern></defs><rect width="380" height="${H}" style="fill:var(--sky)"/>`;
 g+=bgSVG(H,by,Math.min(185,nw*dx/2+110));
-const fall=R.k=='bad'&&R.out!='x',tilt=fall?Math.min(16,Math.max(S-100,(soca-1)*100,8)/6+5):0,top=R.out=='d'||R.out=='c';
+const tilt=0,top=R.out=='d'||R.out=='c';
 g+=`<g class="tw" transform="rotate(${tilt} 190 ${by-stp*(ba+1)})">`;
 const GE={by,sc,L,n,lv:[],al:[],H:ys[L-1]+72*sc,x0:190};GEO=GE;
 if(R.AG&&R.fe>=R.L){let ya=0;const s2=sc*.95;R.al.forEach((l,i)=>{if(i>R.fa)return;const x=190+dx*.5,yf=by-ya,b=PF[Math.max(0,l.c[0])].h*(isKid(l.c[1])?.78:1);GE.al.push({yf,y0:ya,p:[{x,s:s2,b}],pb:0,mk:(jj,kn,ps)=>`<g transform="translate(${x-50*s2},${yf-150*s2}) scale(${s2})">${fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],ps,kn)}</g>`,pose2:l.r=='Ag. enxaneta'?fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],2):''});g+=`<g id="gA${i}"><g id="gQ${i}_0"><g ${l.empty?'opacity=".28" style="filter:grayscale(1)"':''} transform="translate(${x-50*s2},${yf-150*s2}) scale(${s2})">${fig(PF[Math.max(0,l.c[0])],Math.min(1,l.x||0),l.c[1],DYN.on?0:l.r=='Ag. enxaneta'&&top?2:0)}</g></g></g>`;ya+=72*s2*bOf(l)})}
@@ -614,7 +614,7 @@ if(key==selK){const ring=new THREE.Mesh(new THREE.TorusGeometry(.09,.018,8,28),n
 y+=.79*s});
 if(R.AG&&R.fe>=R.L){let ya=0;R.al.forEach((l,i)=>{if(i>R.fa)return;const key=l.r+'#0',q=mkPerson(PF[Math.max(0,l.c[0])],l.empty?0:Math.max(0,l.c[1]),Math.min(1,l.x||0),l.empty);
 setPose3(q,l.Ps[0],l.r=='Ag. enxaneta'&&top?2:0);if(l.r=='Ag. enxaneta')T3.aenx={q,P:l.Ps[0]};const ag=new THREE.Group();ag.position.y=ya;tr.add(ag);q.g.position.set(0,0,0);ag.add(q.g);T3.ag[i]={g:ag,y0:ya,q:[q]};q.g.traverse(o=>o.userData.key=key);T3.persons[key]=q;T3.picks.push(q.g);ya+=.79*q.sc})}
-T3.H=y;T3.levels.forEach(linkLevel);const fall=R.k=='bad'&&R.out!='x'&&!DYN.on;if(fall)tr.rotation.z=-Math.min(16,Math.max(R.S-100,8)/6+5)*RAD;
+T3.H=y;T3.levels.forEach(linkLevel);const fall=false;if(fall)tr.rotation.z=-Math.min(16,Math.max(R.S-100,8)/6+5)*RAD;
 const br={1:0,2:.15,3:.2,4:.24,5:.3}[n],pa=R.pA||0;
 const cg=new THREE.Group();root.add(cg);crowd(cg,pa,br+.62,0,.3,1);
 const b0=lv[0];if(b0&&!b0.empty){const P0=pos3(n,b0.n,b0.r),face=(dx,dz)=>Math.atan2(dx,dz),sp=[];
