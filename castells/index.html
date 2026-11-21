@@ -97,7 +97,7 @@ button:disabled{opacity:.45}
 </div>
 <div class="kp" id="kp"></div>
 <div class="row"><select id="ty"><option value="" selected>Castell…</option><option value="1">Pilar</option><option value="2">Torre (2)</option><option value="3">Tres</option><option value="4">Quatre</option><option value="5">Cinc (3+2)</option></select><select id="pi"></select><select id="ba"></select><label class="lbl hid" id="agL" style="display:flex;align-items:center;gap:3px;flex:0 0 auto"><input type="checkbox" id="ag" style="width:18px;height:18px">agulla</label></div>
-<div class="row"><select id="cl" aria-label="Colla" style="flex:1"></select><span class="lbl hid" id="coL">Gent</span><select id="co" style="flex:0 0 auto"><option value="" selected>Gent…</option><option>100</option><option>150</option><option>200</option><option>300</option><option>400</option><option>600</option></select><label class="lbl" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="ot" checked style="width:18px;height:18px">altres colles</label><input type="color" id="cc" value="#c0392b" aria-label="Color propi" class="hid" style="width:40px;height:36px;border:0;padding:0;background:none"></div>
+<div class="row"><select id="cl" aria-label="Colla" style="flex:1"></select><span class="lbl hid" id="coL">Gent</span><input id="co" type="number" inputmode="numeric" min="20" max="3000" step="1" placeholder="Persones" aria-label="Nombre de persones de la colla" style="flex:0 0 108px;font:500 15px Barlow;min-height:38px;padding:4px 8px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"><label class="lbl" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="ot" checked style="width:18px;height:18px">altres colles</label><input type="color" id="cc" value="#c0392b" aria-label="Color propi" class="hid" style="width:40px;height:36px;border:0;padding:0;background:none"></div>
 <div id="tb"></div>
 <div class="foot">Barra: color = càrrega neta · clar = ajuda de la base · ratlla = 100% del que aguanta. Valors per persona. Punts del joc: carregat val un 17% menys que descarregat, com a la taula del Concurs 2026. Rècords reals actualitzats al 2026; percentatges d'ajuda i capacitats són estimacions del joc.</div>
 </div>
@@ -113,7 +113,7 @@ const PF=[{n:'Corpulent',w:48,wb:52,aw:12,h:1,hair:'#3B2A1E',pes:105,cap:320,ag:
 const PS=[{n:'Home',p:1,c:1,a:0,r:1},{n:'Dona',p:.82,c:.8,a:5,r:1.05},{n:'Nen',p:.36,c:.3,a:5,r:.8},{n:'Nena',p:.34,c:.3,a:5,r:.8}];
 const NM=['Baixos','Segons','Terços','Quarts','Quints','Sisens','Setens','Vuitens','Novens','Desens'];
 const DEF={Baixos:[0,0],Segons:[1,0],'Terços':[1,0],Quarts:[3,0],Quints:[3,1],Sisens:[2,1],Setens:[2,1],Vuitens:[2,1],Novens:[2,1],Desens:[2,1],Dosos:[2,2],Acotxador:[2,3],Enxaneta:[2,3]};
-const BN=['Pinya','Folre','Folre i manilles','Folre, manilles i puntals'];
+const BN=['Només pinya','Folre','Folre i manilles','Folre, manilles i puntals'];
 const LIM={1:[6.3,7.3,8.2,9.1],2:[8.2,9.05,9.4,9.9],3:[9,9.6,10.3,10.8],4:[9.15,9.6,10.2,10.7],5:[8.85,9.3,9.6,10.1]};
 const REF={1:['Real: el pilar de 6 és el màxim amb pinya. No consta cap pilar de 7 net fet.','Real: el pilar de 7 amb folre és el màxim sense manilles.','Real: el pilar de 8 amb folre i manilles.','Real: el pilar de 9 amb folre, manilles i puntals, descarregat per primer cop l\'agost del 2026 (Castellers de Vilafranca).'],
 2:['Real: la torre de 8 neta, només a l\'abast de les millors colles.','Real: la torre de 9 sense manilles és exclusiva de la Joves de Valls.','Real: la torre de 9 amb folre i manilles és el màxim.','Somni: la torre amb puntals no existeix a la realitat.'],
@@ -303,7 +303,7 @@ function ready(){return !!($('ty').value&&$('pi').value&&$('ba').value!==''&&$('
 function gate(){const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;$('pi').disabled=!t;$('ba').disabled=!p;$('cl').disabled=b==='';$('co').disabled=c==='';
 $('coL').classList.toggle('hid',som());$('agL').classList.toggle('hid',!(t=='3'||t=='4')||!p)}
 function drawEmpty(){const t=$('ty').value,p=$('pi').value,b=$('ba').value,c=$('cl').value;
-const m=!t?'Tria el tipus de castell':!p?'Tria quants pisos':b===''?'Tria la base: pinya, folre, manilles…':c===''?'Tria la colla':'Tria quanta gent té la colla (mida de la pinya)';
+const m=!t?'Tria el tipus de castell':!p?'Tria quants pisos':b===''?'Tria la base: pinya, folre, manilles…':c===''?'Tria la colla':'Escriu quantes persones té la colla (mida de la pinya)';
 $('rs').textContent=m;$('rs').style.background='var(--warnb)';$('rs').style.color='var(--warn)';$('rf').textContent='';$('kp').innerHTML='';$('tb').innerHTML='';
 const H=420,by=H-24;$('cv').innerHTML=`<svg viewBox="0 0 380 ${H}" role="img" aria-label="Plaça buida"><rect width="380" height="${H}" style="fill:var(--sky)"/>`+bgSVG(H,by,0)+'</svg>';
 if(T3){while(T3.root.children.length)T3.root.remove(T3.root.children[0]);r3()}selK=null;$('sel3').classList.add('hid');if(typeof tocStop=='function'){tocStop(.2);lastSig=''}}
@@ -337,7 +337,7 @@ function onInp(e){const d=e.target.dataset;if(!d.pk)return;const v=+e.target.val
 box.querySelector('.vv_'+d.p).textContent=v+(d.p=='b'||d.p=='k'?'°':'%');box.querySelector('svg').innerHTML=skel(P);box.querySelector('.efx').textContent=efTxt(pf(P));
 const R=calc();draw(R,true);if(v3&&T3){keysOf(d).forEach(k=>{const q=T3.persons[k];if(q)setPose3(q,post(k),q.pose)});(T3.levels||[]).forEach(linkLevel);r3()}}
 ['tb','sel3'].forEach(id=>{$(id).addEventListener('change',onChg);$(id).addEventListener('click',onClk);$(id).addEventListener('input',onInp)});
-$('ty').onchange=()=>{$('pi').value='';$('ba').value='';$('ag').checked=false;for(const k in C)delete C[k];for(const k in POS)delete POS[k];openR=null;selK=null;fillP();fillB();$('agL').classList.toggle('hid',!(+$('ty').value==3||+$('ty').value==4));if($('agL').classList.contains('hid'))$('ag').checked=false;run()};$('pi').onchange=run;$('ba').onchange=run;$('ag').onchange=run;$('co').onchange=run;$('ot').onchange=run;
+$('ty').onchange=()=>{$('pi').value='';$('ba').value='';$('ag').checked=false;for(const k in C)delete C[k];for(const k in POS)delete POS[k];openR=null;selK=null;fillP();fillB();$('agL').classList.toggle('hid',!(+$('ty').value==3||+$('ty').value==4));if($('agL').classList.contains('hid'))$('ag').checked=false;run()};$('pi').onchange=run;$('ba').onchange=run;$('ag').onchange=run;$('co').oninput=()=>{clearTimeout(window.__coT);window.__coT=setTimeout(run,350)};$('ot').onchange=run;
 $('bTry').onclick=attempt;
 $('bNext').onclick=()=>{G.log.push(`T${G.temp} D${G.diada}: la colla plega la diada.`);nextDiada();save();run()};
 $('bReset').onclick=e=>{const b=e.currentTarget;if(b.dataset.c){G=G0();save();b.dataset.c='';b.textContent='Començar de nou';fillP();fillB();run()}else{b.dataset.c='1';b.textContent='Segur? Torna a tocar'}};
