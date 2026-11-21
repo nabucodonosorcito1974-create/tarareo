@@ -19,7 +19,7 @@ html,body{height:100%;background:#000;color:#fff;font:13px/1.3 ui-monospace,Menl
 <div id="bar"><b>MATCH DAY II</b><span>Teclas y joystick: se eligen en el menú del juego</span><button id="fs">⛶</button></div>
 <div id="wrap"><div id="jsspeccy"></div></div>
 <div id="start"><div>▶ PULSA PARA CARGAR LA CINTA</div><p>Spectrum 128K · la cinta carga al instante</p></div>
-<script src="jsspeccy/jsspeccy.js?v=10"></script>
+<script src="jsspeccy/jsspeccy.js?v=11"></script>
 <script>
 {
 let emu=null;
@@ -27,7 +27,7 @@ window.MD2TURBO=false; // carga de cinta a toda velocidad (sin sonido mientras c
 const zoom=()=>Math.max(1,Math.min(Math.floor((innerWidth-12)/320),Math.floor((innerHeight-90)/256)));
 document.getElementById('start').addEventListener('click',e=>{
   e.currentTarget.remove();
-  emu=JSSpeccy(document.getElementById('jsspeccy'),{machine:128,openUrl:'matchday2.tap',autoStart:true,autoLoadTapes:true,tapeTrapsEnabled:true,sandbox:true,zoom:zoom()});
+  emu=JSSpeccy(document.getElementById('jsspeccy'),{machine:128,openUrl:'matchday2b.tap',autoStart:true,autoLoadTapes:true,tapeTrapsEnabled:true,sandbox:true,zoom:zoom()});
   window.emu=emu;
 });
 addEventListener('resize',()=>{if(emu)emu.setZoom(zoom());});
