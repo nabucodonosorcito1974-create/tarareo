@@ -145,19 +145,32 @@ wb.addEventListener('pointerdown',e=>{dragging=true;wb.setPointerCapture(e.point
 wb.addEventListener('pointermove',e=>{if(!dragging)return;const a=ptrAng(e);let d=a-lastPtrAng;if(d>180)d-=360;if(d<-180)d+=360;lastPtrAng=a;st.wheel=Math.max(-150,Math.min(150,st.wheel+d))});
 const endDrag=()=>{dragging=false};wb.addEventListener('pointerup',endDrag);wb.addEventListener('pointercancel',endDrag);
 
-/* giroscopio: inclinar el móvil a izquierda/derecha gira el volante */
-let gyroOn=false,gyroLive=false,gyroWheel=0,gyroZero=null,gyroTimer=0;
-function tiltOf(e){const ang=(screen.orientation&&screen.orientation.angle)||window.orientation||0;
-  if(ang==90)return e.beta;if(ang==-90||ang==270)return -e.beta;return e.gamma}
-function onOri(e){if(!gyroOn||e.gamma==null)return;gyroLive=true;const t=tiltOf(e);
-  if(gyroZero===null)gyroZero=t;let d=t-gyroZero;if(Math.abs(d)<2)d=0;else d-=Math.sign(d)*2;
-  gyroWheel=Math.max(-150,Math.min(150,d*6))}
-async function toggleGyro(){const b=document.getElementById('gyro');
-  if(gyroOn){gyroOn=false;gyroLive=false;b.classList.remove('on');document.getElementById('bz').classList.remove('show');removeEventListener('deviceorientation',onOri);msg('Volante táctil',900);return}
-  try{if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission){await DeviceOrientationEvent.requestPermission()}}catch(e){}
-  gyroOn=true;gyroLive=false;gyroZero=null;b.classList.add('on');document.getElementById('bz').classList.add('show');addEventListener('deviceorientation',onOri);
-  msg('📱 Inclina el móvil para girar',1500);
-  clearTimeout(gyroTimer);gyroTimer=setTimeout(()=>{if(gyroOn&&!gyroLive){gyroOn=false;b.classList.remove('on');document.getElementById('bz').classList.remove('show');removeEventListener('deviceorientation',onOri);msg('Giroscopio no disponible aquí<br><small>Úsalo en la versión web</small>',2600)}},1500)}
+/* giroscopio: inclinar el móvil a izquierda/derecha gira el volante.
+   Usa deviceorientation; si no llega, usa devicemotion (gravedad) como alternativa. */
+let gyroOn=false,gyroLive=false,gyroWheel=0,gyroZero=null,gyroTimer=0,gyroSrc='';
+function scrAng(){return (screen.orientation&&screen.orientation.angle)||window.orientation||0}
+function applyTilt(t){if(gyroZero===null)gyroZero=t;let d=t-gyroZero;if(Math.abs(d)<2)d=0;else d-=Math.sign(d)*2;gyroWheel=Math.max(-150,Math.min(150,d*6))}
+function onOri(e){if(!gyroOn||e.gamma==null||e.beta==null)return;if(gyroSrc==='mot')gyroZero=null;gyroSrc='ori';gyroLive=true;
+  const a=scrAng();applyTilt(a==90?e.beta:(a==-90||a==270)?-e.beta:e.gamma)}
+function onMot(e){if(!gyroOn||gyroSrc==='ori')return;const g=e.accelerationIncludingGravity;if(!g||g.x==null)return;gyroSrc='mot';gyroLive=true;
+  const a=scrAng(),c=v=>Math.max(-1,Math.min(1,v/9.81));const x=a==90?g.y:(a==-90||a==270)?-g.y:-g.x;applyTilt(Math.asin(c(x))*180/Math.PI)}
+const GY_EV=[['deviceorientation',onOri],['deviceorientationabsolute',onOri],['devicemotion',onMot]];
+function gyroStop(m){const b=document.getElementById('gyro');gyroOn=false;gyroLive=false;b.classList.remove('on');document.getElementById('bz').classList.remove('show');GY_EV.forEach(([n,f])=>removeEventListener(n,f));if(m)msg(m,m.length>40?4200:1000)}
+function toggleGyro(){
+  if(gyroOn){gyroStop('Volante táctil');return}
+  if(!window.isSecureContext){msg('📱 El giroscopio necesita abrir el juego<br>desde la web (https://…)',3500);return}
+  if(typeof DeviceOrientationEvent==='undefined'&&typeof DeviceMotionEvent==='undefined'){msg('Este navegador no tiene sensores de movimiento',2500);return}
+  // iOS: hay que pedir permiso dentro del mismo toque (sin esperas antes)
+  const asks=[];try{if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission)asks.push(DeviceOrientationEvent.requestPermission())}catch(e){}
+  try{if(window.DeviceMotionEvent&&DeviceMotionEvent.requestPermission)asks.push(DeviceMotionEvent.requestPermission())}catch(e){}
+  Promise.allSettled(asks).then(r=>{
+    if(r.length&&r.every(x=>x.status==='fulfilled'&&x.value==='denied')){msg('Permiso de movimiento denegado.<br><small>iPhone: cierra Safari y vuelve a abrir la web para que lo pida otra vez</small>',4500);return}
+    gyroOn=true;gyroLive=false;gyroZero=null;gyroSrc='';document.getElementById('gyro').classList.add('on');document.getElementById('bz').classList.add('show');
+    GY_EV.forEach(([n,f])=>addEventListener(n,f));msg('📱 Inclina el móvil para girar',1500);
+    clearTimeout(gyroTimer);gyroTimer=setTimeout(()=>{if(gyroOn&&!gyroLive){
+      const inClaude=window.top!==window.self;
+      gyroStop(inClaude?'📱 Dentro de la app de Claude no hay giroscopio.<br><small>Ábrelo desde el enlace web</small>':'📱 El móvil no envía datos del sensor.<br><small>Android: Chrome ⋮ › Configuración › Configuración de sitios › Sensores de movimiento: Permitir</small>')}},2000)
+  })}
 document.getElementById('gyro').onclick=toggleGyro;
 /* tocar el volante con el giroscopio activo recalibra el centro */
 wb.addEventListener('dblclick',()=>{gyroZero=null});
