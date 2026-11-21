@@ -471,7 +471,7 @@ function setView(b){v3=b;$('b2').classList.toggle('on',!b);$('b3').classList.tog
 if(b&&!window.THREE){$('c3').innerHTML='<div style="padding:40px 16px">No s\'ha pogut carregar el motor 3D.</div>'}run()}
 $('b2').onclick=()=>setView(false);$('b3').onclick=()=>setView(true);
 
-const hdr=R=>{const ti=Math.max(1,R.L-5);if(R.AG&&R.fe>=R.L&&R.fa<R.al.length)return `<div class="lbl" style="padding:6px 0">Tronc complet. Ara l'agulla (pilar de ${R.La}) de baix a dalt: toca <b>${R.al[R.fa].r}</b>. L'oscil·lació de l'agulla surt al costat de la del castell.</div>`;return R.fe<R.L?`<div class="lbl" style="padding:6px 0">Tria de baix a dalt. Ara toca: <b>${R.lv[R.fe].r}</b> (pis ${R.fe+1} de ${R.L}). Les gralles sonaran quan pugin els ${R.lv[ti].r.toLowerCase()}.</div>`:`<div class="lbl" style="padding:6px 0">Castell complet, de baix a dalt.</div>`};
+const hdr=R=>{const ti=Math.max(1,R.L-5);if(R.AG&&R.fe>=R.L&&R.fa<R.al.length)return `<div class="lbl" style="padding:6px 0">Tronc complet. Ara l'agulla (pilar de ${R.La}) de baix a dalt: toca <b>${R.al[R.fa].r}</b>. L'oscil·lació de l'agulla surt al costat de la del castell.</div>`;return R.fe<R.L?`<div class="lbl" style="padding:6px 0">Tria de baix a dalt. Ara toca: <b>${R.lv[R.fe].r}</b> (pis ${R.fe+1} de ${R.L}). Les gralles sonaran quan toqui triar els ${R.lv[ti].r.toLowerCase()}.</div>`:`<div class="lbl" style="padding:6px 0">Castell complet, de baix a dalt.</div>`};
 let AC=null,MG=null,mOn=true,tocOn=false,tocT=null,nextT=0,stepI=0,schT=null;
 function ac(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();MG=AC.createGain();MG.gain.value=.0;MG.connect(AC.destination)}catch(e){AC=null}}if(AC&&AC.state=='suspended')AC.resume().catch(()=>{});return AC}
 document.addEventListener('pointerdown',()=>ac(),{once:true});
@@ -491,14 +491,14 @@ const E8=.24;
 function sched(){if(!AC)return;while(nextT<AC.currentTime+.4){const[m,len]=MEL[stepI%MEL.length],d=len*E8;gr(nextT,mf(m),d,.16);gr(nextT,mf(harm(m)),d,.1);
 for(let k=0;k<len;k++)if(((Math.round((nextT-0)/E8)+k)%2)==0)drum(nextT+k*E8,k==0);nextT+=d;stepI++}}
 const AU=new Audio('toc.mp3');AU.preload='auto';let AUph='p1';const T_P1=[5.5,87.6],T_EXT=[88.0,90.5],T_ALETA=90.9;
-AU.addEventListener('timeupdate',()=>{if(AUph=='p1'&&AU.currentTime>T_P1[1])AU.currentTime=T_P1[0];else if(AUph=='ext'&&AU.currentTime>T_EXT[1])AU.currentTime=T_EXT[0]});let auOk=true,fadeI=null;AU.addEventListener('error',()=>auOk=false);
+AU.addEventListener('timeupdate',()=>{if(AUph=='p1'&&AU.currentTime>T_P1[1])AU.currentTime=T_P1[0];else if(AUph=='ext'&&AU.currentTime>T_EXT[1]){extDone=true;AUph='p1';AU.currentTime=T_P1[0]}});let extDone=false;let auOk=true,fadeI=null;AU.addEventListener('error',()=>auOk=false);
 function tocStart(){if(tocOn||!mOn)return;if(auOk){tocOn=true;AUph='p1';clearInterval(fadeI);AU.volume=1;try{AU.currentTime=0}catch(e){}const p=AU.play();if(p&&p.catch)p.catch(()=>{tocOn=false;auOk=false;synthStart()});return}synthStart()}
 function synthStart(){if(tocOn||!mOn||!ac())return;tocOn=true;stepI=0;nextT=AC.currentTime+.08;MG.gain.cancelScheduledValues(AC.currentTime);MG.gain.setValueAtTime(0,AC.currentTime);MG.gain.linearRampToValueAtTime(.9,AC.currentTime+.3);sched();schT=setInterval(sched,100)}
 function tocStop(fade){if(!tocOn)return;tocOn=false;if(!AU.paused){clearInterval(fadeI);const st=AU.volume/Math.max(1,(fade||.15)*20);fadeI=setInterval(()=>{AU.volume=Math.max(0,AU.volume-st);if(AU.volume<=0){clearInterval(fadeI);AU.pause()}},50)}clearInterval(schT);clearTimeout(tocT);if(AC){MG.gain.cancelScheduledValues(AC.currentTime);MG.gain.setValueAtTime(MG.gain.value,AC.currentTime);MG.gain.linearRampToValueAtTime(0,AC.currentTime+(fade||.15))}}
 let lastSig='';
 function toc(R){const ti=Math.max(1,R.L-5),ai=R.lv.findIndex(l=>l.r=='Acotxador'),xi=ai>=0?ai:R.L-1,full=R.fe>=R.L&&(!R.AG||R.fa>=R.al.length),sig=R.n+'|'+R.L+'|'+R.ba+'|'+R.fe+'|'+R.fa+'|'+R.AG+'|'+R.out;if(sig==lastSig)return;lastSig=sig;clearTimeout(tocT);
-if(R.fe<=ti){tocStop(.3);AUph='p1';return}tocStart();
-const ph=full?'post':R.AG?(R.fe>=R.L&&R.fa>=R.al.length-1?'ext':'p1'):(R.fe>=xi?'ext':'p1');if(ph!=AUph&&!AU.paused){try{if(ph=='ext'&&(AU.currentTime<T_EXT[0]||AU.currentTime>T_EXT[1]+.2))AU.currentTime=T_EXT[0];else if(ph=='post')AU.currentTime=T_ALETA;else if(ph=='p1'&&AU.currentTime>T_P1[1])AU.currentTime=T_P1[0]}catch(e){}}AUph=ph;
+if(R.fe<ti){tocStop(.3);AUph='p1';extDone=false;return}tocStart();
+const ph=full?'post':R.AG?(R.fe>=R.L&&R.fa>=R.al.length-1?'ext':'p1'):(R.fe>=xi?'ext':'p1');if(!AU.paused){try{if(ph=='ext'){if(!extDone&&AUph!='ext'){AU.currentTime=T_EXT[0];AUph='ext'}}else if(ph=='post'){if(AUph!='post'){AU.currentTime=T_ALETA;AUph='post'}}else{extDone=false;if(AUph!='p1'){AUph='p1';if(AU.currentTime>T_P1[1])AU.currentTime=T_P1[0]}}}catch(e){}}else AUph=ph=='ext'&&extDone?'p1':ph;
 if(full){if(R.out=="d")tocT=setTimeout(()=>tocStop(2.5),Math.min(60000,Math.max(15000,(R.T-R.Tup)*1000)));else if(R.out=='c')tocT=setTimeout(()=>tocStop(.4),4000);else tocStop(.1)}}
 $('bM').onclick=()=>{mOn=!mOn;$('bM').classList.toggle('on',mOn);if(!mOn)tocStop(.2);else{lastSig='';ac();toc(LR)}};
 
