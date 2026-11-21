@@ -105,7 +105,7 @@ button:disabled{opacity:.45}
 </div>
 <div class="kp" id="kp"></div><div id="opt"></div>
 <div class="row"><select id="ty"><option value="" selected>Castell…</option><option value="1">Pilar</option><option value="2">Dos (torre)</option><option value="3">Tres</option><option value="4">Quatre</option><option value="5">Cinc (3+2)</option></select><select id="pi"></select><select id="ba"></select><label class="lbl hid" id="agL" style="display:flex;align-items:center;gap:3px;flex:0 0 auto"><input type="checkbox" id="ag" style="width:18px;height:18px">agulla</label></div>
-<div class="row"><select id="cl" aria-label="Colla" style="flex:1"></select><span class="lbl hid" id="coL">Gent</span><input id="co" type="number" inputmode="numeric" min="20" max="3000" step="1" placeholder="Persones" aria-label="Nombre de persones de la colla" style="flex:0 0 108px;font:500 15px Barlow;min-height:38px;padding:4px 8px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"><label class="lbl" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="ot" checked style="width:18px;height:18px">altres colles</label><label class="lbl" style="display:flex;align-items:center;gap:4px" title="Tronc femení: de segons amunt, totes dones"><input type="checkbox" id="fm" style="width:18px;height:18px">femení</label><input type="color" id="cc" value="#c0392b" aria-label="Color propi" class="hid" style="width:40px;height:36px;border:0;padding:0;background:none"></div>
+<div class="row"><select id="cl" aria-label="Colla" style="flex:1"></select><span class="lbl hid" id="coL">Gent</span><input id="co" type="number" inputmode="numeric" min="20" max="3000" step="1" placeholder="Persones" aria-label="Nombre de persones de la colla" style="flex:0 0 108px;font:500 15px Barlow;min-height:38px;padding:4px 8px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"><label class="lbl" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="ot" checked style="width:18px;height:18px">altres colles</label><input type="color" id="cc" value="#c0392b" aria-label="Color propi" class="hid" style="width:40px;height:36px;border:0;padding:0;background:none"></div>
 <div id="tb"></div>
 <div class="foot">Barra: color = càrrega neta · clar = ajuda de la base · ratlla = 100% del que aguanta. Valors per persona. Punts del joc: carregat val un 17% menys que descarregat, com a la taula del Concurs 2026. Rècords reals actualitzats al 2026; percentatges d'ajuda i capacitats són estimacions del joc.</div>
 </div>
@@ -207,14 +207,14 @@ const efTxt=e=>`Capacitat ×${e.cap.toFixed(2)} · Fatiga ×${e.fat.toFixed(2)} 
 const nameC=(n,L,ba)=>(n==1?'Pilar de '+L:n==2?'Torre de '+L:n+' de '+L)+['',' amb folre',' amb folre i manilles',' amb folre, manilles i puntals'][ba];
 function calc(rnd){
 const lv=levels(),n=+$('ty').value,ba=+$('ba').value,L=lv.length,co=som()?G.memb:+$('co').value;
-let sc0=0,sc1=0,kids=0,tr=0,emp=0;const FM=$('fm').checked,femFix=(l,i)=>{if(FM&&i>=1&&l.r!='Ag. baix'&&l.c[1]>=0){if(l.c[1]==0||l.c[1]==4)l.c[1]=1;else if(l.c[1]==2)l.c[1]=3}};
-lv.forEach((l,i)=>{if(!C[l.r])C[l.r]=[-1,-1];l.c=C[l.r];femFix(l,i);l.empty=l.c[0]<0||l.c[1]<0;if(l.empty)emp++;l.s=st(l.empty?defOf(l.r):l.c);
+let sc0=0,sc1=0,kids=0,tr=0,emp=0;
+lv.forEach((l,i)=>{if(!C[l.r])C[l.r]=[-1,-1];l.c=C[l.r];l.empty=l.c[0]<0||l.c[1]<0;if(l.empty)emp++;l.s=st(l.empty?defOf(l.r):l.c);
 l.Ps=Array.from({length:l.n},(_,j)=>post(l.r+'#'+j));const es=l.Ps.map(pf),av=f=>es.reduce((a,e)=>a+f(e),0)/l.n,ap=k=>l.Ps.reduce((a,P)=>a+P[k],0)/l.n;
 l.pe={cap:av(e=>e.cap),fat:av(e=>e.fat),rig:av(e=>e.rig)};l.P={b:ap('b'),k:ap('k'),a:ap('a'),t:ap('t')};l.Pab=l.Ps.reduce((a,P)=>a+Math.abs(P.b),0)/l.n;l.s.cap=Math.round(l.s.cap*l.pe.cap);l.W=l.empty?0:l.n*l.s.pes;tr+=l.n;
 l.kid=!l.empty&&isKid(l.c[1])&&!POM.includes(l.r);if(l.kid)kids++;sc1+=swy(l.s,i);sc0+=swy(st(defOf(l.r)),i)});
 const AG=$('ag').checked&&(n==3||n==4),La=L-2,al=[];
 if(AG){for(let i=0;i<La-1;i++)al.push({r:'Ag. '+AGN[i],n:1});al.push({r:'Ag. enxaneta',n:1})}
-let akids=0,aS1=0,aS0=0;al.forEach((l,i)=>{if(!C[l.r])C[l.r]=[-1,-1];l.c=C[l.r];femFix(l,i);l.empty=l.c[0]<0||l.c[1]<0;if(l.empty)emp++;l.s=st(l.empty?defOf(l.r):l.c);
+let akids=0,aS1=0,aS0=0;al.forEach((l,i)=>{if(!C[l.r])C[l.r]=[-1,-1];l.c=C[l.r];l.empty=l.c[0]<0||l.c[1]<0;if(l.empty)emp++;l.s=st(l.empty?defOf(l.r):l.c);
 l.Ps=[post(l.r+'#0')];l.pe=pf(l.Ps[0]);l.P=l.Ps[0];l.Pab=Math.abs(l.P.b);l.s.cap=Math.round(l.s.cap*l.pe.cap);l.W=l.empty?0:l.s.pes;tr++;
 l.kid=!l.empty&&isKid(l.c[1])&&l.r!='Ag. enxaneta';if(l.kid)akids++;aS1+=swy(l.s,i);aS0+=swy(st(defOf(l.r)),i)});if(AG)tr+=6;
 const fo=ba>=1?n*12:0,ma=ba>=2?n*6:0,pu=ba==3?(n==1?4:n*3):0,fix=tr+fo+ma+pu;
@@ -234,7 +234,7 @@ timeCol(lv);timeCol(al);const Tup=baseT+lv.reduce((a,l)=>a+l.ct,0)+(AG?al.reduce
 let ws=0,lean=0,babs=0,aav=0,kav=0;lv.forEach((l,i)=>{const w=i+1;ws+=w;lean+=w*l.P.b;babs+=w*l.Pab;aav+=w*l.P.a;kav+=w*l.P.k});
 lean/=ws;babs/=ws;aav/=ws;kav/=ws;
 const PSF=(1+Math.abs(lean)/30*.6)*(1+babs/30*.3)*((1-.2*aav/100)/.88)*((1-.12*Math.min(kav,20)/20)/.928)*(kav>25?1+(kav-25)/15*.3:1);
-const lim0=LIM[n][ba]-(AG?.35:0)-(FM?1.4:0),lim=lim0+(som()?G.tech:0),Q=Math.max(.92,sc1/sc0)*Math.pow(1.25,kids);
+const lim0=LIM[n][ba]-(AG?.35:0),lim=lim0+(som()?G.tech:0),Q=Math.max(.92,sc1/sc0)*Math.pow(1.25,kids);
 const psfOf=a=>{if(!a.length)return 1;let w=0,le=0,ba2=0,aa=0,kk=0;a.forEach((l,i)=>{w+=i+1;le+=(i+1)*l.P.b;ba2+=(i+1)*l.Pab;aa+=(i+1)*l.P.a;kk+=(i+1)*l.P.k});le/=w;ba2/=w;aa/=w;kk/=w;
 return(1+Math.abs(le)/30*.6)*(1+ba2/30*.3)*((1-.2*aa/100)/.88)*((1-.12*Math.min(kk,20)/20)/.928)*(kk>25?1+(kk-25)/15*.3:1)};
 const limAg=6.3+1.1+(ba>=1?.3:0)+(som()?G.tech:0),Sag0=AG?92*Math.max(.92,aS1/aS0)*Math.pow(1.25,akids)*psfOf(al)*Math.pow(2,La-limAg)*(1+.25*miss):0;
@@ -259,7 +259,7 @@ return{T,Tup,AG,al,fa,Sag,La,CR,CP,cords,miss,fromOth,own,needOwn,pk,fe,emp,lv,n
 function draw(R,noTab){LR=R;
 const {lv,n,ba,L,S,soca,rP}=R;
 $('rs').textContent=(R.out=='x'||R.emp?'':'Previsió: ')+R.r;$('rs').style.background=`var(--${R.k}b)`;$('rs').style.color=`var(--${R.k})`;
-$('rf').textContent=($('fm').checked?(L>=6?'Real: el sostre del format femení (tronc de dones de segons amunt) és la gamma alta de 7, com el 5 de 7 dels Castellers de Barcelona (2019). Cap castell femení de 8 consta fet. ':''):(L>=Math.floor(LIM[n][ba])-1?REF[n][ba]:''))+(R.kids?` Hi ha ${R.kids} nen${R.kids>1?'s':''} fent de tronc: no tenen alçada ni força per falcar.`:'')+(R.miss==1&&R.out!='x'?' Falta un cordó a la pinya: més oscil·lació.':'');
+$('rf').textContent=(L>=Math.floor(LIM[n][ba])-1?REF[n][ba]:'')+(R.kids?` Hi ha ${R.kids} nen${R.kids>1?'s':''} fent de tronc: no tenen alçada ni força per falcar.`:'')+(R.miss==1&&R.out!='x'?' Falta un cordó a la pinya: més oscil·lació.':'');
 const got=R.out=='d'?R.pts:R.out=='c'?Math.round(R.pts*.83):0;
 $('kp').innerHTML=R.emp?'':[['Punts',got+' / '+R.pts],['Gent pròpia',R.needOwn+' / '+R.co],[R.ba?'Soca':'Pinya',Math.round(soca*100)+'%'],['Oscil·lació',Math.round(S)+'%'+(R.AG?' / '+Math.round(R.Sag)+'%':'')],['Esforç màx',Math.round(R.mx*100)+'%'],['Fatiga màx',Math.round(R.mf*100)+'%']].map(([a,b])=>`<div><b>${b}</b>${a}</div>`).join('')+
 `<div class="w">Pinya: ${R.cords} de ${R.CR} cordons (${Array.from({length:R.CR},(_,k)=>R.pk(k+1)).join('+')} = ${R.pN} persones; ${R.CP} cordons propis)${R.fromOth?` · ${R.fromOth} d'altres colles`:''}<br>Tronc ${R.tr}${R.fo?' · folre '+R.fo:''}${R.ma?' · manilles '+R.ma:''}${R.pu?' · puntals '+R.pu:''} · total ${R.need} · temps ${Math.floor(R.T/60)}:${String(Math.round(R.T%60)).padStart(2,'0')} (puja ${Math.round(R.Tup)} s) · ${R.ba?'a la soca':'a la pinya'}: ${Math.round(R.socaL)} de ${Math.round(R.socaC)} kg</div>`;
@@ -443,13 +443,13 @@ addEventListener('keyup',e=>{if((e.key=='ArrowLeft'&&DYN.ku<0)||(e.key=='ArrowRi
 let x0=null;const cv=$('cv');cv.addEventListener('pointerdown',e=>{if(DYN.run&&!e.target.closest('button')){x0=e.clientX;cv.setPointerCapture(e.pointerId)}});cv.addEventListener('pointermove',e=>{if(x0!=null)DYN.du=clamp((e.clientX-x0)/45,-1,1)});['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,()=>{x0=null;DYN.du=0}));
 dynUI(null)}
 
-let OPT=null;const optSig=()=>[$('ty').value,$('pi').value,$('ba').value,$('co').value,$('ag').checked,$('ot').checked,$('fm').checked,mode,G.tech,G.forca,G.res,G.pinya].join('|');
+let OPT=null;const optSig=()=>[$('ty').value,$('pi').value,$('ba').value,$('co').value,$('ag').checked,$('ot').checked,mode,G.tech,G.forca,G.res,G.pinya].join('|');
 function optimize(){const sC=JSON.stringify(C),sP=JSON.stringify(POS),R0=calc(),lv=R0.lv.concat(R0.al||[]).map(l=>({r:l.r,n:l.n}));
 const setP=(l,P)=>{for(let j=0;j<l.n;j++)POS[l.r+'#'+j]=Object.assign({},P)};
 lv.forEach(l=>{C[l.r]=defOf(l.r).slice();setP(l,{b:0,k:18,a:100,t:55})});
 const ev=()=>{const R=calc(),o=R.out=='d'?0:R.out=='c'?1:R.out=='x'?3:2;return{v:o*1000+Math.max(R.S/85,R.AG?R.Sag/85:0,R.mx,R.mf)*100+R.T/1000,R}};
 let best=ev();
-for(let pass=0;pass<3;pass++){let imp=false;const NN=+$('ty').value,LL=R0.L;lv.forEach(l=>{let keep=C[l.r].slice();const li=NM.indexOf(l.r.replace('Ag. ','')=='baix'?'Baixos':l.r),ok=q=>!($('fm').checked&&li!=0&&l.r!='Ag. baix'&&q!=1&&!(q==3&&(POM.includes(l.r)||l.r=='Ag. enxaneta')))&&!((q==2||q==3)&&!POM.includes(l.r)&&l.r!='Ag. enxaneta')&&!(q==4&&l.n<2)&&!((q==1||q==4)&&(li==0||li==1||l.r=='Ag. baix'||l.r=='Ag. segon'))&&!(q==1&&li==2&&l.n>1&&(NN>=4||LL>=9));for(let p=0;p<4;p++)for(let q=0;q<5;q++){if(!ok(q))continue;C[l.r]=[p,q];const e=ev();if(e.v<best.v-1e-9){best=e;keep=[p,q];imp=true}}C[l.r]=keep});if(!imp)break}
+for(let pass=0;pass<3;pass++){let imp=false;const NN=+$('ty').value,LL=R0.L;lv.forEach(l=>{let keep=C[l.r].slice();const li=NM.indexOf(l.r.replace('Ag. ','')=='baix'?'Baixos':l.r),ok=q=>!((q==2||q==3)&&!POM.includes(l.r)&&l.r!='Ag. enxaneta')&&!(q==4&&l.n<2)&&!((q==1||q==4)&&(li==0||li==1||l.r=='Ag. baix'||l.r=='Ag. segon'))&&!(q==1&&li==2&&l.n>1&&(NN>=4||LL>=9));for(let p=0;p<4;p++)for(let q=0;q<5;q++){if(!ok(q))continue;C[l.r]=[p,q];const e=ev();if(e.v<best.v-1e-9){best=e;keep=[p,q];imp=true}}C[l.r]=keep});if(!imp)break}
 lv.forEach(l=>{let keep=Object.assign({},POS[l.r+'#0']);[40,55,70,85].forEach(t=>[80,100].forEach(a=>[12,18].forEach(k=>{setP(l,{b:0,k,a,t});const e=ev();if(e.v<best.v-1e-9){best=e;keep={b:0,k,a,t}}})));setP(l,keep)});
 best=ev();const res={sig:optSig(),C:{},P:{},R:best.R,lv};lv.forEach(l=>{res.C[l.r]=C[l.r].slice();for(let j=0;j<l.n;j++)res.P[l.r+'#'+j]=Object.assign({},POS[l.r+'#'+j])});
 for(const k in C)delete C[k];Object.assign(C,JSON.parse(sC));for(const k in POS)delete POS[k];Object.assign(POS,JSON.parse(sP));return res}
@@ -510,7 +510,7 @@ function onInp(e){const d=e.target.dataset;if(!d.pk)return;const v=+e.target.val
 box.querySelector('.vv_'+d.p).textContent=v+(d.p=='b'||d.p=='k'?'°':'%');box.querySelector('svg').innerHTML=skel(P);box.querySelector('.efx').textContent=efTxt(pf(P));
 const R=calc();draw(R,true);if(v3&&T3){keysOf(d).forEach(k=>{const q=T3.persons[k];if(q)setPose3(q,post(k),q.pose)});(T3.levels||[]).forEach(linkLevel);r3()}}
 ['tb','sel3'].forEach(id=>{$(id).addEventListener('change',onChg);$(id).addEventListener('click',onClk);$(id).addEventListener('input',onInp)});
-$('ty').onchange=()=>{$('pi').value='';$('ba').value='';$('ag').checked=false;for(const k in C)delete C[k];for(const k in POS)delete POS[k];openR=null;selK=null;fillP();fillB();$('agL').classList.toggle('hid',!(+$('ty').value==3||+$('ty').value==4));if($('agL').classList.contains('hid'))$('ag').checked=false;run()};$('pi').onchange=run;$('ba').onchange=run;$('ag').onchange=run;$('fm').onchange=run;$('co').oninput=()=>{clearTimeout(window.__coT);window.__coT=setTimeout(run,350)};$('ot').onchange=run;
+$('ty').onchange=()=>{$('pi').value='';$('ba').value='';$('ag').checked=false;for(const k in C)delete C[k];for(const k in POS)delete POS[k];openR=null;selK=null;fillP();fillB();$('agL').classList.toggle('hid',!(+$('ty').value==3||+$('ty').value==4));if($('agL').classList.contains('hid'))$('ag').checked=false;run()};$('pi').onchange=run;$('ba').onchange=run;$('ag').onchange=run;$('co').oninput=()=>{clearTimeout(window.__coT);window.__coT=setTimeout(run,350)};$('ot').onchange=run;
 $('bTry').onclick=attempt;
 $('bNext').onclick=()=>{G.log.push(`T${G.temp} D${G.diada}: la colla plega la diada.`);nextDiada();save();run()};
 $('bReset').onclick=e=>{const b=e.currentTarget;if(b.dataset.c){G=G0();save();b.dataset.c='';b.textContent='Començar de nou';fillP();fillB();run()}else{b.dataset.c='1';b.textContent='Segur? Torna a tocar'}};
