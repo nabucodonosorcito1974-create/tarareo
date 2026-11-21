@@ -70,19 +70,21 @@ button.ic.on{background:linear-gradient(#9ff59a,#3fae38)}
 body.drive #wheelBox{display:none}
 body.drive #ctr{display:inline-block}
 body.drive #app{max-width:none;border-radius:0}
-@media (orientation:landscape){
- body.drive #app{flex-direction:row;padding:6px;gap:8px}
- body.drive #dash{order:-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:176px;height:100%;padding:8px 8px;overflow-y:auto}
- body.drive #dash .col{display:contents}
- body.drive .rSp{order:1;max-width:118px}body.drive .rOdo{order:2}body.drive .rGa{order:3}body.drive .rKey{order:4}body.drive .rGear{order:5}body.drive .rBtn{order:6;flex-wrap:wrap;justify-content:center}
- body.drive #dash:before,body.drive #dash:after{display:none}
- body.drive #rot{display:none!important}
-}
+/* ===== HORIZONTAL (móvil apaisado): panel a la izquierda, tablero grande, volante a la derecha ===== */
+body.land #app{flex-direction:row;padding:6px;gap:8px;max-width:none;border-radius:0}
+body.land #boardWrap{flex:1 1 auto;height:100%}
+body.land #dash{order:-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:176px;flex:0 0 176px;height:100%;padding:8px;overflow-y:auto}
+body.land #dash .col{display:contents}
+body.land .rSp{order:1;max-width:118px}body.land .rOdo{order:2}body.land .rGa{order:3}body.land .rKey{order:4}body.land .rGear{order:5}body.land .rBtn{order:6;flex-wrap:wrap;justify-content:center}
+body.land #dash:before,body.land #dash:after{display:none}
+body.land #wheelBox{order:2;width:min(46vh,190px);flex:0 0 auto;align-self:center}
+body.land.drive #wheelBox{display:none}
 @media (orientation:portrait){body.drive #dash{grid-template-columns:1fr 1fr}}
 #rot{display:none;position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.8);color:#fff;font:800 16px system-ui;flex-direction:column;align-items:center;justify-content:center;gap:8px}
 #rot div{font-size:54px;animation:spin 1.6s ease-in-out infinite}
 @keyframes spin{0%,30%{transform:rotate(0)}70%,100%{transform:rotate(90deg)}}
 body.drive.port #rot{display:flex}
+body.land #rot{display:none!important}
 #brake.on div{transform:translateY(3px);box-shadow:none;color:#ff4d4d}
 </style>
 </head>
@@ -168,15 +170,17 @@ const endDrag=()=>{dragging=false};wb.addEventListener('pointerup',endDrag);wb.a
    Usa deviceorientation; si no llega, usa devicemotion (gravedad) como alternativa. */
 let gyroOn=false,gyroLive=false,gyroWheel=0,gyroZero=null,gyroTimer=0,gyroSrc='';
 function scrAng(){return (screen.orientation&&screen.orientation.angle)||window.orientation||0}
-function applyTilt(t){if(gyroZero===null)gyroZero=t;let d=t-gyroZero;if(Math.abs(d)<2)d=0;else d-=Math.sign(d)*2;gyroWheel=Math.max(-150,Math.min(150,d*6.5))}
+function applyTilt(t){if(gyroZero===null)gyroZero=t;let d=t-gyroZero;if(Math.abs(d)<2)d=0;else d-=Math.sign(d)*2;gyroWheel=Math.max(-150,Math.min(150,d*3.3))}
 /* vector "arriba" en coordenadas del móvil -> inclinación lateral respecto a la pantalla (vale en vertical y en horizontal) */
 function tiltFromUp(ux,uy){const a=scrAng();const sx=a==90?-uy:(a==-90||a==270)?uy:a==180?-ux:ux;return Math.asin(Math.max(-1,Math.min(1,-sx)))*180/Math.PI}
 function onOri(e){if(!gyroOn||e.gamma==null||e.beta==null)return;if(gyroSrc==='mot')gyroZero=null;gyroSrc='ori';gyroLive=true;
   const b=e.beta*Math.PI/180,g=e.gamma*Math.PI/180;applyTilt(tiltFromUp(-Math.sin(g)*Math.cos(b),Math.sin(b)))}
 function onMot(e){if(!gyroOn||gyroSrc==='ori')return;const g=e.accelerationIncludingGravity;if(!g||g.x==null)return;gyroSrc='mot';gyroLive=true;
   const n=Math.hypot(g.x,g.y,g.z)||9.81;applyTilt(tiltFromUp(g.x/n,g.y/n))}
-function checkPort(){document.body.classList.toggle('port',innerHeight>innerWidth)}
-addEventListener('resize',()=>{checkPort();gyroZero=null});
+function checkPort(){const land=innerWidth>innerHeight&&innerHeight<640;document.body.classList.toggle('port',innerHeight>innerWidth);document.body.classList.toggle('land',land);
+  const wbx=document.getElementById('wheelBox'),app=document.getElementById('app'),dash=document.getElementById('dash');
+  if(land&&wbx.parentNode!==app)app.appendChild(wbx);else if(!land&&wbx.parentNode!==dash)dash.insertBefore(wbx,dash.children[1])}
+addEventListener('resize',()=>{checkPort();gyroZero=null});checkPort();
 async function enterDrive(){document.body.classList.add('drive');checkPort();
   try{const el=document.documentElement;if(!document.fullscreenElement){if(el.requestFullscreen)await el.requestFullscreen({navigationUI:'hide'});else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen()}}catch(e){}
   try{if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape')}catch(e){}
@@ -251,7 +255,7 @@ function step(dt){
   // teclado
   if(keys.ArrowLeft)st.wheel=Math.max(-150,st.wheel-260*dt);
   if(keys.ArrowRight)st.wheel=Math.min(150,st.wheel+260*dt);
-  if(gyroOn&&gyroLive&&!dragging&&!keys.ArrowLeft&&!keys.ArrowRight){st.wheel+=(gyroWheel-st.wheel)*Math.min(1,dt*12)}
+  if(gyroOn&&gyroLive&&!dragging&&!keys.ArrowLeft&&!keys.ArrowRight){st.wheel+=(gyroWheel-st.wheel)*Math.min(1,dt*7)}
   else if(!dragging&&!keys.ArrowLeft&&!keys.ArrowRight){st.wheel*=Math.pow(0.02,dt);if(Math.abs(st.wheel)<0.5)st.wheel=0}
   wheel.style.transform=`rotate(${st.wheel}deg)`;
   let target=(st.key==0||st.over)?0:GEAR_SPEED[st.gear]*(st.key==1?BAT:1);
